@@ -247,8 +247,8 @@ class TestIntensityAdjustment:
 
     def test_different_day_sends_again(self) -> None:
         scheduler = Scheduler()
-        state = {DataKey.LAST_INTENSITY_PROMPT_DATE.value: "2025-01-01"}
-        # This will compare with today's date which is different from 2025-01-01
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        state = {DataKey.LAST_INTENSITY_PROMPT_DATE.value: yesterday}
         sent = scheduler.check_and_send_intensity_adjustment(state, "user1")
         assert sent is True
 
