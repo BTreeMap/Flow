@@ -9,6 +9,7 @@ build/
 .venv/
 venv/
 api/.venv/
+.pytest_cache/
 
 # Node
 node_modules/
@@ -35,3 +36,4 @@ Thumbs.db
 web/dist/
 web/playwright-report/
 web/test-results/
+*.tsbuildinfo

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -13,6 +14,12 @@ _DATABASE_URL = os.environ.get(
     "H4CKATH0N_DATABASE_URL",
     "sqlite+aiosqlite:///./data/flow-app.db",
 )
+
+# Ensure the data directory exists for SQLite
+if "sqlite" in _DATABASE_URL:
+    _db_path = _DATABASE_URL.split("///")[-1] if "///" in _DATABASE_URL else ""
+    if _db_path:
+        Path(_db_path).parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_async_engine(_DATABASE_URL, echo=False)
 
