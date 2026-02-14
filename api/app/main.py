@@ -10,7 +10,9 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from app.db import init_db
 from app.middleware import add_csp_middleware
+from app.routes import router
 from h4ckath0n import create_app
 from h4ckath0n.realtime import (
     AuthError,
@@ -21,6 +23,13 @@ from h4ckath0n.realtime import (
 
 app = create_app()
 add_csp_middleware(app)
+app.include_router(router)
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    """Create database tables on application startup."""
+    await init_db()
 
 
 @app.get("/healthz")
