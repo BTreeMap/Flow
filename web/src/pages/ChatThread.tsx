@@ -119,7 +119,7 @@ export function ChatThread() {
 
     // Optimistic local message
     const tempId = `temp-${Date.now()}`;
-    const userMsg: Message = { id: tempId, role: "user", content: text };
+    const userMsg: Message = { id: tempId, role: "user", content: text, created_at: new Date().toISOString() };
     setMessages((prev) => [...prev, userMsg]);
 
     try {
