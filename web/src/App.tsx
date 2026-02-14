@@ -8,6 +8,9 @@ import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
 import { Admin } from "./pages/Admin";
 import { DemoRealtime } from "./pages/DemoRealtime";
+import { Activation } from "./pages/Activation";
+import { ChatThread } from "./pages/ChatThread";
+import { Notifications } from "./pages/Notifications";
 
 export function App() {
   return (
@@ -21,6 +24,30 @@ export function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/p/:projectId/activate"
+          element={
+            <ProtectedRoute>
+              <Activation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/p/:projectId/chat"
+          element={
+            <ProtectedRoute>
+              <ChatThread />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/p/:projectId/notifications"
+          element={
+            <ProtectedRoute>
+              <Notifications />
             </ProtectedRoute>
           }
         />
