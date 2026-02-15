@@ -24,6 +24,7 @@
     "github-actions",
     "pep621",
     "npm",
+    "pyenv",
     "dockerfile",
     "docker-compose",
     "regex"
@@ -61,6 +62,26 @@
         "patch"
       ],
       "automerge": true
+    },
+    {
+      "groupName": "Python runtime (pyenv)",
+      "matchManagers": [
+        "pyenv"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
+      "matchManagers": [
+        "pyenv"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "automerge": false
     },
     {
       "groupName": "Docker base images",
