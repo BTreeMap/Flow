@@ -3,8 +3,8 @@ set -euo pipefail
 # package_frontend.sh - Build and archive the frontend static assets.
 #
 # Produces:
-#   frontend-dist.zip
-#   frontend-dist.tar.xz
+#   frontend.zip
+#   frontend.tar.xz
 #
 # Usage: ./scripts/ci/package_frontend.sh [web_dir]
 
@@ -38,9 +38,9 @@ fi
 
 # Create archives
 cd dist
-zip -r ../../frontend-dist.zip .
-tar -cJf ../../frontend-dist.tar.xz .
+zip -r ../../frontend.zip .
+tar -cJf ../../frontend.tar.xz .
 cd ..
 
-echo "Created frontend-dist.zip and frontend-dist.tar.xz"
-ls -lh ../frontend-dist.zip ../frontend-dist.tar.xz
+echo "Created frontend.zip and frontend.tar.xz"
+ls -lh ../frontend.zip ../frontend.tar.xz
