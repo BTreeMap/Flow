@@ -45,15 +45,22 @@ class TestPermissionMatrix:
     def test_intake_allowed_fields(self) -> None:
         """Intake can only set onboarding fields."""
         assert INTAKE_ALLOWED_FIELDS == {
-            "prompt_anchor", "preferred_time", "habit_domain",
+            "prompt_anchor",
+            "preferred_time",
+            "habit_domain",
             "motivational_frame",
         }
 
     def test_feedback_allowed_fields(self) -> None:
         """Feedback can set rolling coaching fields."""
         assert FEEDBACK_ALLOWED_FIELDS == {
-            "last_barrier", "last_tweak", "last_successful_prompt",
-            "last_motivator", "intensity", "tone_tags", "tone_scores",
+            "last_barrier",
+            "last_tweak",
+            "last_successful_prompt",
+            "last_motivator",
+            "intensity",
+            "tone_tags",
+            "tone_scores",
         }
 
     def test_coach_has_no_direct_fields(self) -> None:
@@ -304,11 +311,14 @@ class TestProfileSchemaAndMerge:
 
     def test_apply_profile_patch_multiple_fields(self) -> None:
         p = UserProfileData()
-        updated = apply_profile_patch(p, {
-            "prompt_anchor": "after coffee",
-            "preferred_time": "8am",
-            "habit_domain": "exercise",
-        })
+        updated = apply_profile_patch(
+            p,
+            {
+                "prompt_anchor": "after coffee",
+                "preferred_time": "8am",
+                "habit_domain": "exercise",
+            },
+        )
         assert updated.prompt_anchor == "after coffee"
         assert updated.preferred_time == "8am"
         assert updated.habit_domain == "exercise"
@@ -431,12 +441,14 @@ class TestProposalTools:
         collector = ProposalCollector()
         tools = make_proposal_tools(collector, "INTAKE")
         profile_tool = next(t for t in tools if t.name == "propose_profile_patch")
-        profile_tool.invoke({
-            "patch": {"prompt_anchor": "test"},
-            "confidence": 0.9,
-            "message_ids": [1],
-            "source_bot": "INTAKE",
-        })
+        profile_tool.invoke(
+            {
+                "patch": {"prompt_anchor": "test"},
+                "confidence": 0.9,
+                "message_ids": [1],
+                "source_bot": "INTAKE",
+            }
+        )
         assert len(collector.profile_proposals) == 1
         assert collector.profile_proposals[0]["patch"]["prompt_anchor"] == "test"
 

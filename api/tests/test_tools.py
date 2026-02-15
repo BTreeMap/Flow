@@ -119,33 +119,25 @@ class TestPromptGenerator:
         assert "PreferredTime" in result
 
     def test_success_with_required_fields(self) -> None:
-        state = _state_with_profile(
-            prompt_anchor="after coffee", preferred_time="8am"
-        )
+        state = _state_with_profile(prompt_anchor="after coffee", preferred_time="8am")
         result = execute_prompt_generator(state, {})
         assert "error" not in result
         assert "after coffee" in result
         assert "8am" in result
 
     def test_increments_total_prompts(self) -> None:
-        state = _state_with_profile(
-            prompt_anchor="after coffee", preferred_time="8am"
-        )
+        state = _state_with_profile(prompt_anchor="after coffee", preferred_time="8am")
         execute_prompt_generator(state, {})
         profile = get_or_create_user_profile(state)
         assert profile.total_prompts == 1
 
     def test_stores_last_habit_prompt(self) -> None:
-        state = _state_with_profile(
-            prompt_anchor="after coffee", preferred_time="8am"
-        )
+        state = _state_with_profile(prompt_anchor="after coffee", preferred_time="8am")
         execute_prompt_generator(state, {})
         assert state.get(DataKey.LAST_HABIT_PROMPT.value, "") != ""
 
     def test_warnings_for_missing_optional_fields(self) -> None:
-        state = _state_with_profile(
-            prompt_anchor="anchor", preferred_time="9am"
-        )
+        state = _state_with_profile(prompt_anchor="anchor", preferred_time="9am")
         result = execute_prompt_generator(state, {})
         assert "warnings" in result
         assert "HabitDomain" in result
@@ -159,9 +151,7 @@ class TestPromptGenerator:
 class TestStateTransition:
     def test_immediate_transition(self) -> None:
         state = _empty_state()
-        result = execute_state_transition(
-            state, {"target_state": "FEEDBACK"}
-        )
+        result = execute_state_transition(state, {"target_state": "FEEDBACK"})
         assert "success" in result
         assert state[DataKey.CONVERSATION_STATE.value] == "FEEDBACK"
 
@@ -183,9 +173,7 @@ class TestStateTransition:
 
     def test_invalid_target_state(self) -> None:
         state = _empty_state()
-        result = execute_state_transition(
-            state, {"target_state": "INVALID"}
-        )
+        result = execute_state_transition(state, {"target_state": "INVALID"})
         assert "error" in result
 
     def test_reason_included_in_result(self) -> None:
@@ -234,13 +222,9 @@ class TestScheduler:
             {"action": "create", "type": "fixed", "fixed_time": "08:00"},
         )
         # Get the schedule ID from listing
-        schedules_raw = json.loads(
-            state.get(DataKey.SCHEDULE_REGISTRY.value, "[]")
-        )
+        schedules_raw = json.loads(state.get(DataKey.SCHEDULE_REGISTRY.value, "[]"))
         sid = schedules_raw[0]["id"]
-        result = execute_scheduler(
-            state, {"action": "delete", "schedule_id": sid}
-        )
+        result = execute_scheduler(state, {"action": "delete", "schedule_id": sid})
         assert "success" in result
         assert "deleted" in result
         # Verify empty after deletion

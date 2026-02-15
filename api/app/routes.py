@@ -73,9 +73,7 @@ async def _get_membership(
     return membership
 
 
-async def _get_conversation(
-    db: AsyncSession, membership_id: int
-) -> Conversation:
+async def _get_conversation(db: AsyncSession, membership_id: int) -> Conversation:
     """Return conversation for a membership or raise 404."""
     result = await db.execute(
         select(Conversation).where(Conversation.membership_id == membership_id)
@@ -212,9 +210,7 @@ async def claim_invite(
 ) -> ClaimResponse:
     """Validate invite code, create membership and conversation."""
     # Verify project exists
-    proj_result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
+    proj_result = await db.execute(select(Project).where(Project.id == project_id))
     project = proj_result.scalar_one_or_none()
     if project is None:
         raise HTTPException(

@@ -95,9 +95,7 @@ class TestRateLimiting:
             tone_scores={"concise": 0.5},
             tone_last_updated_at=now - timedelta(minutes=2),
         )
-        result = update_profile_tone(
-            tone, ["concise"], source="implicit", now=now
-        )
+        result = update_profile_tone(tone, ["concise"], source="implicit", now=now)
         # Should be rejected — returned unchanged
         assert result is tone
 
@@ -107,9 +105,7 @@ class TestRateLimiting:
             tone_scores={"concise": 0.5},
             tone_last_updated_at=now - timedelta(minutes=4),
         )
-        result = update_profile_tone(
-            tone, ["concise"], source="implicit", now=now
-        )
+        result = update_profile_tone(tone, ["concise"], source="implicit", now=now)
         assert result is not tone
         assert result.tone_version == tone.tone_version + 1
 
@@ -119,9 +115,7 @@ class TestRateLimiting:
             tone_scores={"concise": 0.5},
             tone_last_updated_at=now - timedelta(minutes=1),
         )
-        result = update_profile_tone(
-            tone, ["concise"], source="explicit", now=now
-        )
+        result = update_profile_tone(tone, ["concise"], source="explicit", now=now)
         assert result is not tone
         assert result.tone_scores["concise"] == 1.0
 
@@ -134,9 +128,7 @@ class TestRateLimiting:
 class TestMutualExclusion:
     def test_concise_vs_detailed(self) -> None:
         tone = ProfileTone()
-        result = update_profile_tone(
-            tone, ["concise", "detailed"], source="explicit"
-        )
+        result = update_profile_tone(tone, ["concise", "detailed"], source="explicit")
         # Both set to 1.0, but mutual exclusion kicks in.
         # concise == detailed == 1.0, so the first in pair wins (concise >= detailed)
         assert result.tone_scores["concise"] == 1.0
@@ -144,9 +136,7 @@ class TestMutualExclusion:
 
     def test_formal_vs_casual(self) -> None:
         tone = ProfileTone()
-        result = update_profile_tone(
-            tone, ["formal", "casual"], source="explicit"
-        )
+        result = update_profile_tone(tone, ["formal", "casual"], source="explicit")
         assert result.tone_scores["formal"] == 1.0
         assert result.tone_scores["casual"] < ACTIVATION_THRESHOLD
 
@@ -170,7 +160,10 @@ class TestHysteresis:
         result = update_profile_tone(tone, [], source="explicit")
         # Decay: (1-0.15)*0.7 = 0.595 — between thresholds, was active → stays active
         # But concise was not in tone_tags, so it's not "currently active"
-        assert "concise" not in result.tone_tags or result.tone_scores["concise"] >= ACTIVATION_THRESHOLD
+        assert (
+            "concise" not in result.tone_tags
+            or result.tone_scores["concise"] >= ACTIVATION_THRESHOLD
+        )
 
     def test_deactivation_below_threshold(self) -> None:
         tone = ProfileTone(

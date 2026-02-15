@@ -43,8 +43,10 @@ def _override_require_user(
 ) -> Any:
     """Return a dependency override that always provides a fake user."""
     fake = _make_fake_user(user_id)
+
     async def _dep() -> Any:
         return fake
+
     return _dep
 
 

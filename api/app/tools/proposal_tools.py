@@ -15,19 +15,27 @@ from pydantic import BaseModel, Field
 
 class ProposeProfilePatchArgs(BaseModel):
     """Arguments for the propose_profile_patch tool."""
+
     patch: dict = Field(..., description="Partial profile patch (key-value pairs)")
     confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
     message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
-    quotes: list[str] = Field(default_factory=list, description="Short verbatim snippets")
+    quotes: list[str] = Field(
+        default_factory=list, description="Short verbatim snippets"
+    )
     source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
 
 
 class ProposeMemoryPatchArgs(BaseModel):
     """Arguments for the propose_memory_patch tool."""
-    items: list[dict] = Field(..., description="List of memory items with 'content' key")
+
+    items: list[dict] = Field(
+        ..., description="List of memory items with 'content' key"
+    )
     confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
     message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
-    quotes: list[str] = Field(default_factory=list, description="Short verbatim snippets")
+    quotes: list[str] = Field(
+        default_factory=list, description="Short verbatim snippets"
+    )
     source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
 
 

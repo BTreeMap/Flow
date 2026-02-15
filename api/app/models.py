@@ -36,7 +36,9 @@ class Project(Base):
     )
 
     invites: Mapped[list[ProjectInvite]] = relationship(back_populates="project")
-    memberships: Mapped[list[ProjectMembership]] = relationship(back_populates="project")
+    memberships: Mapped[list[ProjectMembership]] = relationship(
+        back_populates="project"
+    )
     outbox_events: Mapped[list[OutboxEvent]] = relationship(back_populates="project")
 
 
@@ -51,7 +53,9 @@ class ProjectInvite(Base):
         String(32), ForeignKey("projects.id"), nullable=False
     )
     invite_code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     consumed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -85,8 +89,12 @@ class ProjectMembership(Base):
     )
 
     project: Mapped[Project] = relationship(back_populates="memberships")
-    contacts: Mapped[list[ParticipantContact]] = relationship(back_populates="membership")
-    conversations: Mapped[list[Conversation]] = relationship(back_populates="membership")
+    contacts: Mapped[list[ParticipantContact]] = relationship(
+        back_populates="membership"
+    )
+    conversations: Mapped[list[Conversation]] = relationship(
+        back_populates="membership"
+    )
     push_subscriptions: Mapped[list[PushSubscription]] = relationship(
         back_populates="membership"
     )
@@ -222,6 +230,7 @@ class OutboxEvent(Base):
 
 class UserProfileStore(Base):
     """Structured user profile (Store A). Pydantic-validated JSON, single-writer (Router)."""
+
     __tablename__ = "user_profiles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -230,13 +239,17 @@ class UserProfileStore(Base):
     )
     profile_json: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
     membership: Mapped[ProjectMembership] = relationship()
 
 
 class MemoryItem(Base):
     """Semi-structured memory store (Store B). Conservative writes only."""
+
     __tablename__ = "memory_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -254,6 +267,7 @@ class MemoryItem(Base):
 
 class PatchAuditLog(Base):
     """Audit trail for all patch proposals and commit decisions."""
+
     __tablename__ = "patch_audit_log"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -266,7 +280,9 @@ class PatchAuditLog(Base):
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
     decision: Mapped[str] = mapped_column(String(30), nullable=False)
-    committed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    committed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

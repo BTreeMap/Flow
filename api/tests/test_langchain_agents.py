@@ -141,8 +141,7 @@ class TestHistoryManagement:
         state = _empty_state()
         history = ConversationHistory(
             messages=[
-                ConversationMessage(role="user", content=f"msg-{i}")
-                for i in range(55)
+                ConversationMessage(role="user", content=f"msg-{i}") for i in range(55)
             ]
         )
         _save_history(state, history)
@@ -153,8 +152,7 @@ class TestHistoryManagement:
         state = _empty_state()
         history = ConversationHistory(
             messages=[
-                ConversationMessage(role="user", content=f"msg-{i}")
-                for i in range(55)
+                ConversationMessage(role="user", content=f"msg-{i}") for i in range(55)
             ]
         )
         _save_history(state, history)

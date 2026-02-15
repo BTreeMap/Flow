@@ -32,10 +32,12 @@ ROUTER_USER_TEMPLATE = (
     "Return the route."
 )
 
-_router_prompt = ChatPromptTemplate.from_messages([
-    ("system", ROUTER_SYSTEM_PROMPT),
-    ("human", ROUTER_USER_TEMPLATE),
-])
+_router_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", ROUTER_SYSTEM_PROMPT),
+        ("human", ROUTER_USER_TEMPLATE),
+    ]
+)
 
 
 def route_turn(
@@ -74,15 +76,17 @@ def _route_via_llm(
 ) -> RouteDecision:
     """Use the LLM with structured output to produce a ``RouteDecision``."""
     structured = llm.with_structured_output(RouteDecision)
-    result: Any = (
-        _router_prompt | structured
-    ).invoke({
-        "sub_state": sub_state,
-        "profile_summary": profile_summary,
-        "user_text": user_text,
-    })
+    result: Any = (_router_prompt | structured).invoke(
+        {
+            "sub_state": sub_state,
+            "profile_summary": profile_summary,
+            "user_text": user_text,
+        }
+    )
     if not isinstance(result, RouteDecision):
-        logger.warning("Router LLM returned unexpected type %s; falling back", type(result))
+        logger.warning(
+            "Router LLM returned unexpected type %s; falling back", type(result)
+        )
         return _route_deterministic(sub_state)
     logger.info("Router decision: %s (reason: %s)", result.route, result.reason)
     return result

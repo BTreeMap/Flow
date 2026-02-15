@@ -112,7 +112,9 @@ class ConversationFlow:
         # Append assistant response
         history.messages.append(
             ConversationMessage(
-                role="assistant", content=assistant_text, timestamp=datetime.now(timezone.utc)
+                role="assistant",
+                content=assistant_text,
+                timestamp=datetime.now(timezone.utc),
             )
         )
 

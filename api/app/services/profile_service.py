@@ -76,12 +76,14 @@ async def load_memory_items(
         except (json.JSONDecodeError, TypeError):
             source_ids = []
         tags = row.tags.split(",") if row.tags else []
-        items.append(MemoryItemData(
-            content=row.content,
-            source_message_ids=source_ids,
-            tags=tags,
-            created_at=row.created_at,
-        ))
+        items.append(
+            MemoryItemData(
+                content=row.content,
+                source_message_ids=source_ids,
+                tags=tags,
+                created_at=row.created_at,
+            )
+        )
     return list(reversed(items))
 
 
@@ -150,7 +152,10 @@ def validate_profile_patch(
     allowed = get_allowed_fields(proposal.source_bot)
     for field in proposal.patch:
         if field not in allowed:
-            return False, f"Bot {proposal.source_bot} not allowed to set field '{field}'"
+            return (
+                False,
+                f"Bot {proposal.source_bot} not allowed to set field '{field}'",
+            )
 
     # 3. Evidence span validation
     if not proposal.evidence.message_ids:
@@ -186,7 +191,10 @@ def validate_memory_patch(
     # 4. Conservative memory write rules
     for item in proposal.items:
         if len(item.content) > MAX_MEMORY_ITEM_LENGTH:
-            return False, f"Memory items must be short (max {MAX_MEMORY_ITEM_LENGTH} chars)"
+            return (
+                False,
+                f"Memory items must be short (max {MAX_MEMORY_ITEM_LENGTH} chars)",
+            )
 
     return True, "ok"
 

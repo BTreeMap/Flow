@@ -214,8 +214,6 @@ def build_tone_guide(profile_tone: ProfileTone) -> str:
     if interaction_rules:
         lines.append("Interaction: " + " ".join(interaction_rules))
 
-    lines.append(
-        "NEVER mirror hostility, sarcasm, insults, or unsafe language."
-    )
+    lines.append("NEVER mirror hostility, sarcasm, insults, or unsafe language.")
     lines.append("</TONE POLICY>")
     return "\n".join(lines)

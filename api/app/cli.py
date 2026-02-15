@@ -43,7 +43,15 @@ def _cmd_dev() -> None:
     try:
         # Start API server
         api_proc = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "app.main:app", "--reload", "--port", "8000"],
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "app.main:app",
+                "--reload",
+                "--port",
+                "8000",
+            ],
             cwd=api_dir,
         )
         processes.append(api_proc)
@@ -74,11 +82,15 @@ def _find_project_root() -> str:
     """Find the project root by looking for api/ and web/ directories."""
     # Start from the current working directory
     cwd = os.getcwd()
-    if os.path.isdir(os.path.join(cwd, "api")) and os.path.isdir(os.path.join(cwd, "web")):
+    if os.path.isdir(os.path.join(cwd, "api")) and os.path.isdir(
+        os.path.join(cwd, "web")
+    ):
         return cwd
     # Try parent of api/
     parent = os.path.dirname(cwd)
-    if os.path.isdir(os.path.join(parent, "api")) and os.path.isdir(os.path.join(parent, "web")):
+    if os.path.isdir(os.path.join(parent, "api")) and os.path.isdir(
+        os.path.join(parent, "web")
+    ):
         return parent
     # Default to cwd
     return cwd

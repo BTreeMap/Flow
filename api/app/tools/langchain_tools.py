@@ -75,7 +75,9 @@ def _make_profile_save_tool(state_data: StateData) -> Any:
             status = execute_profile_save(state_data, args)
             return ProfileSaveResult(ok=True, status=status).model_dump()
         except Exception as e:
-            return ProfileSaveResult(ok=False, status="error", error=str(e)).model_dump()
+            return ProfileSaveResult(
+                ok=False, status="error", error=str(e)
+            ).model_dump()
 
     return save_user_profile
 

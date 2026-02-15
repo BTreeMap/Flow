@@ -93,7 +93,12 @@ async def demo_websocket(websocket: WebSocket) -> None:
     # Send welcome
     now = datetime.now(UTC).isoformat()
     await websocket.send_json(
-        {"type": "welcome", "user_id": ctx.user_id, "device_id": ctx.device_id, "server_time": now}
+        {
+            "type": "welcome",
+            "user_id": ctx.user_id,
+            "device_id": ctx.device_id,
+            "server_time": now,
+        }
     )
 
     # Heartbeat task
@@ -104,7 +109,11 @@ async def demo_websocket(websocket: WebSocket) -> None:
                 await asyncio.sleep(2)
                 n += 1
                 await websocket.send_json(
-                    {"type": "heartbeat", "n": n, "server_time": datetime.now(UTC).isoformat()}
+                    {
+                        "type": "heartbeat",
+                        "n": n,
+                        "server_time": datetime.now(UTC).isoformat(),
+                    }
                 )
         except (WebSocketDisconnect, RuntimeError):
             pass

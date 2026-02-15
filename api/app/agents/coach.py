@@ -25,10 +25,7 @@ COACH_SYSTEM_PROMPT = (
     "The Router will decide whether to commit your proposals."
 )
 
-COACH_FALLBACK = (
-    "I'm here to support your habit journey. "
-    "How can I help you today?"
-)
+COACH_FALLBACK = "I'm here to support your habit journey. How can I help you today?"
 
 _RECURSION_LIMIT = 22
 

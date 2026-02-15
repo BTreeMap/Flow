@@ -32,6 +32,7 @@ class TestRouteDecisionSchema:
 
     def test_invalid_route_rejected(self) -> None:
         import pytest
+
         with pytest.raises(Exception):
             RouteDecision(route="INVALID")  # type: ignore[arg-type]
 
