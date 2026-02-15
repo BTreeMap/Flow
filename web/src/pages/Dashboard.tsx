@@ -37,6 +37,7 @@ export function Dashboard() {
     queryKey: ["demo-ping"],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/demo/ping`);
+      if (!res.ok) throw new Error(`demo/ping failed (${res.status})`);
       return res.json();
     },
   });
@@ -49,6 +50,7 @@ export function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: "hello" }),
       });
+      if (!res.ok) throw new Error(`demo/echo failed (${res.status})`);
       return res.json();
     },
   });

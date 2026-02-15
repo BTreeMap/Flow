@@ -33,8 +33,10 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Combined lifespan: h4ckath0n tables + application tables."""
     async with _h4ckath0n_lifespan(app):
         await init_db()
-        yield
-    await app_engine.dispose()
+        try:
+            yield
+        finally:
+            await app_engine.dispose()
 
 
 _base_app.router.lifespan_context = _lifespan
