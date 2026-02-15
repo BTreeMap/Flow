@@ -17,6 +17,7 @@ dependencies = [
     "langchain-openai>=1.1.9",
     "langchain>=1.2.10",
     "langchain-core>=1.2.12",
+    "asyncpg>=0.31.0",
 ]
 
 [project.scripts]
