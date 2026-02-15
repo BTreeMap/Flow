@@ -20,7 +20,9 @@ def add_csp_middleware(app: FastAPI) -> None:
 class CSPMiddleware(BaseHTTPMiddleware):
     """Set Content-Security-Policy headers based on environment."""
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         response = await call_next(request)
         env = os.getenv(ENV_VAR, "development")
         if env == "production":

@@ -17,6 +17,7 @@ dependencies = [
     "langchain-openai>=1.1.9",
     "langchain>=1.2.10",
     "langchain-core>=1.2.12",
+    "asyncpg>=0.31.0",
 ]
 
 [project.scripts]
@@ -28,3 +29,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.1",
+]

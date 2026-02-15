@@ -20,7 +20,9 @@ class ProfileSaveArgs(BaseModel):
     habit_domain: str = Field(default="", description="Habit domain category")
     motivational_frame: str = Field(default="", description="Motivational framing")
     additional_info: str = Field(default="", description="Free-form additional info")
-    last_successful_prompt: str = Field(default="", description="Last prompt that worked")
+    last_successful_prompt: str = Field(
+        default="", description="Last prompt that worked"
+    )
     last_barrier: str = Field(default="", description="Last barrier encountered")
     last_motivator: str = Field(default="", description="Last motivator noted")
     last_tweak: str = Field(default="", description="Last adjustment made")
@@ -50,10 +52,14 @@ class SchedulerArgs(BaseModel):
     action: Literal["create", "list", "delete"] = Field(
         ..., description="Scheduler action"
     )
-    type: str | None = Field(default=None, description="Schedule type: 'fixed' or 'random'")
+    type: str | None = Field(
+        default=None, description="Schedule type: 'fixed' or 'random'"
+    )
     fixed_time: str | None = Field(default=None, description="Fixed time (HH:MM)")
     timezone: str | None = Field(default=None, description="IANA timezone")
-    random_start_time: str | None = Field(default=None, description="Random window start")
+    random_start_time: str | None = Field(
+        default=None, description="Random window start"
+    )
     random_end_time: str | None = Field(default=None, description="Random window end")
     schedule_id: str | None = Field(default=None, description="Schedule ID for delete")
 
@@ -102,7 +108,9 @@ class StateTransitionArgs(BaseModel):
     target_state: Literal["INTAKE", "FEEDBACK"] = Field(
         ..., description="Target conversation state"
     )
-    delay_minutes: float = Field(default=0, description="Delay in minutes (0 = immediate)")
+    delay_minutes: float = Field(
+        default=0, description="Delay in minutes (0 = immediate)"
+    )
     reason: str = Field(default="", description="Reason for transition")
 
 

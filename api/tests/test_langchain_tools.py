@@ -127,7 +127,9 @@ class TestSchedulerTool:
         state = _empty_state()
         tools = make_intake_tools(state)
         tool = _find_tool(tools, "scheduler")
-        result = tool.invoke({"action": "create", "type": "fixed", "fixed_time": "08:00"})
+        result = tool.invoke(
+            {"action": "create", "type": "fixed", "fixed_time": "08:00"}
+        )
         parsed = SchedulerResult.model_validate(result)
         assert parsed.ok is True
         assert "created" in parsed.message
@@ -166,9 +168,7 @@ class TestPromptGeneratorTool:
         assert parsed.error is not None
 
     def test_success_with_complete_profile(self) -> None:
-        state = _state_with_profile(
-            prompt_anchor="after coffee", preferred_time="8am"
-        )
+        state = _state_with_profile(prompt_anchor="after coffee", preferred_time="8am")
         tools = make_intake_tools(state)
         tool = _find_tool(tools, "generate_habit_prompt")
         result = tool.invoke({})
@@ -198,10 +198,12 @@ class TestStateTransitionTool:
         state = _empty_state()
         tools = make_intake_tools(state)
         tool = _find_tool(tools, "transition_state")
-        result = tool.invoke({
-            "target_state": "FEEDBACK",
-            "delay_minutes": 30,
-        })
+        result = tool.invoke(
+            {
+                "target_state": "FEEDBACK",
+                "delay_minutes": 30,
+            }
+        )
         parsed = StateTransitionResult.model_validate(result)
         assert parsed.ok is True
         assert parsed.scheduled_for is not None

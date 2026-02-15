@@ -15,12 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.id_utils import generate_project_id
 from app.models import (
     Base,
-    Conversation,
-    Message,
     Project,
     ProjectInvite,
-    ProjectMembership,
-    PushSubscription,
 )
 
 # ---------------------------------------------------------------------------
@@ -47,8 +43,10 @@ def _override_require_user(
 ) -> Any:
     """Return a dependency override that always provides a fake user."""
     fake = _make_fake_user(user_id)
+
     async def _dep() -> Any:
         return fake
+
     return _dep
 
 

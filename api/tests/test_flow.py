@@ -8,7 +8,6 @@ from app.engine.flow import (
     ConversationFlow,
 )
 from app.engine.modules import (
-    FEEDBACK_FALLBACK,
     INTAKE_FALLBACK,
     IntakeModule,
     LLMResponse,
@@ -82,8 +81,7 @@ class TestHistoryTrimming:
         # Build a history with 55 messages already
         history = ConversationHistory(
             messages=[
-                ConversationMessage(role="user", content=f"msg-{i}")
-                for i in range(55)
+                ConversationMessage(role="user", content=f"msg-{i}") for i in range(55)
             ]
         )
         state[DataKey.CONVERSATION_HISTORY.value] = history.model_dump_json()
@@ -101,8 +99,7 @@ class TestHistoryTrimming:
         flow = ConversationFlow()
         history = ConversationHistory(
             messages=[
-                ConversationMessage(role="user", content=f"msg-{i}")
-                for i in range(45)
+                ConversationMessage(role="user", content=f"msg-{i}") for i in range(45)
             ]
         )
         trimmed = flow._get_chat_history(history)
@@ -115,8 +112,7 @@ class TestHistoryTrimming:
 
         history = ConversationHistory(
             messages=[
-                ConversationMessage(role="user", content=f"msg-{i}")
-                for i in range(55)
+                ConversationMessage(role="user", content=f"msg-{i}") for i in range(55)
             ]
         )
         state[DataKey.CONVERSATION_HISTORY.value] = history.model_dump_json()
@@ -180,9 +176,7 @@ class TestToolLoop:
 
     def test_fallback_on_empty_response(self) -> None:
         """No content and no tool calls returns fallback (§8.1)."""
-        client = StubLLMClient(
-            responses=[LLMResponse(content="", tool_calls=[])]
-        )
+        client = StubLLMClient(responses=[LLMResponse(content="", tool_calls=[])])
         module = IntakeModule(llm_client=client)
         result = module.execute(_empty_state(), "hello", [])
         assert result == INTAKE_FALLBACK

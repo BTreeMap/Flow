@@ -254,7 +254,7 @@ def execute_prompt_generator(
     if not profile.motivational_frame:
         warnings.append("MotivationalFrame not set")
 
-    delivery_mode = arguments.get("delivery_mode", "immediate")
+    # delivery_mode = arguments.get("delivery_mode", "immediate")
     notes = arguments.get("personalization_notes", "")
 
     # Stub LLM call — produce a deterministic prompt

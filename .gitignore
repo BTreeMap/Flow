@@ -37,3 +37,10 @@ web/dist/
 web/playwright-report/
 web/test-results/
 *.tsbuildinfo
+
+# Release artifacts
+frontend-dist.zip
+frontend-dist.tar.xz
+release-metadata.json
+trivy-report.txt
+trivy-results.sarif

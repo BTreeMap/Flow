@@ -363,3 +363,40 @@ you must:
 - Never log secrets (invite codes, VAPID private key, push crypto keys).
 - Do not store unnecessary personal data.
 - Email is optional contact metadata only.
+
+---
+
+## Quality gate
+
+All checks below must pass before merging any PR.
+
+### Backend
+```bash
+cd api
+uv run ruff check .
+uv run ruff format --check .
+uv run pytest tests/ -v --tb=short
+```
+
+### Frontend
+```bash
+cd web
+npm ci
+npm run lint
+npm run typecheck
+npm run test
+```
+
+### End-to-end (E2E)
+```bash
+cd web
+npx playwright install --with-deps chromium
+npx playwright test
+```
+
+### Notes
+- Backend tests run against SQLite by default (`sqlite+aiosqlite:///`).
+- CI also runs backend tests against Postgres (`postgresql+asyncpg://`).
+- E2E tests run against both SQLite and Postgres in CI.
+- All database URLs must use async drivers: `aiosqlite` for SQLite, `asyncpg` for Postgres.
+- No `psycopg2` imports or sync Postgres drivers in application code.

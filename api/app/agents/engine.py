@@ -16,7 +16,6 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage
@@ -26,7 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Conversation, Message
 from app.schemas.patches import (
-    EvidenceSpan,
     MemoryItemData,
     MemoryPatchProposal,
     ProfilePatchProposal,
@@ -62,15 +60,19 @@ ROUTER_SYSTEM_PROMPT = (
     "Output ONLY a JSON object matching the schema. Do not talk to the user."
 )
 
-_router_prompt = ChatPromptTemplate.from_messages([
-    ("system", ROUTER_SYSTEM_PROMPT),
-    ("human",
-     "Profile summary: {profile_summary}\n"
-     "Memory summary: {memory_summary}\n"
-     "Conversation state: {conv_state}\n"
-     "User message: {user_text}\n"
-     "Return the route."),
-])
+_router_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", ROUTER_SYSTEM_PROMPT),
+        (
+            "human",
+            "Profile summary: {profile_summary}\n"
+            "Memory summary: {memory_summary}\n"
+            "Conversation state: {conv_state}\n"
+            "User message: {user_text}\n"
+            "Return the route.",
+        ),
+    ]
+)
 
 
 def route_turn_deterministic(
@@ -80,7 +82,9 @@ def route_turn_deterministic(
     """Deterministic routing based on profile completeness and state."""
     # If required onboarding fields missing → INTAKE
     if not profile.prompt_anchor or not profile.preferred_time:
-        return RouteDecision(route="INTAKE", reason="required onboarding fields missing")
+        return RouteDecision(
+            route="INTAKE", reason="required onboarding fields missing"
+        )
 
     # If in feedback protocol → FEEDBACK
     if conv_state == "FEEDBACK":
@@ -99,12 +103,14 @@ def route_turn_llm(
 ) -> RouteDecision:
     """Use LLM with structured output for routing."""
     structured = llm.with_structured_output(RouteDecision)
-    result = (_router_prompt | structured).invoke({
-        "profile_summary": profile_summary,
-        "memory_summary": memory_summary,
-        "conv_state": conv_state,
-        "user_text": user_text,
-    })
+    result = (_router_prompt | structured).invoke(
+        {
+            "profile_summary": profile_summary,
+            "memory_summary": memory_summary,
+            "conv_state": conv_state,
+            "user_text": user_text,
+        }
+    )
     if isinstance(result, RouteDecision):
         return result
     return RouteDecision(route="COACH", reason="LLM fallback")
@@ -129,10 +135,7 @@ def _run_specialist_stub(route: str, user_text: str) -> tuple[str, ProposalColle
             "Feel free to share any updates!"
         )
     else:
-        text = (
-            "I'm here to support your habit journey. "
-            "How can I help you today?"
-        )
+        text = "I'm here to support your habit journey. How can I help you today?"
     return text, collector
 
 
@@ -221,7 +224,11 @@ async def _process_proposals(
         if valid:
             for item in proposal.items:
                 await add_memory_item(db, membership_id, item)
-            logger.info("Committed %d memory items from %s", len(proposal.items), proposal.source_bot)
+            logger.info(
+                "Committed %d memory items from %s",
+                len(proposal.items),
+                proposal.source_bot,
+            )
 
     return profile
 
@@ -260,6 +267,7 @@ async def process_turn(
 
     # Read conversation state from runtime state if available
     from app.models import ConversationRuntimeState
+
     state_result = await db.execute(
         select(ConversationRuntimeState).where(
             ConversationRuntimeState.conversation_id == conversation.id
@@ -291,6 +299,7 @@ async def process_turn(
         # LLM-backed agent invocation
         collector = ProposalCollector()
         from app.tools.proposal_tools import make_proposal_tools
+
         proposal_tools = make_proposal_tools(collector, source_bot=decision.route)
 
         chat_history: list[HumanMessage | AIMessage] = []
@@ -301,8 +310,9 @@ async def process_turn(
                 chat_history.append(AIMessage(content=msg.content))
 
         if decision.route == "INTAKE":
-            from app.agents.intake import create_intake_agent, run_intake
+            from app.agents.intake import run_intake
             from app.tools.langchain_tools import make_intake_tools
+
             state_data: dict[str, str] = {}
             if runtime_state:
                 try:
@@ -311,15 +321,21 @@ async def process_turn(
                     state_data = {}
             all_tools = make_intake_tools(state_data) + proposal_tools
             from langchain.agents import create_agent
-            agent = create_agent(llm, tools=all_tools, system_prompt=(
-                "You are a habit-building intake assistant. "
-                "Help the user set up their profile. Use tools to save data "
-                "and propose_profile_patch for profile updates."
-            ))
+
+            agent = create_agent(
+                llm,
+                tools=all_tools,
+                system_prompt=(
+                    "You are a habit-building intake assistant. "
+                    "Help the user set up their profile. Use tools to save data "
+                    "and propose_profile_patch for profile updates."
+                ),
+            )
             assistant_text = run_intake(agent, user_text, chat_history)
         elif decision.route == "FEEDBACK":
-            from app.agents.feedback import create_feedback_agent, run_feedback
+            from app.agents.feedback import run_feedback
             from app.tools.langchain_tools import make_feedback_tools
+
             state_data = {}
             if runtime_state:
                 try:
@@ -328,14 +344,20 @@ async def process_turn(
                     state_data = {}
             all_tools = make_feedback_tools(state_data) + proposal_tools
             from langchain.agents import create_agent
-            agent = create_agent(llm, tools=all_tools, system_prompt=(
-                "You are a habit feedback tracker. "
-                "Help the user reflect on their progress. Use tools and "
-                "propose_profile_patch/propose_memory_patch for updates."
-            ))
+
+            agent = create_agent(
+                llm,
+                tools=all_tools,
+                system_prompt=(
+                    "You are a habit feedback tracker. "
+                    "Help the user reflect on their progress. Use tools and "
+                    "propose_profile_patch/propose_memory_patch for updates."
+                ),
+            )
             assistant_text = run_feedback(agent, user_text, chat_history)
         else:
             from app.agents.coach import create_coach_agent, run_coach
+
             agent = create_coach_agent(llm, collector)
             assistant_text = run_coach(agent, user_text, chat_history)
     else:

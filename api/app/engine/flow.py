@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from typing import Any
 
 from app.engine.modules import FeedbackModule, IntakeModule, LLMClient, StubLLMClient
 from app.engine.scheduler import Scheduler
@@ -13,8 +11,6 @@ from app.engine.state import (
     ConversationMessage,
     ConversationState,
     DataKey,
-    TOP_LEVEL_STATE,
-    UserProfile,
 )
 from app.engine.tools import (
     StateData,
@@ -116,7 +112,9 @@ class ConversationFlow:
         # Append assistant response
         history.messages.append(
             ConversationMessage(
-                role="assistant", content=assistant_text, timestamp=datetime.now(timezone.utc)
+                role="assistant",
+                content=assistant_text,
+                timestamp=datetime.now(timezone.utc),
             )
         )
 

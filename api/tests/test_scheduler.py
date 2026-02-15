@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from app.engine.scheduler import (
-    AUTO_FEEDBACK_ENFORCEMENT_DELAY,
     DEFAULT_DAILY_PROMPT_REMINDER_DELAY,
     DEFAULT_REMINDER_MESSAGE,
     Scheduler,
@@ -16,7 +15,6 @@ from app.engine.state import (
     DataKey,
     UserProfile,
 )
-from app.engine.tools import _get_state, get_or_create_user_profile
 
 
 # ---------------------------------------------------------------------------
@@ -44,9 +42,7 @@ class TestDailyPromptReminder:
         state = _empty_state()
         now = datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
 
-        timer_id = scheduler.schedule_daily_prompt_reminder(
-            state, "user1", sent_at=now
-        )
+        timer_id = scheduler.schedule_daily_prompt_reminder(state, "user1", sent_at=now)
         assert timer_id
         assert state.get(DataKey.DAILY_PROMPT_REMINDER_TIMER_ID.value) == timer_id
         assert state.get(DataKey.DAILY_PROMPT_PENDING.value, "") != ""
@@ -192,23 +188,18 @@ class TestAutoFeedbackEnforcement:
         scheduler = Scheduler()
         state = {DataKey.CONVERSATION_STATE.value: ConversationState.INTAKE.value}
         # Set last prompt sent > 4.5 minutes ago
-        old_time = (
-            datetime.now(timezone.utc) - timedelta(minutes=5)
-        ).isoformat()
+        old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
         state[DataKey.LAST_PROMPT_SENT_AT.value] = old_time
 
         transitioned = scheduler.enforce_feedback_if_no_response(state)
         assert transitioned is True
         assert (
-            state[DataKey.CONVERSATION_STATE.value]
-            == ConversationState.FEEDBACK.value
+            state[DataKey.CONVERSATION_STATE.value] == ConversationState.FEEDBACK.value
         )
 
     def test_already_in_feedback_skips(self) -> None:
         scheduler = Scheduler()
-        state = {
-            DataKey.CONVERSATION_STATE.value: ConversationState.FEEDBACK.value
-        }
+        state = {DataKey.CONVERSATION_STATE.value: ConversationState.FEEDBACK.value}
         transitioned = scheduler.enforce_feedback_if_no_response(state)
         assert transitioned is False
 
@@ -216,9 +207,7 @@ class TestAutoFeedbackEnforcement:
         """If a newer prompt was sent within ~4.5 minutes, skip (§5.3)."""
         scheduler = Scheduler()
         state = {DataKey.CONVERSATION_STATE.value: ConversationState.INTAKE.value}
-        recent = (
-            datetime.now(timezone.utc) - timedelta(minutes=2)
-        ).isoformat()
+        recent = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
         state[DataKey.LAST_PROMPT_SENT_AT.value] = recent
 
         transitioned = scheduler.enforce_feedback_if_no_response(state)
@@ -247,7 +236,9 @@ class TestIntensityAdjustment:
 
     def test_different_day_sends_again(self) -> None:
         scheduler = Scheduler()
-        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime(
+            "%Y-%m-%d"
+        )
         state = {DataKey.LAST_INTENSITY_PROMPT_DATE.value: yesterday}
         sent = scheduler.check_and_send_intensity_adjustment(state, "user1")
         assert sent is True
@@ -289,9 +280,7 @@ class TestExecuteScheduledPrompt:
 
     def test_success_with_complete_profile(self) -> None:
         scheduler = Scheduler()
-        state = _state_with_profile(
-            prompt_anchor="after coffee", preferred_time="8am"
-        )
+        state = _state_with_profile(prompt_anchor="after coffee", preferred_time="8am")
         result = scheduler.execute_scheduled_prompt(state, "user1")
         assert "error" not in result
         assert state.get(DataKey.LAST_PROMPT_SENT_AT.value, "") != ""

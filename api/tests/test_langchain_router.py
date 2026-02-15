@@ -9,8 +9,6 @@ Validates:
 
 from __future__ import annotations
 
-from typing import Any
-from unittest.mock import MagicMock
 
 from app.agents.router import RouteDecision, route_turn, _route_deterministic
 from app.schemas.router import RouteDecision as SchemaRouteDecision
@@ -34,6 +32,7 @@ class TestRouteDecisionSchema:
 
     def test_invalid_route_rejected(self) -> None:
         import pytest
+
         with pytest.raises(Exception):
             RouteDecision(route="INVALID")  # type: ignore[arg-type]
 

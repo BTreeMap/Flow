@@ -3,14 +3,16 @@
 import asyncio
 import contextlib
 import json
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from app.db import init_db
+from app.db import init_db, engine as app_engine
 from app.middleware import add_csp_middleware
 from app.routes import router
 from h4ckath0n import create_app
@@ -21,15 +23,26 @@ from h4ckath0n.realtime import (
     sse_response,
 )
 
-app = create_app()
+# Create the h4ckath0n app (handles its own DB tables via lifespan)
+_base_app = create_app()
+_h4ckath0n_lifespan = _base_app.router.lifespan_context
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Combined lifespan: h4ckath0n tables + application tables."""
+    async with _h4ckath0n_lifespan(app):
+        await init_db()
+        try:
+            yield
+        finally:
+            await app_engine.dispose()
+
+
+_base_app.router.lifespan_context = _lifespan
+app = _base_app
 add_csp_middleware(app)
 app.include_router(router)
-
-
-@app.on_event("startup")
-async def on_startup() -> None:
-    """Create database tables on application startup."""
-    await init_db()
 
 
 @app.get("/healthz")
@@ -93,7 +106,12 @@ async def demo_websocket(websocket: WebSocket) -> None:
     # Send welcome
     now = datetime.now(UTC).isoformat()
     await websocket.send_json(
-        {"type": "welcome", "user_id": ctx.user_id, "device_id": ctx.device_id, "server_time": now}
+        {
+            "type": "welcome",
+            "user_id": ctx.user_id,
+            "device_id": ctx.device_id,
+            "server_time": now,
+        }
     )
 
     # Heartbeat task
@@ -104,7 +122,11 @@ async def demo_websocket(websocket: WebSocket) -> None:
                 await asyncio.sleep(2)
                 n += 1
                 await websocket.send_json(
-                    {"type": "heartbeat", "n": n, "server_time": datetime.now(UTC).isoformat()}
+                    {
+                        "type": "heartbeat",
+                        "n": n,
+                        "server_time": datetime.now(UTC).isoformat(),
+                    }
                 )
         except (WebSocketDisconnect, RuntimeError):
             pass
@@ -162,7 +184,7 @@ async def demo_sse(request: Request):  # type: ignore[no-untyped-def]
     Auth: ``Authorization: Bearer <device_jwt>`` with ``aud = h4ckath0n:sse``.
     """
     try:
-        ctx = authenticate_sse_request(request)
+        ctx = await authenticate_sse_request(request)
     except AuthError as exc:
         return JSONResponse({"detail": exc.detail}, status_code=401)
 

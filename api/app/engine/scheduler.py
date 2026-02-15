@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -11,14 +10,12 @@ from app.engine.state import (
     ConversationState,
     DailyPromptPendingState,
     DataKey,
-    UserProfile,
 )
 from app.engine.tools import (
     StateData,
     _get_state,
     _set_state,
     execute_prompt_generator,
-    get_or_create_user_profile,
 )
 
 # §5.2 — Default reminder delay
@@ -155,9 +152,7 @@ class Scheduler:
         )
         return True
 
-    def _cancel_reminder(
-        self, state_data: StateData, participant_id: str
-    ) -> None:
+    def _cancel_reminder(self, state_data: StateData, participant_id: str) -> None:
         _set_state(state_data, DataKey.DAILY_PROMPT_REMINDER_TIMER_ID, "")
 
     # ------------------------------------------------------------------
@@ -290,9 +285,7 @@ class Scheduler:
         _set_state(state_data, DataKey.LAST_PROMPT_SENT_AT, now.isoformat())
 
         # Schedule reminder
-        self.schedule_daily_prompt_reminder(
-            state_data, participant_id, now, recipient
-        )
+        self.schedule_daily_prompt_reminder(state_data, participant_id, now, recipient)
 
         # Check intensity adjustment
         self.check_and_send_intensity_adjustment(state_data, participant_id)

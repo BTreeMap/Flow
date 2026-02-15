@@ -1,0 +1,522 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  # Gate: backend tests
+  backend-unit-integration:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        db:
+          - sqlite
+          - postgres
+    services:
+      postgres:
+        image: ${{ matrix.db == 'postgres' && 'postgres:18.2' || '' }}
+        env:
+          POSTGRES_USER: flow
+          POSTGRES_PASSWORD: flow
+          POSTGRES_DB: flow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U flow"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      H4CKATH0N_ENV: testing
+      H4CKATH0N_AUTH_SIGNING_KEY: ci-test-signing-key-not-a-real-secret
+      H4CKATH0N_RP_ID: localhost
+      H4CKATH0N_ORIGIN: http://localhost:5173
+      H4CKATH0N_DATABASE_URL: ${{ matrix.db == 'postgres'
+        && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
+        || 'sqlite+aiosqlite:///./data/test.db' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.2"
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('api/uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: api
+        run: uv sync --frozen
+
+      - name: Run tests
+        working-directory: api
+        run: |
+          mkdir -p data
+          uv run pytest tests/ -v --tb=short
+
+  # Gate: frontend tests
+  frontend-unit-integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Run tests
+        working-directory: web
+        run: npm run test
+
+  # Compute version
+  compute-version:
+    runs-on: ubuntu-24.04
+    needs: [backend-unit-integration, frontend-unit-integration]
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      date: ${{ steps.version.outputs.date }}
+      short_sha: ${{ steps.version.outputs.short_sha }}
+      image_base: ${{ steps.version.outputs.image_base }}
+      dev_tags: ${{ steps.version.outputs.dev_tags }}
+      release_tags: ${{ steps.version.outputs.release_tags }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          VERSION_JSON=$(python3 scripts/ci/compute_version.py --write)
+          echo "$VERSION_JSON"
+
+          VERSION=$(echo "$VERSION_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['version'])")
+          DATE=$(echo "$VERSION_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['date'])")
+          SHORT_SHA=$(echo "$VERSION_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['short_sha'])")
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+          # GHCR requires lowercase. Use repo image name without -backend suffix.
+          IMAGE_BASE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "image_base=$IMAGE_BASE" >> "$GITHUB_OUTPUT"
+
+          DEV_TAGS="${IMAGE_BASE}:dev,${IMAGE_BASE}:dev.${DATE},${IMAGE_BASE}:dev.${SHORT_SHA},${IMAGE_BASE}:dev.${DATE}.${SHORT_SHA}"
+          RELEASE_TAGS="${IMAGE_BASE}:latest,${IMAGE_BASE}:${DATE},${IMAGE_BASE}:${SHORT_SHA},${IMAGE_BASE}:${DATE}.${SHORT_SHA}"
+          echo "dev_tags=$DEV_TAGS" >> "$GITHUB_OUTPUT"
+          echo "release_tags=$RELEASE_TAGS" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-metadata
+          path: release-metadata.json
+
+  # Build + push amd64
+  build-push-amd64:
+    runs-on: ubuntu-24.04
+    needs: [compute-version]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (amd64)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE_BASE }}:tmp.${{ needs.compute-version.outputs.version }}.amd64
+          build-args: |
+            BUILD_DATE=${{ needs.compute-version.outputs.date }}
+            VCS_REF=${{ github.sha }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,mode=max,scope=amd64
+
+  # Build + push arm64
+  build-push-arm64:
+    runs-on: ubuntu-24.04-arm
+    needs: [compute-version]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (arm64)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.IMAGE_BASE }}:tmp.${{ needs.compute-version.outputs.version }}.arm64
+          build-args: |
+            BUILD_DATE=${{ needs.compute-version.outputs.date }}
+            VCS_REF=${{ github.sha }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,mode=max,scope=arm64
+
+  # Create multi-arch manifests
+  publish-manifests-and-tags:
+    runs-on: ubuntu-24.04
+    needs: [compute-version, build-push-amd64, build-push-arm64]
+    outputs:
+      digest: ${{ steps.manifest.outputs.digest }}
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifests (dev and release tags)
+        id: manifest
+        shell: bash
+        run: |
+          VERSION="${{ needs.compute-version.outputs.version }}"
+          AMD64_SRC="${{ env.IMAGE_BASE }}:tmp.${VERSION}.amd64"
+          ARM64_SRC="${{ env.IMAGE_BASE }}:tmp.${VERSION}.arm64"
+
+          IFS=',' read -ra DEV_TAGS <<< "${{ needs.compute-version.outputs.dev_tags }}"
+          for tag in "${DEV_TAGS[@]}"; do
+            docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
+          done
+
+          IFS=',' read -ra REL_TAGS <<< "${{ needs.compute-version.outputs.release_tags }}"
+          for tag in "${REL_TAGS[@]}"; do
+            docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
+          done
+
+          docker buildx imagetools inspect "${{ env.IMAGE_BASE }}:dev" --format '{{json .Manifest.Digest}}' | tr -d '"' > /tmp/digest.txt
+          echo "digest=$(cat /tmp/digest.txt)" >> "$GITHUB_OUTPUT"
+
+  # Sign and scan
+  sign-and-scan:
+    runs-on: ubuntu-24.04
+    needs: [compute-version, publish-manifests-and-tags]
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign image (keyless)
+        shell: bash
+        run: |
+          DIGEST="${{ needs.publish-manifests-and-tags.outputs.digest }}"
+          cosign sign --yes "${{ env.IMAGE_BASE }}@${DIGEST}"
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ github.run_id }}
+          restore-keys: trivy-db-
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          image-ref: ${{ env.IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.digest }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL
+          ignore-unfixed: true
+          output: trivy-release-report.txt
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-release-report
+          path: trivy-release-report.txt
+
+  # Package frontend
+  package-frontend:
+    runs-on: ubuntu-24.04
+    needs: [compute-version]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build and package frontend
+        run: bash scripts/ci/package_frontend.sh web
+
+      - name: Upload frontend archives
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: |
+            frontend-dist.zip
+            frontend-dist.tar.xz
+
+  # Create GitHub release (only when triggered by push or workflow_dispatch)
+  create-github-release:
+    runs-on: ubuntu-24.04
+    needs:
+      [
+        compute-version,
+        publish-manifests-and-tags,
+        sign-and-scan,
+        package-frontend,
+      ]
+    if: github.event_name != 'release'
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+    steps:
+      - name: Download frontend archives
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+
+      - name: Download release metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.compute-version.outputs.version }}
+          name: ${{ needs.compute-version.outputs.version }}
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            frontend-dist.zip
+            frontend-dist.tar.xz
+            release-metadata.json
+          body: |
+            ## Dev Release ${{ needs.compute-version.outputs.version }}
+
+            **Docker image:** `${{ env.IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
+
+            Multi-arch image (linux/amd64, linux/arm64) signed with Sigstore Cosign.
+
+            ### Docker tags
+            - `${{ env.IMAGE_BASE }}:dev`
+            - `${{ env.IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.date }}`
+            - `${{ env.IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.short_sha }}`
+            - `${{ env.IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
+            - `${{ env.IMAGE_BASE }}:latest`
+            - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}`
+            - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.short_sha }}`
+            - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
+
+  # Attach artifacts to an already-published GitHub release (when triggered by release: published)
+  attach-assets-to-existing-release:
+    runs-on: ubuntu-24.04
+    needs:
+      [
+        compute-version,
+        publish-manifests-and-tags,
+        sign-and-scan,
+        package-frontend,
+      ]
+    if: github.event_name == 'release'
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+    steps:
+      - name: Download frontend archives
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+
+      - name: Download release metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+
+      - name: Upload assets to existing GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: |
+            frontend-dist.zip
+            frontend-dist.tar.xz
+            release-metadata.json
+          body: |
+            ## Release Assets for ${{ github.event.release.tag_name }}
+
+            **Docker image base:** `${{ env.IMAGE_BASE }}`
+
+            Multi-arch image (linux/amd64, linux/arm64) signed with Sigstore Cosign.
+
+  # Non-blocking E2E (does not gate release)
+  non-blocking-e2e:
+    runs-on: ubuntu-24.04
+    needs: [compute-version]
+    if: always()
+    strategy:
+      fail-fast: false
+      matrix:
+        db:
+          - sqlite
+          - postgres
+    services:
+      postgres:
+        image: ${{ matrix.db == 'postgres' && 'postgres:18.2' || '' }}
+        env:
+          POSTGRES_USER: flow
+          POSTGRES_PASSWORD: flow
+          POSTGRES_DB: flow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U flow"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      H4CKATH0N_ENV: testing
+      H4CKATH0N_AUTH_SIGNING_KEY: ci-test-signing-key-not-a-real-secret
+      H4CKATH0N_RP_ID: localhost
+      H4CKATH0N_ORIGIN: http://localhost:5173
+      H4CKATH0N_DATABASE_URL: ${{ matrix.db == 'postgres'
+        && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
+        || 'sqlite+aiosqlite:///./data/test.db' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.2"
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('api/uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: Install backend dependencies
+        working-directory: api
+        run: uv sync --frozen
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        working-directory: web
+        run: npx playwright install-deps chromium
+
+      - name: Create data directory
+        run: mkdir -p api/data
+
+      - name: Run E2E tests
+        working-directory: web
+        run: npx playwright test
+        timeout-minutes: 10
+        continue-on-error: true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-release-report-${{ matrix.db }}
+          path: |
+            web/playwright-report/
+            web/test-results/

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from app.engine.state import (
     ConversationMessage,
@@ -14,7 +14,6 @@ from app.engine.tone import build_tone_guide
 from app.engine.tools import (
     StateData,
     ToolCall,
-    ToolResult,
     _get_state,
     execute_tool,
     get_or_create_user_profile,
@@ -224,7 +223,9 @@ def _build_messages(
     bg = _get_state(state_data, DataKey.PARTICIPANT_BACKGROUND)
     context_parts: list[str] = []
     if bg:
-        context_parts.append(f"<PARTICIPANT BACKGROUND>\n{bg}\n</PARTICIPANT BACKGROUND>")
+        context_parts.append(
+            f"<PARTICIPANT BACKGROUND>\n{bg}\n</PARTICIPANT BACKGROUND>"
+        )
     context_parts.append(_build_profile_context(profile))
     messages.append({"role": "system", "content": "\n\n".join(context_parts)})
 
@@ -261,7 +262,9 @@ class IntakeModule:
         system_prompt: str = "",
         llm_client: LLMClient | None = None,
     ) -> None:
-        self.system_prompt = system_prompt or "You are a habit-building intake assistant."
+        self.system_prompt = (
+            system_prompt or "You are a habit-building intake assistant."
+        )
         self._llm = llm_client or StubLLMClient()
 
     def execute(
@@ -292,25 +295,29 @@ class IntakeModule:
                 for tc in response.tool_calls:
                     result = execute_tool(state_data, tc)
                     # Append assistant tool-call + tool result to context
-                    tool_context.append({
-                        "role": "assistant",
-                        "content": "",
-                        "tool_calls": [
-                            {
-                                "id": tc.id,
-                                "type": "function",
-                                "function": {
-                                    "name": tc.name,
-                                    "arguments": json.dumps(tc.arguments),
-                                },
-                            }
-                        ],
-                    })
-                    tool_context.append({
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": result.result,
-                    })
+                    tool_context.append(
+                        {
+                            "role": "assistant",
+                            "content": "",
+                            "tool_calls": [
+                                {
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tc.name,
+                                        "arguments": json.dumps(tc.arguments),
+                                    },
+                                }
+                            ],
+                        }
+                    )
+                    tool_context.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": result.result,
+                        }
+                    )
                 continue
 
             # §8.1 — No content and no tool calls → fallback
@@ -361,25 +368,29 @@ class FeedbackModule:
             if response.tool_calls:
                 for tc in response.tool_calls:
                     result = execute_tool(state_data, tc)
-                    tool_context.append({
-                        "role": "assistant",
-                        "content": "",
-                        "tool_calls": [
-                            {
-                                "id": tc.id,
-                                "type": "function",
-                                "function": {
-                                    "name": tc.name,
-                                    "arguments": json.dumps(tc.arguments),
-                                },
-                            }
-                        ],
-                    })
-                    tool_context.append({
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": result.result,
-                    })
+                    tool_context.append(
+                        {
+                            "role": "assistant",
+                            "content": "",
+                            "tool_calls": [
+                                {
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tc.name,
+                                        "arguments": json.dumps(tc.arguments),
+                                    },
+                                }
+                            ],
+                        }
+                    )
+                    tool_context.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": result.result,
+                        }
+                    )
                 continue
 
             return FEEDBACK_FALLBACK
