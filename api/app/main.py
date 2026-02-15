@@ -28,7 +28,7 @@ def _sync_database_url() -> str:
     settings = Settings()
     url = settings.database_url
     url = url.replace("sqlite+aiosqlite", "sqlite")
-    url = url.replace("postgresql+asyncpg", "postgresql")
+    url = url.replace("postgresql+asyncpg", "postgresql+psycopg")
     return url
 
 
