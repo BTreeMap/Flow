@@ -1,6 +1,6 @@
 # Flow: HCI Research Platform
 
-A production-shaped prototype for HCI research combining a multi-bot conversation engine built on LangChain primitives, React PWA frontend, passkey-first authentication (via [h4ckath0n](https://github.com/user/h4ckath0n)), SSE-based real-time chat, and vendor-neutral Web Push notifications.
+A production-shaped prototype for HCI research combining a multi-bot conversation engine built on LangChain primitives, React PWA frontend, passkey-first authentication (via [h4ckath0n](https://github.com/BTreeMap/h4ckath0n)), SSE-based real-time chat, and vendor-neutral Web Push notifications.
 
 ## Architecture Overview
 
@@ -215,6 +215,7 @@ cd api && uv run python -m pytest tests/ -v
 ```
 
 Test modules:
+
 - `test_api.py` — API endpoint integration tests (messaging wired to new engine)
 - `test_new_architecture.py` — **NEW:** Router permissions, confidence thresholds, evidence spans, profile/memory validation, proposal tools, deterministic routing
 - `test_engine_integration.py` — **NEW:** Full turn pipeline with async DB, profile persistence, memory persistence, audit log
