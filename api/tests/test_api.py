@@ -218,7 +218,7 @@ async def test_send_message(seeded_client: dict[str, Any]) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["role"] == "assistant"
-    assert "Hello, world!" in data["content"]
+    assert data["content"]  # non-empty assistant response from engine
     assert data["server_msg_id"]
 
 

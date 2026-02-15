@@ -356,8 +356,16 @@ async def send_message(
     db.add(user_msg)
     await db.flush()
 
-    # Run engine turn (stubbed: echo-style response)
-    assistant_content = f"Thank you for your message. I received: \"{body.text}\""
+    # Run new architecture engine turn (Router + specialist)
+    from app.agents.engine import process_turn as engine_process_turn
+
+    assistant_content, _decision = await engine_process_turn(
+        db=db,
+        conversation=conv,
+        membership_id=membership.id,
+        user_msg=user_msg,
+        user_text=body.text,
+    )
 
     assistant_msg = Message(
         conversation_id=conv.id,
