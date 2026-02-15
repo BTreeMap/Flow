@@ -14,8 +14,8 @@ class RouteDecision(BaseModel):
     ``reason`` is log-only and must never be shown to the user.
     """
 
-    route: Literal["INTAKE", "FEEDBACK"] = Field(
-        ..., description="Target specialist module: INTAKE or FEEDBACK"
+    route: Literal["INTAKE", "FEEDBACK", "COACH"] = Field(
+        ..., description="Target specialist module: INTAKE, FEEDBACK, or COACH"
     )
     reason: str | None = Field(
         default=None,

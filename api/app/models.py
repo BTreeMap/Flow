@@ -6,6 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -217,3 +218,56 @@ class OutboxEvent(Base):
 
     project: Mapped[Project] = relationship(back_populates="outbox_events")
     membership: Mapped[ProjectMembership] = relationship(back_populates="outbox_events")
+
+
+class UserProfileStore(Base):
+    """Structured user profile (Store A). Pydantic-validated JSON, single-writer (Router)."""
+    __tablename__ = "user_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    membership_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("project_memberships.id"), nullable=False, unique=True
+    )
+    profile_json: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    membership: Mapped[ProjectMembership] = relationship()
+
+
+class MemoryItem(Base):
+    """Semi-structured memory store (Store B). Conservative writes only."""
+    __tablename__ = "memory_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    membership_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("project_memberships.id"), nullable=False
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_message_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    tags: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    membership: Mapped[ProjectMembership] = relationship()
+
+
+class PatchAuditLog(Base):
+    """Audit trail for all patch proposals and commit decisions."""
+    __tablename__ = "patch_audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    membership_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("project_memberships.id"), nullable=False
+    )
+    proposal_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    source_bot: Mapped[str] = mapped_column(String(20), nullable=False)
+    patch_json: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
+    decision: Mapped[str] = mapped_column(String(30), nullable=False)
+    committed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    membership: Mapped[ProjectMembership] = relationship()

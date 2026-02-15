@@ -1,5 +1,7 @@
 # PromptPipe Conversation Flow Engine — Behavioral Contract
 
+> ⚠️ **DEPRECATED** — This document is deprecated and retained for historical reference only. It must NOT be treated as the authoritative behavioral contract. The current architecture is defined in [`docs/current-architecture.md`](current-architecture.md) and the "State, authority, and write-path rules" section of `AGENTS.md`. Any legacy behaviors preserved for continuity are documented explicitly in the current design docs and tests.
+
 > **Purpose.** This document captures the complete behavioral contract of the PromptPipe conversation flow engine as implemented at time of writing. A replacement implementation that satisfies every requirement below is a valid drop-in substitute. Sections are ordered so that each one depends only on material already introduced.
 
 ---
