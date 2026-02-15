@@ -3,6 +3,8 @@ name: Release
 on:
   push:
     branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
 
 concurrency:
@@ -14,11 +16,8 @@ permissions:
   packages: write
   id-token: write
 
-env:
-  IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-backend
-
 jobs:
-  # ── Gate: backend tests ──────────────────────────────────────────────
+  # Gate: backend tests
   backend-unit-integration:
     runs-on: ubuntu-24.04
     strategy:
@@ -76,7 +75,7 @@ jobs:
           mkdir -p data
           uv run pytest tests/ -v --tb=short
 
-  # ── Gate: frontend tests ─────────────────────────────────────────────
+  # Gate: frontend tests
   frontend-unit-integration:
     runs-on: ubuntu-24.04
     steps:
@@ -96,7 +95,7 @@ jobs:
         working-directory: web
         run: npm run test
 
-  # ── Compute version ──────────────────────────────────────────────────
+  # Compute version
   compute-version:
     runs-on: ubuntu-24.04
     needs: [backend-unit-integration, frontend-unit-integration]
@@ -104,6 +103,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       date: ${{ steps.version.outputs.date }}
       short_sha: ${{ steps.version.outputs.short_sha }}
+      image_base: ${{ steps.version.outputs.image_base }}
       dev_tags: ${{ steps.version.outputs.dev_tags }}
       release_tags: ${{ steps.version.outputs.release_tags }}
     steps:
@@ -113,6 +113,7 @@ jobs:
 
       - name: Compute version
         id: version
+        shell: bash
         run: |
           VERSION_JSON=$(python3 scripts/ci/compute_version.py --write)
           echo "$VERSION_JSON"
@@ -125,8 +126,10 @@ jobs:
           echo "date=$DATE" >> "$GITHUB_OUTPUT"
           echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
-          # Build tag lists for this repo
-          IMAGE_BASE="${{ env.IMAGE_BASE }}"
+          # GHCR requires lowercase. Use repo image name without -backend suffix.
+          IMAGE_BASE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "image_base=$IMAGE_BASE" >> "$GITHUB_OUTPUT"
+
           DEV_TAGS="${IMAGE_BASE}:dev,${IMAGE_BASE}:dev.${DATE},${IMAGE_BASE}:dev.${SHORT_SHA},${IMAGE_BASE}:dev.${DATE}.${SHORT_SHA}"
           RELEASE_TAGS="${IMAGE_BASE}:latest,${IMAGE_BASE}:${DATE},${IMAGE_BASE}:${SHORT_SHA},${IMAGE_BASE}:${DATE}.${SHORT_SHA}"
           echo "dev_tags=$DEV_TAGS" >> "$GITHUB_OUTPUT"
@@ -138,12 +141,14 @@ jobs:
           name: release-metadata
           path: release-metadata.json
 
-  # ── Build + push amd64 ───────────────────────────────────────────────
+  # Build + push amd64
   build-push-amd64:
     runs-on: ubuntu-24.04
     needs: [compute-version]
     outputs:
       digest: ${{ steps.build.outputs.digest }}
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
       - uses: actions/checkout@v4
 
@@ -175,12 +180,14 @@ jobs:
           cache-from: type=gha,scope=amd64
           cache-to: type=gha,mode=max,scope=amd64
 
-  # ── Build + push arm64 ───────────────────────────────────────────────
+  # Build + push arm64
   build-push-arm64:
     runs-on: ubuntu-24.04-arm
     needs: [compute-version]
     outputs:
       digest: ${{ steps.build.outputs.digest }}
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
       - uses: actions/checkout@v4
 
@@ -212,12 +219,14 @@ jobs:
           cache-from: type=gha,scope=arm64
           cache-to: type=gha,mode=max,scope=arm64
 
-  # ── Create multi-arch manifests ──────────────────────────────────────
+  # Create multi-arch manifests
   publish-manifests-and-tags:
     runs-on: ubuntu-24.04
     needs: [compute-version, build-push-amd64, build-push-arm64]
     outputs:
       digest: ${{ steps.manifest.outputs.digest }}
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -229,33 +238,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and push multi-arch manifests (dev tags)
+      - name: Create and push multi-arch manifests (dev and release tags)
         id: manifest
+        shell: bash
         run: |
           VERSION="${{ needs.compute-version.outputs.version }}"
           AMD64_SRC="${{ env.IMAGE_BASE }}:tmp.${VERSION}.amd64"
           ARM64_SRC="${{ env.IMAGE_BASE }}:tmp.${VERSION}.arm64"
 
-          # Dev tags
           IFS=',' read -ra DEV_TAGS <<< "${{ needs.compute-version.outputs.dev_tags }}"
           for tag in "${DEV_TAGS[@]}"; do
             docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
           done
 
-          # Release tags (same as dev tags for automated releases)
           IFS=',' read -ra REL_TAGS <<< "${{ needs.compute-version.outputs.release_tags }}"
           for tag in "${REL_TAGS[@]}"; do
             docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
           done
 
-          # Output primary digest
           docker buildx imagetools inspect "${{ env.IMAGE_BASE }}:dev" --format '{{json .Manifest.Digest}}' | tr -d '"' > /tmp/digest.txt
           echo "digest=$(cat /tmp/digest.txt)" >> "$GITHUB_OUTPUT"
 
-  # ── Sign and scan ────────────────────────────────────────────────────
+  # Sign and scan
   sign-and-scan:
     runs-on: ubuntu-24.04
     needs: [compute-version, publish-manifests-and-tags]
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3
@@ -268,6 +277,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sign image (keyless)
+        shell: bash
         run: |
           DIGEST="${{ needs.publish-manifests-and-tags.outputs.digest }}"
           cosign sign --yes "${{ env.IMAGE_BASE }}@${DIGEST}"
@@ -296,7 +306,7 @@ jobs:
           name: trivy-release-report
           path: trivy-release-report.txt
 
-  # ── Package frontend ─────────────────────────────────────────────────
+  # Package frontend
   package-frontend:
     runs-on: ubuntu-24.04
     needs: [compute-version]
@@ -320,10 +330,19 @@ jobs:
             frontend-dist.zip
             frontend-dist.tar.xz
 
-  # ── Create GitHub release ────────────────────────────────────────────
+  # Create GitHub release (only when triggered by push or workflow_dispatch)
   create-github-release:
     runs-on: ubuntu-24.04
-    needs: [compute-version, publish-manifests-and-tags, sign-and-scan, package-frontend]
+    needs:
+      [
+        compute-version,
+        publish-manifests-and-tags,
+        sign-and-scan,
+        package-frontend,
+      ]
+    if: github.event_name != 'release'
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
       - name: Download frontend archives
         uses: actions/download-artifact@v4
@@ -363,7 +382,46 @@ jobs:
             - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.short_sha }}`
             - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
 
-  # ── Non-blocking E2E (does not gate release) ─────────────────────────
+  # Attach artifacts to an already-published GitHub release (when triggered by release: published)
+  attach-assets-to-existing-release:
+    runs-on: ubuntu-24.04
+    needs:
+      [
+        compute-version,
+        publish-manifests-and-tags,
+        sign-and-scan,
+        package-frontend,
+      ]
+    if: github.event_name == 'release'
+    env:
+      IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+    steps:
+      - name: Download frontend archives
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+
+      - name: Download release metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+
+      - name: Upload assets to existing GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: |
+            frontend-dist.zip
+            frontend-dist.tar.xz
+            release-metadata.json
+          body: |
+            ## Release Assets for ${{ github.event.release.tag_name }}
+
+            **Docker image base:** `${{ env.IMAGE_BASE }}`
+
+            Multi-arch image (linux/amd64, linux/arm64) signed with Sigstore Cosign.
+
+  # Non-blocking E2E (does not gate release)
   non-blocking-e2e:
     runs-on: ubuntu-24.04
     needs: [compute-version]
