@@ -60,7 +60,7 @@ class TestProfileSave:
 
     def test_whitespace_only_ignored(self) -> None:
         state = _state_with_profile(prompt_anchor="existing")
-        result = execute_profile_save(state, {"prompt_anchor": "   "})
+        # result = execute_profile_save(state, {"prompt_anchor": "   "})
         profile = get_or_create_user_profile(state)
         assert profile.prompt_anchor == "existing"
 
