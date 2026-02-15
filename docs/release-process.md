@@ -5,10 +5,12 @@
 ### CI Quality Gate (`ci.yml`)
 
 Triggers:
+
 - **Pull requests** — all branches
 - **Push to `main`**
 
 Jobs (all blocking):
+
 1. **backend-unit-integration** — pytest on SQLite and Postgres (matrix)
 2. **frontend-unit-integration** — lint, typecheck, vitest
 3. **e2e** — Playwright end-to-end on SQLite and Postgres (matrix)
@@ -19,6 +21,7 @@ PR concurrency: cancels redundant runs on the same PR branch.
 ### Release Workflow (`release.yml`)
 
 Triggers:
+
 - **Push to `main`**
 - **`workflow_dispatch`** (manual trigger)
 
@@ -76,6 +79,7 @@ Images are published to GHCR: `ghcr.io/<owner>/<repo>-backend`
 ### Multi-arch manifest strategy
 
 Images are built natively on separate runners:
+
 - `linux/amd64` on `ubuntu-24.04`
 - `linux/arm64` on `ubuntu-24.04-arm`
 
@@ -120,7 +124,7 @@ docker build \
 
 ```bash
 bash scripts/ci/package_frontend.sh web
-# Produces: frontend-dist.zip, frontend-dist.tar.xz
+# Produces: frontend.zip, frontend.tar.xz
 ```
 
 ### Version computation
@@ -184,9 +188,11 @@ If the runner label is not available (e.g., private repo constraints):
 
 1. Set up a self-hosted ARM64 runner or use an org/enterprise runner group.
 2. Update the `runs-on` value in `build-push-arm64` job in `release.yml`:
+
    ```yaml
    runs-on: [self-hosted, linux, arm64]
    ```
+
 3. Ensure the runner has Docker and Docker Buildx installed.
 
 **Do not fall back to QEMU emulation.** Native builds are required for acceptable build times and image correctness.

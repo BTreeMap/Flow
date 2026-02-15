@@ -39,8 +39,8 @@ web/test-results/
 *.tsbuildinfo
 
 # Release artifacts
-frontend-dist.zip
-frontend-dist.tar.xz
+*.zip
+*.tar.xz
 release-metadata.json
 trivy-report.txt
 trivy-results.sarif

@@ -327,8 +327,8 @@ jobs:
         with:
           name: frontend-dist
           path: |
-            frontend-dist.zip
-            frontend-dist.tar.xz
+            frontend.zip
+            frontend.tar.xz
 
   # Create GitHub release (only when triggered by push or workflow_dispatch)
   create-github-release:
@@ -362,8 +362,8 @@ jobs:
           prerelease: true
           generate_release_notes: true
           files: |
-            frontend-dist.zip
-            frontend-dist.tar.xz
+            frontend.zip
+            frontend.tar.xz
             release-metadata.json
           body: |
             ## Dev Release ${{ needs.compute-version.outputs.version }}
@@ -411,8 +411,8 @@ jobs:
         with:
           tag_name: ${{ github.event.release.tag_name }}
           files: |
-            frontend-dist.zip
-            frontend-dist.tar.xz
+            frontend.zip
+            frontend.tar.xz
             release-metadata.json
           body: |
             ## Release Assets for ${{ github.event.release.tag_name }}
