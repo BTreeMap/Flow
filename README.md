@@ -1,14 +1,25 @@
 # Flow: HCI Research Platform
 
-A production-shaped prototype for HCI research combining a LangGraph-based conversation engine, React PWA frontend, passkey-first authentication (via [h4ckath0n](https://github.com/user/h4ckath0n)), SSE-based real-time chat, and vendor-neutral Web Push notifications.
+A production-shaped prototype for HCI research combining a multi-bot conversation engine built on LangChain primitives, React PWA frontend, passkey-first authentication (via [h4ckath0n](https://github.com/user/h4ckath0n)), SSE-based real-time chat, and vendor-neutral Web Push notifications.
 
 ## Architecture Overview
 
 | Pillar | Stack | Description |
 |--------|-------|-------------|
 | **Backend** | FastAPI + h4ckath0n + SQLAlchemy 2.x | Async API with passkey auth, multi-tenant project model, and SSE fan-out |
-| **Conversation Engine** | LangGraph-compatible Python modules | Replicates legacy Go conversation flow with INTAKE/FEEDBACK routing, tool loop, scheduling, and tone adaptation |
+| **Conversation Engine** | LangChain agents + Router | Multi-bot architecture: Router (single writer) + Intake/Feedback/Coach specialists with proposal/commit flow |
 | **Frontend** | React 19 + Vite + Tailwind CSS | PWA with service worker, SSE streaming chat, and Web Push notification support |
+
+### Conversation Engine Architecture
+
+The engine uses a **Router + specialist** architecture:
+
+- **Router** — Routes each turn to the correct specialist, validates all patch proposals, and owns the only commit path to UserProfile (Store A) and Memory (Store B).
+- **Intake Bot** — Onboarding and profile setup. Can propose updates to onboarding fields.
+- **Feedback Bot** — Habit tracking and barrier analysis. Can propose rolling coaching field updates and memory items.
+- **Coach Bot** — Normal conversation and encouragement. Can propose candidates only (higher confidence threshold).
+
+All bots use LangChain agents and tools. Proposals are validated against a permission matrix with confidence thresholds and evidence span requirements. See [`docs/current-architecture.md`](docs/current-architecture.md) for full details.
 
 ## Quick Start
 
@@ -40,12 +51,28 @@ Flow/
 │   ├── app/
 │   │   ├── main.py               # App entry point (h4ckath0n create_app)
 │   │   ├── routes.py             # API route handlers
-│   │   ├── models.py             # SQLAlchemy 2.x models
+│   │   ├── models.py             # SQLAlchemy 2.x models (incl. UserProfile, Memory, AuditLog)
 │   │   ├── db.py                 # Database session management
 │   │   ├── middleware.py         # CSP and other middleware
 │   │   ├── id_utils.py           # Custom ID generation (p... / u...)
-│   │   └── engine/               # Conversation Flow engine
-│   │       ├── flow.py           # Orchestrator (INTAKE/FEEDBACK routing)
+│   │   ├── agents/               # NEW: Multi-bot LangChain agents
+│   │   │   ├── engine.py         # Turn engine: Router + specialist pipeline
+│   │   │   ├── router.py         # Routing coordinator (structured output)
+│   │   │   ├── intake.py         # Intake specialist agent
+│   │   │   ├── feedback.py       # Feedback specialist agent
+│   │   │   ├── coach.py          # Coach specialist agent
+│   │   │   └── orchestrator.py   # Legacy orchestrator (backward compat)
+│   │   ├── schemas/              # Pydantic models
+│   │   │   ├── router.py         # RouteDecision (INTAKE/FEEDBACK/COACH)
+│   │   │   ├── patches.py        # Proposals, evidence, permissions, profile/memory schemas
+│   │   │   └── tool_schemas.py   # Legacy tool argument schemas
+│   │   ├── services/             # NEW: Business logic layer
+│   │   │   └── profile_service.py # Profile/memory persistence, validation, audit
+│   │   ├── tools/                # LangChain tools
+│   │   │   ├── proposal_tools.py # NEW: propose_profile_patch, propose_memory_patch
+│   │   │   └── langchain_tools.py # Legacy tool wrappers
+│   │   └── engine/               # Legacy conversation engine (deprecated for new work)
+│   │       ├── flow.py           # Legacy orchestrator
 │   │       ├── modules.py        # IntakeModule, FeedbackModule, tool loop
 │   │       ├── state.py          # State enums, Pydantic models, DataKeys
 │   │       ├── tools.py          # Tool implementations
@@ -75,7 +102,8 @@ Flow/
 │   │   └── gen/                  # Generated OpenAPI TypeScript client
 │   └── package.json
 ├── docs/
-│   ├── legacy-conversation-flow-contract.md   # Authoritative legacy behavior
+│   ├── current-architecture.md           # NEW: Current architecture (authoritative)
+│   ├── legacy-conversation-flow-contract.md   # DEPRECATED: Legacy behavior reference
 │   └── parity-matrix.md                       # Legacy → new code mapping
 ├── .env.example
 └── AGENTS.md                     # Agent behavior rules
@@ -111,47 +139,50 @@ All project-scoped endpoints require passkey authentication.
 | `participant_contacts` | auto-increment int | Optional email contact metadata (not used for identity) |
 | `conversations` | auto-increment int | 1:1 with membership |
 | `messages` | auto-increment int | Chat history with `server_msg_id` (UUID) |
-| `conversation_runtime_state` | FK to conversation | JSON blob for engine state (LangGraph checkpoint) |
+| `conversation_runtime_state` | FK to conversation | JSON blob for engine state |
+| `user_profiles` | auto-increment int | **Store A** — structured profile JSON (1:1 with membership) |
+| `memory_items` | auto-increment int | **Store B** — semi-structured memory items per membership |
+| `patch_audit_log` | auto-increment int | Audit trail: proposals, decisions, commits |
 | `push_subscriptions` | auto-increment int | Web Push endpoints + crypto keys per device |
 | `outbox_events` | auto-increment int | Durable scheduled events with dedupe keys |
 
 ## Conversation Engine
 
-The engine replicates the semantics defined in [`docs/legacy-conversation-flow-contract.md`](docs/legacy-conversation-flow-contract.md).
+The engine implements the architecture defined in [`docs/current-architecture.md`](docs/current-architecture.md).
 
-### Routing (§4.1)
+### Turn Pipeline
 
-Every message is routed by conversation sub-state:
+1. Persist user message
+2. Load UserProfile (Store A) + Memory (Store B) + recent chat history
+3. Router decides which specialist to run (INTAKE, FEEDBACK, or COACH)
+4. Invoke specialist agent (LangChain tool-calling agent)
+5. Collect patch proposals made during the agent run
+6. Router validates proposals (permissions, confidence, evidence) and commits approved ones
+7. Persist assistant message
+8. Emit SSE events for UI update
 
-- **INTAKE** (default) → `IntakeModule` — onboarding, profile building, schedule setup
-- **FEEDBACK** → `FeedbackModule` — habit tracking, barrier analysis, prompt refinement
+### Routing
 
-### Tool Loop (§8.1)
+| Condition | Route |
+|-----------|-------|
+| Required onboarding fields missing | INTAKE |
+| Currently in feedback protocol | FEEDBACK |
+| Profile complete, normal conversation | COACH |
 
-Both modules run a tool loop (max 10 rounds):
+### Proposal + Commit Flow
 
-1. Build message context: system prompt → profile status → tone guide → chat history → user message
-2. Call LLM (or stub) with available tools
-3. If LLM returns **content** → return as assistant response (terminate)
-4. If LLM returns **tool calls** → execute tools, append results, loop
-5. If neither → return fallback message
+Specialist bots propose changes via `propose_profile_patch` and `propose_memory_patch` tools. The Router validates each proposal against:
 
-Available tools: `save_user_profile`, `scheduler`, `generate_habit_prompt`, `transition_state`
+- **Permission matrix**: Intake → onboarding fields, Feedback → coaching fields, Coach → candidates only
+- **Confidence thresholds**: INTAKE/FEEDBACK ≥ 0.5, COACH ≥ 0.8
+- **Evidence spans**: Must reference recent message IDs
+- **Memory rules**: Items ≤ 500 chars with source pointers
 
-### Scheduling (§5)
+All proposals and decisions are logged in the `patch_audit_log` table.
 
-- **Daily prompts** — generated via `PromptGeneratorTool`, scheduled through outbox events
-- **Reminders** — 5-hour follow-up if no reply; cancelled on user response
-- **Auto-feedback** — 5-minute timer transitions to FEEDBACK if no reply after prompt
-- **Intensity adjustment** — daily poll ("more"/"less"/"same") adjusts prompt intensity
+### Legacy Engine
 
-### Tone Adaptation (§6)
-
-- Tag whitelist with 15 validated tags (style, stance, interaction)
-- EMA smoothing (α=0.15) with hysteresis (activation ≥ 0.7, deactivation ≤ 0.4)
-- Mutual exclusion enforcement (e.g., `concise` vs `detailed`)
-- Rate-limited implicit updates (min 3-minute interval)
-- Injected as `<TONE POLICY>` block in LLM context
+The legacy conversation flow engine (`api/app/engine/`) is retained for backward compatibility. The legacy behavioral contract (`docs/legacy-conversation-flow-contract.md`) is deprecated.
 
 ## Frontend Pages
 
@@ -184,11 +215,20 @@ cd api && uv run python -m pytest tests/ -v
 ```
 
 Test modules:
-- `test_api.py` — API endpoint integration tests
-- `test_flow.py` — Conversation engine routing and history
+- `test_api.py` — API endpoint integration tests (messaging wired to new engine)
+- `test_new_architecture.py` — **NEW:** Router permissions, confidence thresholds, evidence spans, profile/memory validation, proposal tools, deterministic routing
+- `test_engine_integration.py` — **NEW:** Full turn pipeline with async DB, profile persistence, memory persistence, audit log
+- `test_langchain_router.py` — Router structured output and deterministic routing
+- `test_langchain_agents.py` — Agent tool permissions and orchestrator pipeline
+- `test_langchain_tools.py` — LangChain tool schemas and invocation
+- `test_flow.py` — Legacy conversation engine routing and history
 - `test_scheduler.py` — Daily prompts, reminders, auto-feedback, intensity
 - `test_tone.py` — Tone adaptation, EMA, whitelist validation
 - `test_tools.py` — Tool execution and state management
+
+### Verify Patch Audit Behavior
+
+The audit trail can be inspected by querying the `patch_audit_log` table after processing messages. The `test_engine_integration.py::TestAuditLog` tests verify that proposals and commit decisions are properly recorded.
 
 ### Frontend
 
@@ -201,10 +241,10 @@ cd web && npm run test:e2e # E2E tests (Playwright)
 
 This is a prototype. The following are mocked or incomplete:
 
-- **LLM calls** — The engine uses `StubLLMClient` which returns fixed responses. Replace with a real LLM client (OpenAI, Anthropic, etc.) by implementing the `LLMClient` protocol.
+- **LLM calls** — In stub mode, specialist agents return fixed responses. Connect a real LLM (OpenAI, Anthropic, etc.) by passing `llm` and `router_llm` parameters to the engine.
 - **Web Push delivery** — Push subscriptions are stored in the database but no actual push messages are sent. Wire up `pywebpush` with VAPID keys to enable delivery.
 - **Outbox event processing** — Outbox events (reminders, auto-feedback timers) are created with dedupe keys but no background worker processes them. Add a polling worker or task queue to fire events at `available_at`.
-- **Message endpoint** — `POST /p/{project_id}/messages` returns a stub echo response instead of running the full engine pipeline.
+- **Message endpoint** — `POST /p/{project_id}/messages` runs the Router + specialist pipeline in stub mode (deterministic routing, fixed responses). With a real LLM, it produces contextual responses.
 
 ## Environment Variables
 
