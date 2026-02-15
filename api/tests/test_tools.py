@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from app.engine.state import ConversationState, DataKey, UserProfile
+from app.engine.state import DataKey, UserProfile
 from app.engine.tools import (
     ToolCall,
     execute_profile_save,

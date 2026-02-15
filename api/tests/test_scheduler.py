@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from app.engine.scheduler import (
-    AUTO_FEEDBACK_ENFORCEMENT_DELAY,
     DEFAULT_DAILY_PROMPT_REMINDER_DELAY,
     DEFAULT_REMINDER_MESSAGE,
     Scheduler,
@@ -16,7 +15,6 @@ from app.engine.state import (
     DataKey,
     UserProfile,
 )
-from app.engine.tools import _get_state, get_or_create_user_profile
 
 
 # ---------------------------------------------------------------------------

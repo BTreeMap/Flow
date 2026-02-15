@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from app.engine.state import (
     ConversationMessage,
@@ -14,7 +14,6 @@ from app.engine.tone import build_tone_guide
 from app.engine.tools import (
     StateData,
     ToolCall,
-    ToolResult,
     _get_state,
     execute_tool,
     get_or_create_user_profile,

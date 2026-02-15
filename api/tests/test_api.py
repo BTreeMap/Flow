@@ -15,12 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.id_utils import generate_project_id
 from app.models import (
     Base,
-    Conversation,
-    Message,
     Project,
     ProjectInvite,
-    ProjectMembership,
-    PushSubscription,
 )
 
 # ---------------------------------------------------------------------------

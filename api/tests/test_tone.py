@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from app.engine.state import ProfileTone
 from app.engine.tone import (
     ACTIVATION_THRESHOLD,
-    ALL_TAGS,
     DEACTIVATION_THRESHOLD,
     build_tone_guide,
     update_profile_tone,

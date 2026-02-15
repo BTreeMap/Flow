@@ -16,7 +16,6 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage
@@ -26,7 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Conversation, Message
 from app.schemas.patches import (
-    EvidenceSpan,
     MemoryItemData,
     MemoryPatchProposal,
     ProfilePatchProposal,
@@ -301,7 +299,7 @@ async def process_turn(
                 chat_history.append(AIMessage(content=msg.content))
 
         if decision.route == "INTAKE":
-            from app.agents.intake import create_intake_agent, run_intake
+            from app.agents.intake import run_intake
             from app.tools.langchain_tools import make_intake_tools
             state_data: dict[str, str] = {}
             if runtime_state:
@@ -318,7 +316,7 @@ async def process_turn(
             ))
             assistant_text = run_intake(agent, user_text, chat_history)
         elif decision.route == "FEEDBACK":
-            from app.agents.feedback import create_feedback_agent, run_feedback
+            from app.agents.feedback import run_feedback
             from app.tools.langchain_tools import make_feedback_tools
             state_data = {}
             if runtime_state:

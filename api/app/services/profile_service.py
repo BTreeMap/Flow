@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -16,7 +16,6 @@ from app.schemas.patches import (
     CONFIDENCE_THRESHOLDS,
     FEEDBACK_ALLOWED_FIELDS,
     INTAKE_ALLOWED_FIELDS,
-    EvidenceSpan,
     MemoryItemData,
     MemoryPatchProposal,
     ProfilePatchProposal,

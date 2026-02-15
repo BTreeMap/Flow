@@ -23,7 +23,6 @@ from app.engine.state import (
     ConversationMessage,
     ConversationState,
     DataKey,
-    UserProfile,
 )
 from app.engine.tools import get_or_create_user_profile
 from app.tools.langchain_tools import make_feedback_tools, make_intake_tools

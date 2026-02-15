@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -11,14 +10,12 @@ from app.engine.state import (
     ConversationState,
     DailyPromptPendingState,
     DataKey,
-    UserProfile,
 )
 from app.engine.tools import (
     StateData,
     _get_state,
     _set_state,
     execute_prompt_generator,
-    get_or_create_user_profile,
 )
 
 # §5.2 — Default reminder delay

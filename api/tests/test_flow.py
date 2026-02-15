@@ -8,7 +8,6 @@ from app.engine.flow import (
     ConversationFlow,
 )
 from app.engine.modules import (
-    FEEDBACK_FALLBACK,
     INTAKE_FALLBACK,
     IntakeModule,
     LLMResponse,
