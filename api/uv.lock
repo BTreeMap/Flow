@@ -767,7 +767,7 @@ wheels = [
 
 [[package]]
 name = "h4ckath0n"
-version = "0.1.3"
+version = "0.1.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosqlite" },
@@ -791,9 +791,9 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
     { name = "webauthn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/be/e3/02c51d5f610ee95fc6794d8cdde4084b2ab5d3a99f20d58884a34f0f0cb1/h4ckath0n-0.1.3.tar.gz", hash = "sha256:c563794a6d083d3f93e95a4f58c494cff4b174e3ede557a5cd4ad5cbc3d6b514", size = 340887, upload-time = "2026-02-15T19:51:16.758Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/c3/53a73fa4014d162275649e8cfebcfbd88dce68f19448711b36ccd612454e/h4ckath0n-0.1.4.tar.gz", hash = "sha256:6001c6bf613dc7837b1b89ac7948fcd5ec3cbc999bcd041f744b7f26ac4a18e8", size = 341053, upload-time = "2026-02-15T22:14:44.722Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d9/fd/7edd1ee6647651ed0c1948676e127ddd9bf37343fcc7ea3bab9dd94b4d82/h4ckath0n-0.1.3-py3-none-any.whl", hash = "sha256:3f6e451b343752ed05ceaeadd43939023e17fe9840e503547d200f5ea4155d9d", size = 35400, upload-time = "2026-02-15T19:51:15.303Z" },
+    { url = "https://files.pythonhosted.org/packages/b1/07/45a39f1667a5d59147aafb15eba45c34185067f5219b0b96b1a2abb7d3fb/h4ckath0n-0.1.4-py3-none-any.whl", hash = "sha256:1502706c8c887dba0f2d60b488857c1677ee93a01584701e622c2f70ed5ca20a", size = 35592, upload-time = "2026-02-15T22:14:42.575Z" },
 ]
 
 [[package]]
