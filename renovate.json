@@ -2,5 +2,95 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "rebaseWhen": "behind-base-branch",
+  "dependencyDashboard": true,
+  "labels": [
+    "dependencies",
+    "no-stale"
+  ],
+  "commitMessagePrefix": "⬆️ ",
+  "commitMessageTopic": "{{depName}}",
+  "platformAutomerge": true,
+  "automergeType": "pr",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "* 0-3 * * 1"
+    ],
+    "automerge": true
+  },
+  "enabledManagers": [
+    "github-actions",
+    "pep621",
+    "npm",
+    "dockerfile",
+    "docker-compose",
+    "regex"
+  ],
+  "packageRules": [
+    {
+      "groupName": "GitHub Actions",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
+      "groupName": "Python Dependencies",
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
+      "groupName": "npm Dependencies",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
+      "groupName": "Docker base images",
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
+    }
+  ],
+  "regexManagers": [
+    {
+      "fileMatch": [
+        "^\\.github/workflows/.*\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "image:\\s*(?<depName>ghcr\\.io\\/[^\\s'\\\"]+):(?<currentValue>[^\\s'\\\"]+)"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    }
   ]
 }
