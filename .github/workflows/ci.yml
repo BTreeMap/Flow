@@ -232,7 +232,7 @@ jobs:
             SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
 
       - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: flow-backend:scan
           format: table
@@ -250,7 +250,7 @@ jobs:
 
       - name: Trivy SARIF report (HIGH+CRITICAL)
         if: always()
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: flow-backend:scan
           format: sarif
