@@ -33,6 +33,26 @@ export function Dashboard() {
     },
   });
 
+  const { data: pingData } = useQuery<{ ok: boolean }>({
+    queryKey: ["demo-ping"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/demo/ping`);
+      return res.json();
+    },
+  });
+
+  const { data: echoData } = useQuery<{ message: string; reversed: string }>({
+    queryKey: ["demo-echo"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/demo/echo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "hello" }),
+      });
+      return res.json();
+    },
+  });
+
   const memberships = data?.memberships || [];
   const active = memberships.filter((m) => m.status === "active");
   const ended = memberships.filter((m) => m.status !== "active");
@@ -113,6 +133,17 @@ export function Dashboard() {
           </div>
         </div>
       )}
+
+      <div className="space-y-2 text-sm text-text-muted">
+        <p data-testid="demo-ping">
+          {pingData ? `✓ ${pingData.ok ? "ok" : "fail"}` : "…"}
+        </p>
+        <p data-testid="demo-echo">
+          {echoData
+            ? `"${echoData.message}" → "${echoData.reversed}"`
+            : "…"}
+        </p>
+      </div>
     </div>
   );
 }

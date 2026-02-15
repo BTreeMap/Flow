@@ -3,18 +3,19 @@
 import asyncio
 import contextlib
 import json
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from app.db import init_db
+from app.db import init_db, engine as app_engine
 from app.middleware import add_csp_middleware
 from app.routes import router
 from h4ckath0n import create_app
-from h4ckath0n.config import Settings
 from h4ckath0n.realtime import (
     AuthError,
     authenticate_sse_request,
@@ -22,26 +23,24 @@ from h4ckath0n.realtime import (
     sse_response,
 )
 
-
-def _sync_database_url() -> str:
-    """Convert async DB URL to sync for h4ckath0n's synchronous engine."""
-    settings = Settings()
-    url = settings.database_url
-    url = url.replace("sqlite+aiosqlite", "sqlite")
-    url = url.replace("postgresql+asyncpg", "postgresql+psycopg")
-    return url
+# Create the h4ckath0n app (handles its own DB tables via lifespan)
+_base_app = create_app()
+_h4ckath0n_lifespan = _base_app.router.lifespan_context
 
 
-_settings = Settings(database_url=_sync_database_url())
-app = create_app(settings=_settings)
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Combined lifespan: h4ckath0n tables + application tables."""
+    async with _h4ckath0n_lifespan(app):
+        await init_db()
+        yield
+    await app_engine.dispose()
+
+
+_base_app.router.lifespan_context = _lifespan
+app = _base_app
 add_csp_middleware(app)
 app.include_router(router)
-
-
-@app.on_event("startup")
-async def on_startup() -> None:
-    """Create database tables on application startup."""
-    await init_db()
 
 
 @app.get("/healthz")
@@ -183,7 +182,7 @@ async def demo_sse(request: Request):  # type: ignore[no-untyped-def]
     Auth: ``Authorization: Bearer <device_jwt>`` with ``aud = h4ckath0n:sse``.
     """
     try:
-        ctx = authenticate_sse_request(request)
+        ctx = await authenticate_sse_request(request)
     except AuthError as exc:
         return JSONResponse({"detail": exc.detail}, status_code=401)
 

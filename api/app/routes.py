@@ -416,7 +416,7 @@ async def event_stream(
 ) -> Any:
     """SSE stream for real-time events on a project conversation."""
     try:
-        ctx = authenticate_sse_request(request)
+        ctx = await authenticate_sse_request(request)
     except AuthError as exc:
         return JSONResponse({"detail": exc.detail}, status_code=401)
 
