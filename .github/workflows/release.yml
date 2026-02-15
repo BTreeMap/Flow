@@ -59,7 +59,7 @@ jobs:
         run: uv python install
 
       - name: Restore uv cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/uv
           key: uv-${{ runner.os }}-${{ hashFiles('api/uv.lock') }}
@@ -283,7 +283,7 @@ jobs:
           cosign sign --yes "${{ env.IMAGE_BASE }}@${DIGEST}"
 
       - name: Cache Trivy DB
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/trivy
           key: trivy-db-${{ github.run_id }}
@@ -465,7 +465,7 @@ jobs:
         run: uv python install
 
       - name: Restore uv cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/uv
           key: uv-${{ runner.os }}-${{ hashFiles('api/uv.lock') }}
@@ -487,7 +487,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
