@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+api/.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+web/node_modules/
+
+# Environment
+.env
+*.db
+
+# Data
+api/data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+web/dist/
+web/playwright-report/
+web/test-results/
+*.tsbuildinfo
