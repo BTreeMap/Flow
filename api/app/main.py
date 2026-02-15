@@ -14,6 +14,7 @@ from app.db import init_db
 from app.middleware import add_csp_middleware
 from app.routes import router
 from h4ckath0n import create_app
+from h4ckath0n.config import Settings
 from h4ckath0n.realtime import (
     AuthError,
     authenticate_sse_request,
@@ -21,7 +22,18 @@ from h4ckath0n.realtime import (
     sse_response,
 )
 
-app = create_app()
+
+def _sync_database_url() -> str:
+    """Convert async DB URL to sync for h4ckath0n's synchronous engine."""
+    settings = Settings()
+    url = settings.database_url
+    url = url.replace("sqlite+aiosqlite", "sqlite")
+    url = url.replace("postgresql+asyncpg", "postgresql")
+    return url
+
+
+_settings = Settings(database_url=_sync_database_url())
+app = create_app(settings=_settings)
 add_csp_middleware(app)
 app.include_router(router)
 

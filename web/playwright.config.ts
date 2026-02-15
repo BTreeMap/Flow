@@ -6,7 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // In CI the h4ckath0n library is installed from the repo root.
 // Locally, the same `uv run` from repo root makes the library available.
-const repoRoot = resolve(__dirname, "../../../../..");
+const repoRoot = resolve(__dirname, "..");
 const apiDir = resolve(__dirname, "../api");
 
 export default defineConfig({
@@ -30,7 +30,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `uv run --directory ${repoRoot} --locked python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`,
+      command: `uv run --directory ${apiDir} --locked python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`,
       cwd: apiDir,
       url: "http://127.0.0.1:8000/healthz",
       reuseExistingServer: !process.env.CI,
