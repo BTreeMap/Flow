@@ -136,7 +136,7 @@ jobs:
           echo "release_tags=$RELEASE_TAGS" >> "$GITHUB_OUTPUT"
 
       - name: Upload release metadata
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-metadata
           path: release-metadata.json
@@ -301,7 +301,7 @@ jobs:
 
       - name: Upload Trivy report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy-release-report
           path: trivy-release-report.txt
@@ -323,7 +323,7 @@ jobs:
         run: bash scripts/ci/package_frontend.sh web
 
       - name: Upload frontend archives
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-dist
           path: |
@@ -345,12 +345,12 @@ jobs:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
       - name: Download frontend archives
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: frontend-dist
 
       - name: Download release metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: release-metadata
 
@@ -397,12 +397,12 @@ jobs:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
       - name: Download frontend archives
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: frontend-dist
 
       - name: Download release metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: release-metadata
 
@@ -514,7 +514,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-release-report-${{ matrix.db }}
           path: |
