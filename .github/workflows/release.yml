@@ -290,7 +290,7 @@ jobs:
           restore-keys: trivy-db-
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ env.IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.digest }}
           format: table
