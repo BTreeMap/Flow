@@ -28,22 +28,22 @@
 
 ## 2. Behavioral Test Scenarios (§9) → Planned Test Functions
 
-All tests are planned under `api/tests/test_engine/`. No tests have been written yet.
+All tests are under `api/tests/`. Legacy engine tests and new LangChain layer tests are both active.
 
-| Scenario | Contract § | Description | Planned Test File | Planned Test Function(s) |
-|---|---|---|---|---|
-| 1 | §9 Scenario 1 | Normal intake completion flow | `test_flow.py` | `test_intake_completion_saves_profile_and_transitions` |
-| 2 | §9 Scenario 2 | Missing profile repair (prompt gen fails → LLM transitions back to INTAKE) | `test_tools.py` | `test_prompt_generator_rejects_missing_anchor`, `test_prompt_generator_rejects_missing_time` |
-| 3 | §9 Scenario 3 | Prompt generation path (profile complete → prompt stored) | `test_tools.py` | `test_prompt_generator_success`, `test_prompt_generator_increments_total_prompts` |
-| 4 | §9 Scenario 4 | Feedback collection path (route to FeedbackModule, cancel pending feedback) | `test_flow.py` | `test_feedback_state_routes_to_feedback_module`, `test_feedback_cancels_pending_timers` |
-| 5 | §9 Scenario 5 | State transition with delay (stores timer ID, does not change state immediately) | `test_tools.py` | `test_delayed_state_transition`, `test_immediate_state_transition` |
-| 6 | §9 Scenario 6 | Daily prompt → reminder → user reply cancels reminder | `test_scheduler.py` | `test_daily_prompt_reminder_scheduled`, `test_user_reply_cancels_reminder` |
-| 7 | §9 Scenario 7 | Reminder fires then user replies (late reply, no pending state) | `test_scheduler.py` | `test_reminder_fires_and_clears_pending`, `test_late_reply_after_reminder_fires` |
-| 8 | §9 Scenario 8 | Intensity adjustment — once per day | `test_scheduler.py` | `test_intensity_adjustment_sent_once_per_day`, `test_intensity_adjustment_skipped_same_day` |
-| 9 | §9 Scenario 9 | Debug mode behavior | `test_flow.py` | `test_debug_mode` (low priority — debug is incidental per §10.2) |
-| 10 | §9 Scenario 10 | Tool failure and state-save failure fallbacks | `test_modules.py` | `test_tool_error_returned_to_llm`, `test_history_save_failure_still_returns_response` |
-| 11 | §9 Scenario 11 | Auto-feedback enforcement after prompt | `test_scheduler.py` | `test_auto_feedback_scheduled_after_prompt`, `test_auto_feedback_skips_if_already_feedback`, `test_auto_feedback_skips_if_recent_prompt` |
-| 12 | §9 Scenario 12 | Tone update — explicit vs implicit, rate limiting | `test_tone.py` | `test_implicit_rate_limit_rejects_within_3min`, `test_implicit_rate_limit_accepts_after_3min`, `test_explicit_ignores_rate_limit`, `test_ema_smoothing_values`, `test_mutual_exclusion_enforcement` |
+| Scenario | Contract § | Description | Test File | Test Function(s) | Status |
+|---|---|---|---|---|---|
+| 1 | §9 Scenario 1 | Normal intake completion flow | `test_flow.py`, `test_langchain_agents.py` | `TestSubStateRouting::test_defaults_to_intake`, `TestOrchestratorNoLLM::test_intake_route_default` | ✅ Passing |
+| 2 | §9 Scenario 2 | Missing profile repair (prompt gen fails) | `test_tools.py`, `test_langchain_tools.py` | `TestPromptGenerator::test_requires_prompt_anchor`, `TestPromptGeneratorTool::test_missing_profile_returns_error` | ✅ Passing |
+| 3 | §9 Scenario 3 | Prompt generation path | `test_tools.py`, `test_langchain_tools.py` | `TestPromptGenerator::test_success_with_required_fields`, `TestPromptGeneratorTool::test_success_with_complete_profile` | ✅ Passing |
+| 4 | §9 Scenario 4 | Feedback collection path | `test_flow.py`, `test_langchain_agents.py` | `TestSubStateRouting::test_feedback_cancels_pending_timers`, `TestOrchestratorNoLLM::test_feedback_cancels_timers` | ✅ Passing |
+| 5 | §9 Scenario 5 | State transition with delay | `test_tools.py`, `test_langchain_tools.py` | `TestStateTransition::test_delayed_transition_stores_timer_id`, `TestStateTransitionTool::test_delayed_transition` | ✅ Passing |
+| 6 | §9 Scenario 6 | Daily prompt → reminder → cancellation | `test_scheduler.py` | `TestDailyPromptReminder`, `TestCancellationOnReply` | ✅ Passing |
+| 7 | §9 Scenario 7 | Reminder fires then late reply | `test_scheduler.py` | `TestCancellationOnReply::test_late_reply_after_reminder_fired` | ✅ Passing |
+| 8 | §9 Scenario 8 | Intensity adjustment once/day | `test_scheduler.py` | `TestIntensityAdjustment` | ✅ Passing |
+| 9 | §9 Scenario 9 | Debug mode behavior | — | Not implemented (incidental per §10.2) | ⏭ Skipped |
+| 10 | §9 Scenario 10 | Tool failure fallbacks | `test_flow.py`, `test_langchain_tools.py` | `TestToolLoop::test_tool_error_continues_loop`, `TestStateTransitionTool::test_invalid_state_returns_error` | ✅ Passing |
+| 11 | §9 Scenario 11 | Auto-feedback enforcement | `test_scheduler.py` | `TestAutoFeedbackEnforcement` | ✅ Passing |
+| 12 | §9 Scenario 12 | Tone update, rate limiting | `test_tone.py` | `TestEMASmoothing`, `TestRateLimiting`, `TestMutualExclusion` | ✅ Passing |
 
 ---
 
@@ -51,7 +51,7 @@ All tests are planned under `api/tests/test_engine/`. No tests have been written
 
 | Component | Stub Location | What It Does | Production Replacement Needed |
 |---|---|---|---|
-| **LLM client** | `engine/modules.py` — `StubLLMClient` | Returns canned `LLMResponse` objects; can be pre-loaded with a sequence of responses for tool-loop testing | Real OpenAI / LangGraph LLM integration |
+| **LLM client** | `engine/modules.py` — `StubLLMClient` | Returns canned `LLMResponse` objects; can be pre-loaded with a sequence of responses for tool-loop testing | Real OpenAI / LangGraph LLM integration via `agents/` layer |
 | **Prompt generation (LLM call)** | `engine/tools.py` — `execute_prompt_generator()` | Produces a deterministic string from profile fields instead of calling an LLM | LLM call with `prompt_generator_system.txt` |
 | **Outbox event persistence** | `engine/scheduler.py` — `Scheduler.pending_events` | Collects `OutboxEvent` objects in an in-memory list for the caller to persist | Database-backed outbox with durable scheduling |
 | **Timer/job execution** | `engine/scheduler.py` — `OutboxEvent` | Events are created but never actually fired by a background worker | Durable job runner (e.g., Celery, APScheduler, or DB poller) |
@@ -74,6 +74,66 @@ All tests are planned under `api/tests/test_engine/`. No tests have been written
 | 6 | Identity model | Phone number is primary external identifier; participant ID generated via `util.GenerateParticipantID()` | h4ckath0n user ID (`u...`) is the stable identity; no phone number dependency | Per AGENTS.md identity policy; phone-based routing replaced by web-based auth |
 | 7 | Transport | WhatsApp message service with polls/buttons | SSE (mandatory) + optional WebSocket behind feature flag | Per AGENTS.md delivery plane requirements |
 | 8 | Debug mode | `SetDebugMode(true)` sends `🐛 DEBUG:` messages via `msgService` | Not implemented | Incidental behavior per §10.2; may be added later via logging |
+| 9 | Orchestration layer | Custom `LLMClient` protocol + hand-rolled tool loop in `IntakeModule.execute()` / `FeedbackModule.execute()` | LangChain `create_agent()` (LangGraph-backed) with `@tool` wrappers and `RouteDecision` Pydantic structured output | LangChain-native, idiomatic; preserves all legacy semantics via delegation to unchanged engine functions |
+
+---
+
+## 5. LangChain Orchestration Refactor
+
+> **Scope.** The orchestration layer was refactored to use LangChain primitives.
+> The underlying engine logic (tools, state, scheduler, tone) is **unchanged**.
+> Only the orchestration and routing layers were replaced.
+
+### Architecture
+
+| Component | Old Implementation | New Implementation | New File(s) |
+|---|---|---|---|
+| **Router/Coordinator** | `ConversationFlow._get_conversation_state()` — direct state lookup | `RouteDecision` Pydantic model + `route_turn()` — structured output from LLM or deterministic fallback | `agents/router.py`, `schemas/router.py` |
+| **Intake agent** | `IntakeModule.execute()` — hand-rolled tool loop | `create_intake_agent()` — LangGraph `create_agent()` with LangChain tools | `agents/intake.py` |
+| **Feedback agent** | `FeedbackModule.execute()` — hand-rolled tool loop | `create_feedback_agent()` — LangGraph `create_agent()` with LangChain tools | `agents/feedback.py` |
+| **Tool wrappers** | `INTAKE_TOOLS` / `FEEDBACK_TOOLS` — raw OpenAI function-calling dicts | `@tool` decorators with Pydantic `args_schema` | `tools/langchain_tools.py` |
+| **Orchestrator pipeline** | `ConversationFlow.process_response()` | `process_turn()` — router → agent → persist | `agents/orchestrator.py` |
+
+### Key design decisions
+
+1. **Coordinator is router-only.** `RouteDecision` has exactly two fields: `route` (Literal["INTAKE", "FEEDBACK"]) and `reason` (log-only, never shown to user). No user-visible text is produced.
+
+2. **LangChain tools wrap existing engine functions.** The `@tool` wrappers in `tools/langchain_tools.py` delegate directly to `engine/tools.py` functions (`execute_profile_save`, `execute_scheduler`, etc.), preserving all legacy semantics.
+
+3. **Pydantic everywhere.** Tool args (`ProfileSaveArgs`, `SchedulerArgs`, etc.) and results (`ProfileSaveResult`, `SchedulerResult`, etc.) are Pydantic models in `schemas/tool_schemas.py`.
+
+4. **No hand-rolled loops.** Agent tool dispatch is handled by LangGraph's `create_agent()` runtime. `recursion_limit` is set to `MAX_TOOL_ROUNDS * 2 + 2` to match the legacy 10-round tool loop cap.
+
+5. **Backward compatible.** When no LLM is provided, the orchestrator falls back to the legacy `StubLLMClient` path through the original engine modules.
+
+### Behavior preservation
+
+All 12 must-reproduce behaviors (§10.1, table above) are preserved:
+
+| # | Behavior | Where preserved | Tests |
+|---|---|---|---|
+| 1 | Sub-state routing defaults | `agents/router.py` — `_route_deterministic()` | `test_langchain_router.py::TestDeterministicRouting` |
+| 2 | Tool loop max iterations | `agents/intake.py`, `agents/feedback.py` — `_RECURSION_LIMIT` | Existing `test_flow.py::TestToolLoop` (engine layer unchanged) |
+| 3 | Profile field-by-field merge | `tools/langchain_tools.py` → `engine/tools.py` (delegated) | `test_langchain_tools.py::TestProfileSaveTool` |
+| 4 | Tone whitelist + EMA | Engine unchanged | Existing `test_tone.py` |
+| 5 | Reminder scheduling/cancellation | `agents/orchestrator.py` — calls `scheduler.handle_daily_prompt_reply()` | `test_langchain_agents.py::TestOrchestratorNoLLM` |
+| 6 | History trimming 50/30 | `agents/orchestrator.py` — `_save_history()`, `_to_langchain_messages()` | `test_langchain_agents.py::TestHistoryManagement` |
+| 7 | Auto-feedback enforcement | Engine unchanged | Existing `test_scheduler.py` |
+| 8 | Intensity adjustment once/day | Engine unchanged | Existing `test_scheduler.py` |
+| 9 | PromptAnchor/PreferredTime mandatory | `tools/langchain_tools.py` → `engine/tools.py` | `test_langchain_tools.py::TestPromptGeneratorTool` |
+| 10 | last_blocker alias | Engine unchanged | Existing `test_tools.py` |
+| 11 | Mutual exclusion for tone | Engine unchanged | Existing `test_tone.py` |
+| 12 | no_emojis overrides emojis_ok | Engine unchanged | Existing `test_tone.py` |
+
+**Semantics unchanged; orchestration changed only.**
+
+### Test coverage
+
+| Test File | Tests | Coverage Area |
+|---|---|---|
+| `test_langchain_router.py` | 10 | RouteDecision schema, deterministic routing, no user text |
+| `test_langchain_tools.py` | 14 | Tool creation, Pydantic args/results, tool permissions, error handling |
+| `test_langchain_agents.py` | 24 | Agent tool permissions, orchestrator pipeline, history, poll responses |
 
 ---
 
@@ -82,3 +142,4 @@ All tests are planned under `api/tests/test_engine/`. No tests have been written
 | Date | Author | Change |
 |---|---|---|
 | 2025-07-15 | Initial | Created parity matrix from legacy contract and engine implementation |
+| 2026-02-15 | LangChain Refactor | Added §5: LangChain orchestration refactor with code + test pointers |

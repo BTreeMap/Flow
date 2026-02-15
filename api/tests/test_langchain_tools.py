@@ -215,5 +215,5 @@ class TestStateTransitionTool:
         tools = make_intake_tools(state)
         tool = _find_tool(tools, "transition_state")
         # Pydantic Literal["INTAKE", "FEEDBACK"] rejects "INVALID"
-        with pytest.raises((ValidationError, Exception)):
+        with pytest.raises(ValidationError):
             tool.invoke({"target_state": "INVALID"})
