@@ -14,6 +14,7 @@ Validates:
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.schemas.patches import (
     COACH_ALLOWED_FIELDS,
@@ -351,7 +352,7 @@ class TestRouteDecisionCoach:
         assert d.route == "FEEDBACK"
 
     def test_invalid_route_rejected(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             RouteDecision(route="INVALID")  # type: ignore[arg-type]
 
     def test_route_decision_fields(self) -> None:
@@ -456,7 +457,7 @@ class TestEvidenceSpanModel:
         assert e.quotes == []
 
     def test_requires_message_ids(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EvidenceSpan()  # type: ignore[call-arg]
 
 
