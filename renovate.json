@@ -27,7 +27,7 @@
     "pyenv",
     "dockerfile",
     "docker-compose",
-    "regex"
+    "custom.regex"
   ],
   "packageRules": [
     {
@@ -102,10 +102,11 @@
       "automerge": false
     }
   ],
-  "regexManagers": [
+  "customManagers": [
     {
-      "fileMatch": [
-        "^\\.github/workflows/.*\\.ya?ml$"
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.*\\.ya?ml$/"
       ],
       "matchStrings": [
         "image:\\s*(?<depName>ghcr\\.io\\/[^\\s'\\\"]+):(?<currentValue>[^\\s'\\\"]+)"
