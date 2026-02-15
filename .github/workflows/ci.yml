@@ -1,0 +1,264 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Backend unit + integration tests ──────────────────────────────────
+  backend-unit-integration:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        db:
+          - sqlite
+          - postgres
+    services:
+      postgres:
+        image: ${{ matrix.db == 'postgres' && 'postgres:18.2' || '' }}
+        env:
+          POSTGRES_USER: flow
+          POSTGRES_PASSWORD: flow
+          POSTGRES_DB: flow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U flow"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      H4CKATH0N_ENV: testing
+      H4CKATH0N_AUTH_SIGNING_KEY: ci-test-signing-key-not-a-real-secret
+      H4CKATH0N_RP_ID: localhost
+      H4CKATH0N_ORIGIN: http://localhost:5173
+      H4CKATH0N_DATABASE_URL: ${{ matrix.db == 'postgres'
+        && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
+        || 'sqlite+aiosqlite:///./data/test.db' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.2"
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('api/uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: api
+        run: uv sync --frozen
+
+      - name: Lint (ruff)
+        working-directory: api
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run tests
+        working-directory: api
+        run: |
+          mkdir -p data
+          uv run pytest tests/ -v --tb=short --junitxml=junit-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results-${{ matrix.db }}
+          path: api/junit-results.xml
+
+  # ── Frontend unit tests ───────────────────────────────────────────────
+  frontend-unit-integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Lint
+        working-directory: web
+        run: npm run lint
+
+      - name: Type check
+        working-directory: web
+        run: npm run typecheck
+
+      - name: Run tests
+        working-directory: web
+        run: npm run test
+
+  # ── End-to-end tests ──────────────────────────────────────────────────
+  e2e:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        db:
+          - sqlite
+          - postgres
+    services:
+      postgres:
+        image: ${{ matrix.db == 'postgres' && 'postgres:18.2' || '' }}
+        env:
+          POSTGRES_USER: flow
+          POSTGRES_PASSWORD: flow
+          POSTGRES_DB: flow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U flow"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      H4CKATH0N_ENV: testing
+      H4CKATH0N_AUTH_SIGNING_KEY: ci-test-signing-key-not-a-real-secret
+      H4CKATH0N_RP_ID: localhost
+      H4CKATH0N_ORIGIN: http://localhost:5173
+      H4CKATH0N_DATABASE_URL: ${{ matrix.db == 'postgres'
+        && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
+        || 'sqlite+aiosqlite:///./data/test.db' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.2"
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('api/uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: Install backend dependencies
+        working-directory: api
+        run: uv sync --frozen
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        working-directory: web
+        run: npx playwright install-deps chromium
+
+      - name: Create data directory
+        run: mkdir -p api/data
+
+      - name: Run E2E tests
+        working-directory: web
+        run: npx playwright test
+        timeout-minutes: 10
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.db }}
+          path: |
+            web/playwright-report/
+            web/test-results/
+
+  # ── Container security scan ──────────────────────────────────────────
+  container-security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          push: false
+          load: true
+          tags: flow-backend:scan
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp || '1970-01-01T00:00:00Z' }}
+            VCS_REF=${{ github.sha }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          image-ref: flow-backend:scan
+          format: table
+          exit-code: "1"
+          severity: CRITICAL
+          output: trivy-report.txt
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-ci-report
+          path: trivy-report.txt
+
+      - name: Trivy SARIF report (HIGH+CRITICAL)
+        if: always()
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          image-ref: flow-backend:scan
+          format: sarif
+          severity: HIGH,CRITICAL
+          output: trivy-results.sarif
+
+      - name: Upload SARIF report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-report
+          path: trivy-results.sarif
