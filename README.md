@@ -23,7 +23,48 @@ All bots use LangChain agents and tools. Proposals are validated against a permi
 
 ## Quick Start
 
-### Backend
+### Docker Compose (recommended)
+
+The recommended way to run a production-like stack locally:
+
+```bash
+# Build the frontend artifact
+bash scripts/ci/package_frontend.sh web
+cp frontend.tar.xz web/frontend.tar.xz
+
+# Build local images
+docker build -t flow-web:local web/
+docker build -t flow:local api/
+
+# Start the stack
+FLOW_WEB_IMAGE=flow-web:local FLOW_IMAGE=flow:local docker compose up
+```
+
+The stack runs at `http://localhost:8080`. Caddy serves the frontend and reverse proxies `/api/*` to the backend (stripping the `/api` prefix).
+
+#### Deployment architecture
+
+```
+Cloudflare Tunnel (terminates TLS)
+  └─→ flow-web :8080 (Caddy, HTTP-only)
+        ├─ /          → static frontend files
+        └─ /api/*     → flow :8000 (prefix stripped)
+```
+
+- **flow-web** is HTTP-only — TLS is terminated by Cloudflare Tunnel (or any upstream TLS terminator).
+- The backend has no `/api` prefix on its routes. Caddy's `handle_path` strips it before proxying.
+
+#### With PostgreSQL
+
+```bash
+FLOW_WEB_IMAGE=flow-web:local FLOW_IMAGE=flow:local \
+  H4CKATH0N_DATABASE_URL=postgresql+asyncpg://flow:flow@postgres:5432/flow \
+  docker compose --profile postgres up
+```
+
+### Development (Vite dev server)
+
+#### Backend
 
 ```bash
 cd api
@@ -33,7 +74,7 @@ cp ../.env.example ../.env
 uv run uvicorn app.main:app --reload
 ```
 
-### Frontend (in another terminal)
+#### Frontend (in another terminal)
 
 ```bash
 cd web
@@ -78,10 +119,13 @@ Flow/
 │   │       ├── tools.py          # Tool implementations
 │   │       ├── scheduler.py      # Daily prompts, reminders, auto-feedback
 │   │       └── tone.py           # Tone adaptation (EMA, hysteresis, whitelist)
+│   ├── Dockerfile                # Backend container image
 │   ├── prompts/                  # System prompt templates
 │   ├── tests/                    # Backend test suite
 │   └── pyproject.toml
 ├── web/                          # React PWA frontend
+│   ├── Caddyfile                 # Caddy reverse proxy config (HTTP-only, :8080)
+│   ├── Dockerfile                # flow-web container image (Caddy + static assets)
 │   ├── public/
 │   │   ├── manifest.json         # PWA web app manifest
 │   │   └── sw.js                 # Service worker (push + notificationclick)
@@ -101,6 +145,7 @@ Flow/
 │   │   ├── components/           # Shared UI components
 │   │   └── gen/                  # Generated OpenAPI TypeScript client
 │   └── package.json
+├── docker-compose.yml            # Production-like local stack (flow-web + flow + postgres)
 ├── docs/
 │   ├── current-architecture.md           # NEW: Current architecture (authoritative)
 │   ├── legacy-conversation-flow-contract.md   # DEPRECATED: Legacy behavior reference

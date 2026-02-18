@@ -13,8 +13,10 @@ Jobs (all blocking):
 
 1. **backend-unit-integration** — pytest on SQLite and Postgres (matrix)
 2. **frontend-unit-integration** — lint, typecheck, vitest
-3. **e2e** — Playwright end-to-end on SQLite and Postgres (matrix)
-4. **container-security** — Trivy scan of built Docker image (fail on CRITICAL)
+3. **e2e** — Playwright end-to-end on SQLite and Postgres (matrix, Vite dev server)
+4. **e2e-compose** — Playwright end-to-end against Docker Compose stack on SQLite and Postgres (matrix)
+5. **container-security** — Trivy scan of backend Docker image (fail on CRITICAL)
+6. **container-security-web** — Trivy scan of flow-web Docker image (fail on CRITICAL)
 
 PR concurrency: cancels redundant runs on the same PR branch.
 
@@ -56,7 +58,12 @@ Stable releases (`vX.Y.Z` without prerelease suffix) are created manually by tag
 
 ### Image registry
 
-Images are published to GHCR: `ghcr.io/<owner>/<repo>-backend`
+Two images are published to GHCR:
+
+| Image | Package | Description |
+|-------|---------|-------------|
+| `ghcr.io/<owner>/<repo>` | `flow` | Backend API (FastAPI + uvicorn) |
+| `ghcr.io/<owner>/<repo>-web` | `flow-web` | Frontend + reverse proxy (Caddy) |
 
 ### Dev build tags (always published)
 
@@ -66,6 +73,8 @@ Images are published to GHCR: `ghcr.io/<owner>/<repo>-backend`
 | `:dev.YYYY-MM-DD` | `:dev.2026-02-15` |
 | `:dev.SHORT_SHA` | `:dev.abc1234` |
 | `:dev.YYYY-MM-DD.SHORT_SHA` | `:dev.2026-02-15.abc1234` |
+
+Both images use the same tag scheme.
 
 ### Release tags (published with GitHub release)
 
@@ -120,6 +129,30 @@ docker build \
   -t flow-backend:local .
 ```
 
+### Frontend + reverse proxy Docker image (flow-web)
+
+```bash
+# Build the frontend archive first
+bash scripts/ci/package_frontend.sh web
+cp frontend.tar.xz web/frontend.tar.xz
+
+# Build the flow-web image
+cd web
+docker build \
+  --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --build-arg VCS_REF="$(git rev-parse --short=7 HEAD)" \
+  --build-arg SOURCE_URL="https://github.com/<owner>/<repo>" \
+  -t flow-web:local .
+```
+
+### Run with Docker Compose
+
+```bash
+FLOW_WEB_IMAGE=flow-web:local FLOW_IMAGE=flow-backend:local docker compose up
+```
+
+The stack is accessible at `http://localhost:8080`.
+
 ### Frontend archives
 
 ```bash
@@ -140,12 +173,24 @@ python3 scripts/ci/compute_version.py --write
 
 ### Container hardening
 
+#### Backend (flow)
+
 - **Multi-stage build**: build tools only in builder stage; runtime has no compilers, git, curl, or build-essential.
 - **Non-root user**: dedicated `app` user in runtime stage.
 - **No bytecode**: `PYTHONDONTWRITEBYTECODE=1`
 - **No network at startup**: all Python deps pre-installed; no PyPI contact at runtime.
 - **OCI labels**: source URL, revision SHA, build timestamp.
 - **Base image pinned**: `python:3.14.3-slim-bookworm`
+
+#### Frontend + reverse proxy (flow-web)
+
+- **Pre-built assets**: consumes `frontend.tar.xz` from CI — no build tools in image.
+- **Non-root user**: dedicated `caddy` user.
+- **HTTP-only**: `auto_https off` — TLS terminated by Cloudflare Tunnel upstream.
+- **Non-privileged port**: listens on 8080, not 80/443.
+- **Admin API disabled**: `admin off`, `persist_config off`.
+- **OCI labels**: source URL, revision SHA, build timestamp.
+- **Base image**: official `caddy:2` (Alpine-based).
 
 ### Recommended runtime flags
 
@@ -170,10 +215,17 @@ docker run \
 ### Verify image signature
 
 ```bash
+# Backend
 cosign verify \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp="github.com/<owner>/<repo>" \
-  ghcr.io/<owner>/<repo>-backend:latest
+  ghcr.io/<owner>/<repo>:latest
+
+# Frontend (flow-web)
+cosign verify \
+  --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp="github.com/<owner>/<repo>" \
+  ghcr.io/<owner>/<repo>-web:latest
 ```
 
 ---

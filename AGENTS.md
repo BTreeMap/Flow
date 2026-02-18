@@ -78,6 +78,16 @@ Invite links:
   - structured outputs for routing and patch proposals
 - Do not hand-roll tool call parsing or custom agent loops.
 
+### Deployment architecture
+- Single-origin deployment: `flow-web` (Caddy) serves the React frontend at `/` and reverse proxies `/api/*` to the backend `flow` (FastAPI) with prefix stripping.
+- Cloudflare Tunnel terminates TLS and forwards to `flow-web` over plain HTTP on port 8080.
+- `flow-web` must remain HTTP-only (`auto_https off`), bind to 8080, and run as non-root.
+- The backend has no `/api` prefix on its routes — Caddy's `handle_path` strips it.
+- The root `docker-compose.yml` is the recommended way to run a production-like stack locally.
+- Both images are published to GHCR as multi-arch (linux/amd64, linux/arm64):
+  - Backend: `ghcr.io/<owner>/<repo>` (package name `flow`)
+  - Frontend: `ghcr.io/<owner>/<repo>-web` (package name `flow-web`)
+
 ---
 
 ## State, authority, and write-path rules (current architecture)
@@ -220,6 +230,10 @@ Scaffolded from h4ckath0n:
   - `web/src/pages/` dashboard, activate, chat, notifications
   - `web/public/manifest.json` PWA manifest
   - `web/src/sw.ts` or equivalent service worker
+  - `web/Caddyfile` Caddy reverse proxy config (HTTP-only, :8080)
+  - `web/Dockerfile` flow-web container image (Caddy + static assets)
+
+- `docker-compose.yml` production-like local stack (flow-web + flow + postgres)
 
 - `docs/`
   - `legacy-conversation-flow-contract.md` deprecated reference
@@ -394,9 +408,24 @@ npx playwright install --with-deps chromium
 npx playwright test
 ```
 
+### End-to-end (compose-based)
+```bash
+# Build images first
+bash scripts/ci/package_frontend.sh web
+cp frontend.tar.xz web/frontend.tar.xz
+docker build -t flow-web:local web/
+docker build -t flow:local api/
+
+# Start stack and run tests
+FLOW_WEB_IMAGE=flow-web:local FLOW_IMAGE=flow:local docker compose up -d
+cd web
+PLAYWRIGHT_BASE_URL=http://localhost:8080 npx playwright test e2e/compose.spec.ts
+```
+
 ### Notes
 - Backend tests run against SQLite by default (`sqlite+aiosqlite:///`).
 - CI also runs backend tests against Postgres (`postgresql+asyncpg://`).
 - E2E tests run against both SQLite and Postgres in CI.
+- Compose-based E2E tests validate Caddy static serving, SPA deep links, `/api` reverse proxy, and SSE streaming.
 - All database URLs must use async drivers: `aiosqlite` for SQLite, `asyncpg` for Postgres.
 - No `psycopg2` imports or sync Postgres drivers in application code.
