@@ -1,0 +1,50 @@
+# docker-compose.yml – Production-like local stack for Flow.
+#
+# Usage:
+#   docker compose up
+#
+# Architecture:
+#   flow-web  (Caddy)  :8080  ──  serves static frontend
+#                                  reverse proxies /api/* → flow:8000
+#   flow      (FastAPI) :8000  ──  backend API (routes at root, no /api prefix)
+#   postgres            :5432  ──  database (used when COMPOSE_PROFILES=postgres)
+#
+# Cloudflare Tunnel (production):
+#   TLS is terminated by Cloudflare Tunnel. flow-web listens on plain HTTP :8080.
+#   The tunnel forwards https://example.com → http://flow-web:8080.
+
+services:
+  flow-web:
+    image: ${FLOW_WEB_IMAGE:-ghcr.io/btreemap/flow-web:latest}
+    ports:
+      - "8080:8080"
+    environment:
+      BACKEND_UPSTREAM: "flow:8000"
+    depends_on:
+      flow:
+        condition: service_started
+
+  flow:
+    image: ${FLOW_IMAGE:-ghcr.io/btreemap/flow:latest}
+    environment:
+      H4CKATH0N_ENV: ${H4CKATH0N_ENV:-production}
+      H4CKATH0N_AUTH_SIGNING_KEY: ${H4CKATH0N_AUTH_SIGNING_KEY:-change-me-in-production}
+      H4CKATH0N_RP_ID: ${H4CKATH0N_RP_ID:-localhost}
+      H4CKATH0N_ORIGIN: ${H4CKATH0N_ORIGIN:-http://localhost:8080}
+      H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-sqlite+aiosqlite:///./data/flow.db}
+    volumes:
+      - flow-data:/app/data
+
+  postgres:
+    image: postgres:18.2
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: flow
+      POSTGRES_PASSWORD: flow
+      POSTGRES_DB: flow
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+volumes:
+  flow-data:
+  pg-data:

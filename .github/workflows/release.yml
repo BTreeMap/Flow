@@ -106,6 +106,9 @@ jobs:
       image_base: ${{ steps.version.outputs.image_base }}
       dev_tags: ${{ steps.version.outputs.dev_tags }}
       release_tags: ${{ steps.version.outputs.release_tags }}
+      web_image_base: ${{ steps.version.outputs.web_image_base }}
+      web_dev_tags: ${{ steps.version.outputs.web_dev_tags }}
+      web_release_tags: ${{ steps.version.outputs.web_release_tags }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -134,6 +137,15 @@ jobs:
           RELEASE_TAGS="${IMAGE_BASE}:latest,${IMAGE_BASE}:${DATE},${IMAGE_BASE}:${SHORT_SHA},${IMAGE_BASE}:${DATE}.${SHORT_SHA}"
           echo "dev_tags=$DEV_TAGS" >> "$GITHUB_OUTPUT"
           echo "release_tags=$RELEASE_TAGS" >> "$GITHUB_OUTPUT"
+
+          # Web image: flow-web
+          WEB_IMAGE_BASE="${IMAGE_BASE}-web"
+          echo "web_image_base=$WEB_IMAGE_BASE" >> "$GITHUB_OUTPUT"
+
+          WEB_DEV_TAGS="${WEB_IMAGE_BASE}:dev,${WEB_IMAGE_BASE}:dev.${DATE},${WEB_IMAGE_BASE}:dev.${SHORT_SHA},${WEB_IMAGE_BASE}:dev.${DATE}.${SHORT_SHA}"
+          WEB_RELEASE_TAGS="${WEB_IMAGE_BASE}:latest,${WEB_IMAGE_BASE}:${DATE},${WEB_IMAGE_BASE}:${SHORT_SHA},${WEB_IMAGE_BASE}:${DATE}.${SHORT_SHA}"
+          echo "web_dev_tags=$WEB_DEV_TAGS" >> "$GITHUB_OUTPUT"
+          echo "web_release_tags=$WEB_RELEASE_TAGS" >> "$GITHUB_OUTPUT"
 
       - name: Upload release metadata
         uses: actions/upload-artifact@v6
@@ -219,14 +231,110 @@ jobs:
           cache-from: type=gha,scope=arm64
           cache-to: type=gha,mode=max,scope=arm64
 
-  # Create multi-arch manifests
+  # Build + push flow-web amd64
+  build-push-web-amd64:
+    runs-on: ubuntu-24.04
+    needs: [compute-version, package-frontend]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    env:
+      WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download frontend archive
+        uses: actions/download-artifact@v7
+        with:
+          name: frontend-dist
+
+      - name: Copy frontend archive to web build context
+        run: cp frontend.tar.xz web/frontend.tar.xz
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push flow-web (amd64)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          file: ./web/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.WEB_IMAGE_BASE }}:tmp.${{ needs.compute-version.outputs.version }}.amd64
+          build-args: |
+            BUILD_DATE=${{ needs.compute-version.outputs.date }}
+            VCS_REF=${{ github.sha }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=web-amd64
+          cache-to: type=gha,mode=max,scope=web-amd64
+
+  # Build + push flow-web arm64
+  build-push-web-arm64:
+    runs-on: ubuntu-24.04-arm
+    needs: [compute-version, package-frontend]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    env:
+      WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download frontend archive
+        uses: actions/download-artifact@v7
+        with:
+          name: frontend-dist
+
+      - name: Copy frontend archive to web build context
+        run: cp frontend.tar.xz web/frontend.tar.xz
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push flow-web (arm64)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          file: ./web/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.WEB_IMAGE_BASE }}:tmp.${{ needs.compute-version.outputs.version }}.arm64
+          build-args: |
+            BUILD_DATE=${{ needs.compute-version.outputs.date }}
+            VCS_REF=${{ github.sha }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=web-arm64
+          cache-to: type=gha,mode=max,scope=web-arm64
+
+  # Create multi-arch manifests (backend + web)
   publish-manifests-and-tags:
     runs-on: ubuntu-24.04
-    needs: [compute-version, build-push-amd64, build-push-arm64]
+    needs: [compute-version, build-push-amd64, build-push-arm64, build-push-web-amd64, build-push-web-arm64]
     outputs:
       digest: ${{ steps.manifest.outputs.digest }}
+      web_digest: ${{ steps.web-manifest.outputs.digest }}
     env:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+      WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -238,7 +346,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and push multi-arch manifests (dev and release tags)
+      - name: Create and push backend multi-arch manifests
         id: manifest
         shell: bash
         run: |
@@ -259,12 +367,34 @@ jobs:
           docker buildx imagetools inspect "${{ env.IMAGE_BASE }}:dev" --format '{{json .Manifest.Digest}}' | tr -d '"' > /tmp/digest.txt
           echo "digest=$(cat /tmp/digest.txt)" >> "$GITHUB_OUTPUT"
 
+      - name: Create and push flow-web multi-arch manifests
+        id: web-manifest
+        shell: bash
+        run: |
+          VERSION="${{ needs.compute-version.outputs.version }}"
+          AMD64_SRC="${{ env.WEB_IMAGE_BASE }}:tmp.${VERSION}.amd64"
+          ARM64_SRC="${{ env.WEB_IMAGE_BASE }}:tmp.${VERSION}.arm64"
+
+          IFS=',' read -ra DEV_TAGS <<< "${{ needs.compute-version.outputs.web_dev_tags }}"
+          for tag in "${DEV_TAGS[@]}"; do
+            docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
+          done
+
+          IFS=',' read -ra REL_TAGS <<< "${{ needs.compute-version.outputs.web_release_tags }}"
+          for tag in "${REL_TAGS[@]}"; do
+            docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
+          done
+
+          docker buildx imagetools inspect "${{ env.WEB_IMAGE_BASE }}:dev" --format '{{json .Manifest.Digest}}' | tr -d '"' > /tmp/web-digest.txt
+          echo "digest=$(cat /tmp/web-digest.txt)" >> "$GITHUB_OUTPUT"
+
   # Sign and scan
   sign-and-scan:
     runs-on: ubuntu-24.04
     needs: [compute-version, publish-manifests-and-tags]
     env:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+      WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3
@@ -276,11 +406,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sign image (keyless)
+      - name: Sign backend image (keyless)
         shell: bash
         run: |
           DIGEST="${{ needs.publish-manifests-and-tags.outputs.digest }}"
           cosign sign --yes "${{ env.IMAGE_BASE }}@${DIGEST}"
+
+      - name: Sign flow-web image (keyless)
+        shell: bash
+        run: |
+          DIGEST="${{ needs.publish-manifests-and-tags.outputs.web_digest }}"
+          cosign sign --yes "${{ env.WEB_IMAGE_BASE }}@${DIGEST}"
 
       - name: Cache Trivy DB
         uses: actions/cache@v5
@@ -289,7 +425,7 @@ jobs:
           key: trivy-db-${{ github.run_id }}
           restore-keys: trivy-db-
 
-      - name: Trivy vulnerability scan
+      - name: Trivy scan backend
         uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ env.IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.digest }}
@@ -299,12 +435,30 @@ jobs:
           ignore-unfixed: true
           output: trivy-release-report.txt
 
-      - name: Upload Trivy report
+      - name: Upload backend Trivy report
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: trivy-release-report
           path: trivy-release-report.txt
+
+      - name: Trivy scan flow-web
+        if: always()
+        uses: aquasecurity/trivy-action@0.34.0
+        with:
+          image-ref: ${{ env.WEB_IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.web_digest }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL
+          ignore-unfixed: true
+          output: trivy-web-release-report.txt
+
+      - name: Upload flow-web Trivy report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: trivy-web-release-report
+          path: trivy-web-release-report.txt
 
   # Package frontend
   package-frontend:
@@ -343,6 +497,7 @@ jobs:
     if: github.event_name != 'release'
     env:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+      WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
     steps:
       - name: Download frontend archives
         uses: actions/download-artifact@v7
@@ -368,11 +523,9 @@ jobs:
           body: |
             ## Dev Release ${{ needs.compute-version.outputs.version }}
 
-            **Docker image:** `${{ env.IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
+            Multi-arch images (linux/amd64, linux/arm64) signed with Sigstore Cosign.
 
-            Multi-arch image (linux/amd64, linux/arm64) signed with Sigstore Cosign.
-
-            ### Docker tags
+            ### Backend image: `${{ env.IMAGE_BASE }}`
             - `${{ env.IMAGE_BASE }}:dev`
             - `${{ env.IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.date }}`
             - `${{ env.IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.short_sha }}`
@@ -381,6 +534,16 @@ jobs:
             - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}`
             - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.short_sha }}`
             - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
+
+            ### Web image: `${{ env.WEB_IMAGE_BASE }}`
+            - `${{ env.WEB_IMAGE_BASE }}:dev`
+            - `${{ env.WEB_IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.date }}`
+            - `${{ env.WEB_IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.short_sha }}`
+            - `${{ env.WEB_IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
+            - `${{ env.WEB_IMAGE_BASE }}:latest`
+            - `${{ env.WEB_IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}`
+            - `${{ env.WEB_IMAGE_BASE }}:${{ needs.compute-version.outputs.short_sha }}`
+            - `${{ env.WEB_IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
 
   # Attach artifacts to an already-published GitHub release (when triggered by release: published)
   attach-assets-to-existing-release:
@@ -395,6 +558,7 @@ jobs:
     if: github.event_name == 'release'
     env:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
+      WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
     steps:
       - name: Download frontend archives
         uses: actions/download-artifact@v7
@@ -417,9 +581,10 @@ jobs:
           body: |
             ## Release Assets for ${{ github.event.release.tag_name }}
 
-            **Docker image base:** `${{ env.IMAGE_BASE }}`
+            Multi-arch images (linux/amd64, linux/arm64) signed with Sigstore Cosign.
 
-            Multi-arch image (linux/amd64, linux/arm64) signed with Sigstore Cosign.
+            **Backend image:** `${{ env.IMAGE_BASE }}`
+            **Web image:** `${{ env.WEB_IMAGE_BASE }}`
 
   # Non-blocking E2E (does not gate release)
   non-blocking-e2e:

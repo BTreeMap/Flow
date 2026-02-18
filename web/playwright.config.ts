@@ -9,6 +9,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
 const apiDir = resolve(__dirname, "../api");
 
+// When PLAYWRIGHT_BASE_URL is set (e.g. http://localhost:8080 for compose-based
+// E2E), Playwright hits the external stack directly and does NOT start local
+// dev servers. Otherwise, it starts backend + Vite dev server as before.
+const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL;
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
@@ -18,7 +23,7 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? [["html", { open: "never" }], ["list"]] : "list",
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: externalBaseURL ?? "http://localhost:5173",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -28,23 +33,27 @@ export default defineConfig({
       use: { browserName: "chromium" },
     },
   ],
-  webServer: [
-    {
-      command: `uv run --directory ${apiDir} --locked python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`,
-      cwd: apiDir,
-      url: "http://127.0.0.1:8000/healthz",
-      reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
-      env: {
-        PYTHONPATH: apiDir,
-        H4CKATH0N_ORIGIN: "http://localhost:5173",
-      },
-    },
-    {
-      command: "npx vite --host 127.0.0.1 --port 5173",
-      url: "http://127.0.0.1:5173",
-      reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
-    },
-  ],
+  ...(externalBaseURL
+    ? {}
+    : {
+        webServer: [
+          {
+            command: `uv run --directory ${apiDir} --locked python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`,
+            cwd: apiDir,
+            url: "http://127.0.0.1:8000/healthz",
+            reuseExistingServer: !process.env.CI,
+            timeout: 30_000,
+            env: {
+              PYTHONPATH: apiDir,
+              H4CKATH0N_ORIGIN: "http://localhost:5173",
+            },
+          },
+          {
+            command: "npx vite --host 127.0.0.1 --port 5173",
+            url: "http://127.0.0.1:5173",
+            reuseExistingServer: !process.env.CI,
+            timeout: 30_000,
+          },
+        ],
+      }),
 });
