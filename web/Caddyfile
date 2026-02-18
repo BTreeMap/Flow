@@ -1,0 +1,21 @@
+{
+	auto_https off
+	admin off
+}
+
+:8080 {
+	# Reverse proxy API requests to backend with SSE streaming support
+	handle /api/* {
+		reverse_proxy {$BACKEND_UPSTREAM:flow-api:8000} {
+			flush_interval -1
+		}
+	}
+
+	# Serve static frontend files with SPA deep-link fallback
+	handle {
+		root * /srv
+		encode gzip zstd
+		try_files {path} /index.html
+		file_server
+	}
+}
