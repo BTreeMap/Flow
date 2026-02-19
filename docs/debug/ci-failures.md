@@ -56,7 +56,6 @@
 ```bash
 cd api
 export H4CKATH0N_ENV=testing
-export H4CKATH0N_AUTH_SIGNING_KEY=ci-test-signing-key-not-a-real-secret
 export H4CKATH0N_RP_ID=localhost
 export H4CKATH0N_ORIGIN=http://localhost:5173
 export H4CKATH0N_DATABASE_URL=sqlite+aiosqlite:///./data/test.db
@@ -71,7 +70,6 @@ docker run -d --name flow-pg -e POSTGRES_USER=flow -e POSTGRES_PASSWORD=flow -e 
 
 cd api
 export H4CKATH0N_ENV=testing
-export H4CKATH0N_AUTH_SIGNING_KEY=ci-test-signing-key-not-a-real-secret
 export H4CKATH0N_RP_ID=localhost
 export H4CKATH0N_ORIGIN=http://localhost:5173
 export H4CKATH0N_DATABASE_URL=postgresql+asyncpg://flow:flow@localhost:5432/flow_test

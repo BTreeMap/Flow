@@ -6,19 +6,22 @@ COPY --from=ghcr.io/astral-sh/uv:0.10.4 /uv /usr/local/bin/uv
 
 WORKDIR /build
 
+# Ensure uv installs into /opt/venv (not /build/.venv)
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+
 # Copy only dependency manifests first for caching
 COPY pyproject.toml uv.lock ./
 
 # Create venv and install deps (frozen, no dev)
 RUN uv venv /opt/venv && \
-    VIRTUAL_ENV=/opt/venv uv sync --frozen --no-dev --no-install-project
+    uv sync --frozen --no-dev --no-install-project
 
 # Copy application code
 COPY app/ ./app/
 COPY prompts/ ./prompts/
 
 # Install project itself into the venv
-RUN VIRTUAL_ENV=/opt/venv uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev
 
 
 # ---- Runtime stage ----
@@ -60,4 +63,4 @@ USER app
 EXPOSE 8000
 
 # Entrypoint: run uvicorn directly (no uv sync, no network)
-ENTRYPOINT ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/opt/venv/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

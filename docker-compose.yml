@@ -1,0 +1,78 @@
+# docker-compose.yml - Production-like local stack for Flow.
+#
+# Usage:
+#   docker compose up
+#
+# Architecture:
+#   flow-web  (Caddy)   :8080  - serves static frontend
+#                                 reverse proxies /api/* -> flow:8000
+#   flow      (FastAPI) :8000  - backend API (routes at root, no /api prefix)
+#   postgres            :5432  - database (always running)
+#
+# Cloudflare Tunnel (production):
+#   TLS is terminated by Cloudflare Tunnel. flow-web listens on plain HTTP :8080.
+#   The tunnel forwards https://example.com → http://flow-web:8080.
+
+services:
+  flow-web:
+    image: ${FLOW_WEB_IMAGE:-ghcr.io/btreemap/flow-web:latest}
+    hostname: flow-web
+    ports:
+      - "8080:8080"
+    environment:
+      BACKEND_UPSTREAM: "flow:8000"
+    depends_on:
+      flow:
+        condition: service_started
+    networks:
+      - flow-net
+
+  flow:
+    image: ${FLOW_IMAGE:-ghcr.io/btreemap/flow:latest}
+    hostname: flow
+    environment:
+      H4CKATH0N_ENV: ${H4CKATH0N_ENV:-production}
+      H4CKATH0N_RP_ID: ${H4CKATH0N_RP_ID:-localhost}
+      H4CKATH0N_ORIGIN: ${H4CKATH0N_ORIGIN:-http://localhost:8080}
+
+      # Default is Postgres (production-shaped). Override to sqlite in CI/local if desired.
+      H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-postgresql+asyncpg://flow:flow@postgres:5432/flow}
+
+    volumes:
+      - flow-data:/app/data
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - flow-net
+
+  postgres:
+    image: postgres:18.2
+    hostname: postgres
+    environment:
+      POSTGRES_USER: flow
+      POSTGRES_PASSWORD: flow
+      POSTGRES_DB: flow
+
+    # Postgres 18+ expects the volume at /var/lib/postgresql, not /var/lib/postgresql/data.
+    # This matches the image's PGDATA/VOLUME layout change.
+    volumes:
+      - pg-data:/var/lib/postgresql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flow -d flow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - flow-net
+
+volumes:
+  flow-data:
+  pg-data:
+
+networks:
+  flow-net:
+    name: flow-net
+    driver: bridge

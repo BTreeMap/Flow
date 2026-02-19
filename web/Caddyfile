@@ -1,0 +1,24 @@
+{
+	auto_https off
+	admin off
+	persist_config off
+}
+
+:8080 {
+	# Reverse proxy API requests to backend with SSE streaming support.
+	# handle_path strips the /api prefix before forwarding to the backend,
+	# because the backend registers routes at root (e.g. /healthz, /dashboard).
+	handle_path /api/* {
+		reverse_proxy {$BACKEND_UPSTREAM:flow:8000} {
+			flush_interval -1
+		}
+	}
+
+	# Serve static frontend files with SPA deep-link fallback
+	handle {
+		root * /srv
+		encode gzip zstd
+		try_files {path} /index.html
+		file_server
+	}
+}
