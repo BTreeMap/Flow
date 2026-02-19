@@ -15,10 +15,7 @@ COPY Caddyfile /etc/caddy/Caddyfile
 
 # Copy and extract pre-built frontend assets
 # frontend.tar.xz is produced by scripts/ci/package_frontend.sh
-COPY frontend.tar.xz /tmp/frontend.tar.xz
-RUN mkdir -p /srv && \
-    tar -xJf /tmp/frontend.tar.xz -C /srv && \
-    rm /tmp/frontend.tar.xz
+ADD frontend.tar.xz /srv/
 
 # Create non-root user and set ownership
 RUN addgroup -S caddy && \
