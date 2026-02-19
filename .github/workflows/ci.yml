@@ -400,16 +400,14 @@ jobs:
 
           if [[ "${{ matrix.db }}" == "postgres" ]]; then
             DB_URL="postgresql+asyncpg://flow:flow@postgres:5432/flow"
-            PROFILES=(--profile postgres)
           else
             DB_URL="sqlite+aiosqlite:///./data/test.db"
-            PROFILES=()
           fi
 
           FLOW_WEB_IMAGE=flow-web:ci \
           FLOW_IMAGE=flow:ci \
           H4CKATH0N_DATABASE_URL="$DB_URL" \
-          docker compose "${PROFILES[@]}" up -d
+          docker compose up -d
 
       - name: Wait for stack to be ready
         shell: bash
