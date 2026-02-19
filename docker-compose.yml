@@ -1,13 +1,13 @@
-# docker-compose.yml – Production-like local stack for Flow.
+# docker-compose.yml - Production-like local stack for Flow.
 #
 # Usage:
 #   docker compose up
 #
 # Architecture:
-#   flow-web  (Caddy)  :8080  ──  serves static frontend
-#                                  reverse proxies /api/* → flow:8000
-#   flow      (FastAPI) :8000  ──  backend API (routes at root, no /api prefix)
-#   postgres            :5432  ──  database (used when COMPOSE_PROFILES=postgres)
+#   flow-web  (Caddy)   :8080  - serves static frontend
+#                                 reverse proxies /api/* -> flow:8000
+#   flow      (FastAPI) :8000  - backend API (routes at root, no /api prefix)
+#   postgres            :5432  - database (always running)
 #
 # Cloudflare Tunnel (production):
 #   TLS is terminated by Cloudflare Tunnel. flow-web listens on plain HTTP :8080.
@@ -30,19 +30,38 @@ services:
       H4CKATH0N_ENV: ${H4CKATH0N_ENV:-production}
       H4CKATH0N_RP_ID: ${H4CKATH0N_RP_ID:-localhost}
       H4CKATH0N_ORIGIN: ${H4CKATH0N_ORIGIN:-http://localhost:8080}
-      H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-sqlite+aiosqlite:///./data/flow.db}
+
+      # Default is Postgres (production-shaped). Override to sqlite in CI/local if desired.
+      H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-postgresql+asyncpg://flow:flow@postgres:5432/flow}
+
     volumes:
       - flow-data:/app/data
 
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:18.2
-    profiles: ["postgres"]
     environment:
       POSTGRES_USER: flow
       POSTGRES_PASSWORD: flow
       POSTGRES_DB: flow
+
+    # Postgres 18+ expects the volume at /var/lib/postgresql, not /var/lib/postgresql/data.
+    # This matches the image's PGDATA/VOLUME layout change.
     volumes:
       - pg-data:/var/lib/postgresql
+
+    # Optional: expose to host for local dev tooling.
+    # ports:
+    #   - "5432:5432"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flow -d flow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
 volumes:
   flow-data:
