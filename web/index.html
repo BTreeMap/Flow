@@ -3,6 +3,18 @@
 
 <head>
   <meta charset="UTF-8" />
+  <script>
+    (() => {
+      const stored = (() => { try { return localStorage.getItem("theme-preference"); } catch { return null; } })();
+      const theme = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+      const effective =
+        theme === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : theme;
+
+      document.documentElement.dataset.theme = effective;
+    })();
+  </script>
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <link rel="manifest" href="/manifest.json" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
