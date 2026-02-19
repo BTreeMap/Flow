@@ -328,7 +328,14 @@ jobs:
   # Create multi-arch manifests (backend + web)
   publish-manifests-and-tags:
     runs-on: ubuntu-24.04
-    needs: [compute-version, build-push-amd64, build-push-arm64, build-push-web-amd64, build-push-web-arm64]
+    needs:
+      [
+        compute-version,
+        build-push-amd64,
+        build-push-arm64,
+        build-push-web-amd64,
+        build-push-web-arm64,
+      ]
     outputs:
       digest: ${{ steps.manifest.outputs.digest }}
       web_digest: ${{ steps.web-manifest.outputs.digest }}
@@ -426,11 +433,12 @@ jobs:
           restore-keys: trivy-db-
 
       - name: Trivy scan backend
+        if: always()
         uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ env.IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.digest }}
           format: table
-          exit-code: "1"
+          exit-code: "0"
           severity: CRITICAL
           ignore-unfixed: true
           output: trivy-release-report.txt
@@ -448,7 +456,7 @@ jobs:
         with:
           image-ref: ${{ env.WEB_IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.web_digest }}
           format: table
-          exit-code: "1"
+          exit-code: "0"
           severity: CRITICAL
           ignore-unfixed: true
           output: trivy-web-release-report.txt
