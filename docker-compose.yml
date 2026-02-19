@@ -16,6 +16,7 @@
 services:
   flow-web:
     image: ${FLOW_WEB_IMAGE:-ghcr.io/btreemap/flow-web:latest}
+    hostname: flow-web
     ports:
       - "8080:8080"
     environment:
@@ -28,6 +29,7 @@ services:
 
   flow:
     image: ${FLOW_IMAGE:-ghcr.io/btreemap/flow:latest}
+    hostname: flow
     environment:
       H4CKATH0N_ENV: ${H4CKATH0N_ENV:-production}
       H4CKATH0N_RP_ID: ${H4CKATH0N_RP_ID:-localhost}
@@ -47,6 +49,7 @@ services:
 
   postgres:
     image: postgres:18.2
+    hostname: postgres
     environment:
       POSTGRES_USER: flow
       POSTGRES_PASSWORD: flow
