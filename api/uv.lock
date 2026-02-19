@@ -585,7 +585,7 @@ requires-dist = [
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cryptography", specifier = ">=44.0" },
-    { name = "h4ckath0n", specifier = ">=0.1.1" },
+    { name = "h4ckath0n", specifier = ">=0.1.7.dev20260219181613" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "langchain", specifier = ">=1.2.10" },
     { name = "langchain-core", specifier = ">=1.2.12" },
@@ -767,7 +767,7 @@ wheels = [
 
 [[package]]
 name = "h4ckath0n"
-version = "0.1.6"
+version = "0.1.7.dev20260219181613"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosqlite" },
@@ -791,9 +791,9 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
     { name = "webauthn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/59/21/5267b32e667443c98b8c9184f2cdab30eef2cec70bfbc22f0245d01f7b20/h4ckath0n-0.1.6.tar.gz", hash = "sha256:53df71eab8d99c8af258789821a85cc707b1a9b20830bd83edfa9906710f89da", size = 341193, upload-time = "2026-02-18T22:13:31.611Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/9d/9c4f95c578524f5a0f3fc9bfd267676ee35cf423c9168bb051c9ad850cee/h4ckath0n-0.1.7.dev20260219181613.tar.gz", hash = "sha256:444d8a50bf3fbf0fe4e59e16c560ddf6affff015283d166b294898127e78538b", size = 358237, upload-time = "2026-02-19T18:17:03.806Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/54/a98611a2cd1376a28a03725a1eb60dd5060b074e77092595a2c7a3f34948/h4ckath0n-0.1.6-py3-none-any.whl", hash = "sha256:57a3a7ed3219ad6439ff7b2f4aebdef63ac98de19a3c140d2017d94b3192cdee", size = 35592, upload-time = "2026-02-18T22:13:29.32Z" },
+    { url = "https://files.pythonhosted.org/packages/71/bb/675dfbc97876d368a457a12e190105a9488c90ee4e77bed693b0d27df714/h4ckath0n-0.1.7.dev20260219181613-py3-none-any.whl", hash = "sha256:b4c095191606e290060992ab70e40da6b407f4a50e48994dcc2d684156d206d1", size = 47573, upload-time = "2026-02-19T18:17:02.055Z" },
 ]
 
 [[package]]
