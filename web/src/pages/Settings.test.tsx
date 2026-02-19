@@ -28,6 +28,19 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
+function mockMatchMedia(matches: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation(() => ({
+      matches,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  });
+}
+
 const samplePasskeys = [
   {
     id: "k00000000000000000000000000000001",
@@ -47,6 +60,9 @@ const samplePasskeys = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockGet.mockResolvedValue({ data: { passkeys: [] } });
+  localStorage.clear();
+  document.documentElement.removeAttribute("data-theme");
 });
 
 describe("Settings – passkey name display", () => {
@@ -151,5 +167,35 @@ describe("Settings – passkey rename", () => {
     expect(
       await screen.findByTestId("passkey-rename-error"),
     ).toHaveTextContent("Something went wrong");
+  });
+});
+
+describe("Settings – theme preference", () => {
+  it("defaults to system when no preference is saved", async () => {
+    mockMatchMedia(false);
+    render(<Settings />, { wrapper });
+
+    expect(
+      await screen.findByRole("radio", { name: "System" }),
+    ).toBeChecked();
+  });
+
+  it("selecting dark persists preference and applies dark theme", async () => {
+    mockMatchMedia(false);
+    render(<Settings />, { wrapper });
+
+    fireEvent.click(await screen.findByRole("radio", { name: "Dark" }));
+    expect(localStorage.getItem("theme-preference")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("selecting system applies effective theme from matchMedia", async () => {
+    mockMatchMedia(false);
+    localStorage.setItem("theme-preference", "dark");
+    render(<Settings />, { wrapper });
+
+    fireEvent.click(await screen.findByRole("radio", { name: "System" }));
+    expect(localStorage.getItem("theme-preference")).toBe("system");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
   });
 });

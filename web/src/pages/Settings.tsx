@@ -8,6 +8,11 @@ import { Button } from "../components/Button";
 import { Alert } from "../components/Alert";
 import api from "../api/client";
 import type { PasskeyInfo } from "../api/types";
+import {
+  applyThemePreference,
+  readThemePreference,
+  type ThemePreference,
+} from "../theme";
 
 const MAX_NAME_LENGTH = 64;
 
@@ -126,6 +131,7 @@ export function Settings() {
   const [addLoading, setAddLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastPasskeyError, setLastPasskeyError] = useState<string | null>(null);
+  const [themePreference, setThemePreference] = useState<ThemePreference>(() => readThemePreference());
 
   const { data: passkeys, isLoading } = useQuery<PasskeyInfo[]>({
     queryKey: ["passkeys"],
@@ -223,6 +229,34 @@ export function Settings() {
           </div>
         </Alert>
       )}
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold text-text">Theme</h2>
+        </CardHeader>
+        <CardContent>
+          <fieldset className="space-y-2">
+            <legend className="sr-only">Theme preference</legend>
+            {(["system", "light", "dark"] as const).map((option) => (
+              <label key={option} className="flex items-center gap-2 text-sm text-text">
+                <input
+                  type="radio"
+                  name="theme-preference"
+                  value={option}
+                  checked={themePreference === option}
+                  onChange={() => {
+                    setThemePreference(option);
+                    applyThemePreference(option);
+                  }}
+                />
+                {option === "system"
+                  ? "System"
+                  : option === "light" ? "Light" : "Dark"}
+              </label>
+            ))}
+          </fieldset>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex items-center justify-between">
