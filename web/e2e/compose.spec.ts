@@ -72,6 +72,10 @@ test.describe("Compose stack: API proxy and SSE", () => {
     // /api/demo/ping is unauthenticated; Caddy strips /api → backend /demo/ping
     await page.goto("/");
     const res = await page.request.get("/api/demo/ping");
+    if (!res.ok()) {
+      console.log("status", res.status());
+      console.log("body", await res.text());
+    }
     expect(res.ok()).toBe(true);
     const body = await res.json();
     expect(body).toEqual({ ok: true });
