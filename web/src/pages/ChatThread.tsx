@@ -12,6 +12,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 interface Message {
   id: string;
+  serverMsgId: string;
   role: "user" | "assistant";
   content: string;
   created_at?: string;
@@ -26,7 +27,7 @@ export function ChatThread() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const lastEventIdRef = useRef<string | null>(null);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,7 +49,23 @@ export function ChatThread() {
         if (!res.ok) throw new Error(`Failed to load messages (${res.status})`);
         const data = await res.json();
         if (!cancelled) {
-          setMessages(data.messages || []);
+          setMessages(
+            (data.messages || []).map(
+              (msg: {
+                message_id: number;
+                server_msg_id: string;
+                role: "user" | "assistant";
+                content: string;
+                created_at?: string;
+              }) => ({
+                id: String(msg.message_id),
+                serverMsgId: msg.server_msg_id,
+                role: msg.role,
+                content: msg.content,
+                created_at: msg.created_at,
+              }),
+            ),
+          );
           setLoading(false);
         }
       } catch (err) {
@@ -64,50 +81,99 @@ export function ChatThread() {
   // SSE connection for real-time updates
   useEffect(() => {
     const ctrl = new AbortController();
-    abortRef.current = ctrl;
+    let active = true;
+
+    const appendMessage = (
+      payload: {
+        message_id: number;
+        server_msg_id: string;
+        role: "user" | "assistant";
+        content: string;
+        created_at?: string;
+      },
+    ) => {
+      const next: Message = {
+        id: String(payload.message_id),
+        serverMsgId: payload.server_msg_id,
+        role: payload.role,
+        content: payload.content,
+        created_at: payload.created_at,
+      };
+      setMessages((prev) => {
+        if (prev.some((m) => m.serverMsgId === next.serverMsgId)) return prev;
+        return [...prev, next];
+      });
+    };
 
     (async () => {
-      try {
-        const token = await getOrMintToken("sse");
-        await fetchEventSource(`${API_BASE}/p/${projectId}/events`, {
-          headers: { Authorization: `Bearer ${token}` },
-          signal: ctrl.signal,
-          onmessage(ev) {
-            if (ev.event === "message.final") {
-              try {
-                const msg: Message = JSON.parse(ev.data);
-                setMessages((prev) => {
-                  if (prev.some((m) => m.id === msg.id)) return prev;
-                  return [...prev, msg];
-                });
-              } catch {
-                // ignore malformed messages
+      let retryCount = 0;
+      while (active && !ctrl.signal.aborted) {
+        try {
+          const token = await getOrMintToken("sse");
+          await fetchEventSource(`${API_BASE}/p/${projectId}/events`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              ...(lastEventIdRef.current
+                ? { "Last-Event-ID": lastEventIdRef.current }
+                : {}),
+            },
+            signal: ctrl.signal,
+            onmessage(ev) {
+              if (ev.id) {
+                lastEventIdRef.current = ev.id;
               }
-            } else if (ev.event === "state.update") {
-              // State updates can be handled here in the future
-            }
-          },
-          onerror(err) {
-            // fetchEventSource will auto-retry; log for debugging
-            console.warn("SSE error, retrying…", err);
-          },
-          async onopen(response) {
-            if (!response.ok) {
-              throw new Error(`SSE connection failed (${response.status})`);
-            }
-          },
-          openWhenHidden: true,
-        });
-      } catch {
-        // Abort errors are expected on cleanup
+              if (ev.event === "message.final") {
+                try {
+                  appendMessage(
+                    JSON.parse(ev.data) as {
+                      message_id: number;
+                      server_msg_id: string;
+                      role: "user" | "assistant";
+                      content: string;
+                      created_at?: string;
+                    },
+                  );
+                } catch {
+                  // ignore malformed messages
+                }
+              }
+            },
+            async onopen(response) {
+              if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                  setError("Your session expired. Please log in again.");
+                  ctrl.abort();
+                  throw new Error("auth");
+                }
+                throw new Error(`SSE connection failed (${response.status})`);
+              }
+              retryCount = 0;
+            },
+            openWhenHidden: true,
+          });
+        } catch {
+          if (!active || ctrl.signal.aborted) {
+            return;
+          }
+          retryCount += 1;
+          const backoffMs = Math.min(1000 * 2 ** (retryCount - 1), 10000);
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        }
       }
     })();
 
     return () => {
+      active = false;
       ctrl.abort();
-      abortRef.current = null;
     };
   }, [projectId]);
+
+  const appendMessage = useCallback((message: Message) => {
+    setMessages((prev) => {
+      if (prev.some((m) => m.serverMsgId === message.serverMsgId)) return prev;
+      return [...prev, message];
+    });
+  }, []);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -119,7 +185,13 @@ export function ChatThread() {
 
     // Optimistic local message
     const tempId = `temp-${Date.now()}`;
-    const userMsg: Message = { id: tempId, role: "user", content: text, created_at: new Date().toISOString() };
+    const userMsg: Message = {
+      id: tempId,
+      serverMsgId: tempId,
+      role: "user",
+      content: text,
+      created_at: new Date().toISOString(),
+    };
     setMessages((prev) => [...prev, userMsg]);
 
     try {
@@ -130,18 +202,28 @@ export function ChatThread() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({ text, client_msg_id: tempId }),
       });
 
-      if (!res.ok) throw new Error(`Send failed (${res.status})`);
-
-      const data = await res.json();
-      // Replace temp message with server response
-      if (data.message) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? data.message : m)),
-        );
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Your session expired. Please log in again.");
+        }
+        throw new Error(`Send failed (${res.status})`);
       }
+
+      const data = (await res.json()) as {
+        message_id: number;
+        server_msg_id: string;
+        role: "user" | "assistant";
+        content: string;
+      };
+      appendMessage({
+        id: String(data.message_id),
+        serverMsgId: data.server_msg_id,
+        role: data.role,
+        content: data.content,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       // Remove optimistic message on failure

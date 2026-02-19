@@ -585,7 +585,7 @@ requires-dist = [
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cryptography", specifier = ">=44.0" },
-    { name = "h4ckath0n", specifier = ">=0.1.7.dev20260219192729" },
+    { name = "h4ckath0n", specifier = ">=0.1.7" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "langchain", specifier = ">=1.2.10" },
     { name = "langchain-core", specifier = ">=1.2.12" },
@@ -767,7 +767,7 @@ wheels = [
 
 [[package]]
 name = "h4ckath0n"
-version = "0.1.7.dev20260219192729"
+version = "0.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosqlite" },
@@ -791,9 +791,9 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
     { name = "webauthn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ef/72/1a922c3e7780086a923508fe6d2a91e117a9793bcadd1bbf3c2c730faa34/h4ckath0n-0.1.7.dev20260219192729.tar.gz", hash = "sha256:9991150e0ca4b18a45d8ad26c90846a4073f869d04ab7154a2d5d5d7225d31db", size = 358268, upload-time = "2026-02-19T19:28:50.8Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5c/63/1976e917eb0d8d6f913a422d0aa612788c27116ae38b68e85c105b3ae2b4/h4ckath0n-0.1.7.tar.gz", hash = "sha256:886f367b02174ab59559235a0e54c02b53e0b2fe171d67327d7465b44f1b92e6", size = 356762, upload-time = "2026-02-19T20:03:20.686Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d2/2e/8da53606bfaa651e568b9408d156d3c14151faa09d9cd84758d4df0b7265/h4ckath0n-0.1.7.dev20260219192729-py3-none-any.whl", hash = "sha256:3c38b68c269a9afd50a2a8b359af0032ffc383aa4cd0f79d264762c1163fe6ea", size = 47619, upload-time = "2026-02-19T19:28:49.222Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/a0/e9b34bb43524c454899b10deb740beee3d725be626f7f05ea1b7466ed82e/h4ckath0n-0.1.7-py3-none-any.whl", hash = "sha256:26a2ccdd23de4b32dc7813c911caf85c7e388f4f45758522f801858a26d9dcf3", size = 47388, upload-time = "2026-02-19T20:03:18.191Z" },
 ]
 
 [[package]]

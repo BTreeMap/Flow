@@ -13,24 +13,26 @@ import { execFileSync } from "node:child_process";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, mkdirSync } from "node:fs";
+import { resolveUvProject } from "./uv-project.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const webDir = resolve(__dirname, "..");
 const apiDir = resolve(webDir, "../api");
-const repoRoot = resolve(webDir, "../../../../..");
+const uvProject = resolveUvProject(webDir, apiDir);
 
 const openapiJson = resolve(apiDir, "openapi.json");
-const outputTs = resolve(webDir, "src/gen/openapi.ts");
+const outputTs = resolve(webDir, "src/api/openapi.ts");
 
 // ── Step 1: Generate OpenAPI JSON from the backend ─────────────────────────
+console.log(`→ Using uv project: ${uvProject}`);
 console.log("→ Dumping OpenAPI schema from backend…");
 try {
   execFileSync(
     "uv",
     [
+      "--project",
+      uvProject,
       "run",
-      "--directory",
-      repoRoot,
       "--locked",
       "python",
       "-m",
@@ -39,12 +41,12 @@ try {
       openapiJson,
     ],
     {
-      cwd: apiDir,
+      cwd: webDir,
       stdio: "inherit",
       env: { ...process.env, PYTHONPATH: apiDir },
     },
   );
-} catch (err) {
+} catch {
   console.error("✗ Failed to dump OpenAPI schema from backend.");
   process.exit(1);
 }
@@ -67,7 +69,7 @@ try {
     ["exec", "--no", "--", "openapi-typescript", openapiJson, "-o", outputTs],
     { cwd: webDir, stdio: "inherit" },
   );
-} catch (err) {
+} catch {
   console.error("✗ openapi-typescript generation failed.");
   process.exit(1);
 }

@@ -34,6 +34,7 @@ services:
       H4CKATH0N_ENV: ${H4CKATH0N_ENV:-production}
       H4CKATH0N_RP_ID: ${H4CKATH0N_RP_ID:-localhost}
       H4CKATH0N_ORIGIN: ${H4CKATH0N_ORIGIN:-http://localhost:8080}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
       # Default is Postgres (production-shaped). Override to sqlite in CI/local if desired.
       H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-postgresql+asyncpg://flow:flow@postgres:5432/flow}

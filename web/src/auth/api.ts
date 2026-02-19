@@ -39,7 +39,7 @@ export async function apiFetch<T = unknown>(
 
   const response = await fetch(url, { ...options, headers });
 
-  if (response.status === 401) {
+  if (response.status === 401 || response.status === 403) {
     clearCachedToken();
     throw new AuthError("Unauthorized");
   }

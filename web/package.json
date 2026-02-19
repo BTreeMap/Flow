@@ -12,8 +12,10 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:watch": "vitest",
-    "gen": "node scripts/gen-openapi.mjs",
-    "check": "npm run gen && npm run lint && npm run typecheck && npm run test && npm run build"
+    "gen": "npm run gen:api",
+    "gen:api": "node scripts/gen-openapi.mjs",
+    "gen:api:check": "npm run gen:api && git diff --exit-code -- src/api/openapi.ts",
+    "check": "npm run gen:api:check && npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@microsoft/fetch-event-source": "^2.0.1",
@@ -39,7 +41,7 @@
     "eslint-plugin-react-hooks": "^7.0.0",
     "globals": "^17.0.0",
     "jsdom": "^28.0.0",
-    "openapi-typescript": "^7.12.0",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.1.10",
     "typescript": "~5.9.0",
     "typescript-eslint": "^8.33.1",

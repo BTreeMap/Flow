@@ -66,15 +66,6 @@ test.describe("Passkey auth flows", () => {
       timeout: 10_000,
     });
 
-    // ── User-defined endpoints: demo/ping + demo/echo ─────────────────
-    // The Dashboard renders the results of GET /demo/ping and POST /demo/echo.
-    await page.goto("/dashboard");
-    await expect(page.getByTestId("demo-ping")).toContainText("✓ ok", {
-      timeout: 10_000,
-    });
-    await expect(page.getByTestId("demo-echo")).toContainText('"hello" → "olleh"', {
-      timeout: 10_000,
-    });
   });
 
   // -----------------------------------------------------------------------
@@ -153,6 +144,11 @@ test.describe("Passkey auth flows", () => {
     await expect(page.getByTestId("passkey-item")).toHaveCount(2, {
       timeout: 15_000,
     });
+
+    await page.getByTestId("passkey-edit-btn").first().click();
+    await page.getByTestId("passkey-name-input").fill("Laptop key");
+    await page.getByTestId("passkey-name-save").click();
+    await expect(page.getByTestId("passkey-name").first()).toContainText("Laptop key");
   });
 
   // -----------------------------------------------------------------------

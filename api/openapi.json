@@ -1,6 +1,63 @@
 {
   "components": {
     "schemas": {
+      "ClaimRequest": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "invite_code": {
+            "title": "Invite Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invite_code",
+          "email"
+        ],
+        "title": "ClaimRequest",
+        "type": "object"
+      },
+      "ClaimResponse": {
+        "properties": {
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "integer"
+          },
+          "membership_status": {
+            "title": "Membership Status",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "membership_status",
+          "conversation_id"
+        ],
+        "title": "ClaimResponse",
+        "type": "object"
+      },
+      "DashboardResponse": {
+        "properties": {
+          "memberships": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipInfo"
+            },
+            "title": "Memberships",
+            "type": "array"
+          }
+        },
+        "required": [
+          "memberships"
+        ],
+        "title": "DashboardResponse",
+        "type": "object"
+      },
       "EchoRequest": {
         "properties": {
           "message": {
@@ -32,6 +89,31 @@
         "title": "EchoResponse",
         "type": "object"
       },
+      "ErrorResponse": {
+        "description": "Standard error envelope for auth routes.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            ],
+            "description": "Error detail message or structured error payload.",
+            "title": "Detail"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -45,10 +127,149 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "description": "Health status string.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "MeResponse": {
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "membership_status": {
+            "title": "Membership Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "membership_status"
+        ],
+        "title": "MeResponse",
+        "type": "object"
+      },
+      "MembershipInfo": {
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "status"
+        ],
+        "title": "MembershipInfo",
+        "type": "object"
+      },
+      "MessageItem": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "integer"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "server_msg_id": {
+            "title": "Server Msg Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "server_msg_id",
+          "role",
+          "content",
+          "created_at"
+        ],
+        "title": "MessageItem",
+        "type": "object"
+      },
+      "MessageListResponse": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/MessageItem"
+            },
+            "title": "Messages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "MessageListResponse",
+        "type": "object"
+      },
       "PasskeyAddFinishRequest": {
         "properties": {
           "credential": {
             "additionalProperties": true,
+            "description": "Browser PublicKeyCredential response as JSON.",
             "title": "Credential",
             "type": "object"
           },
@@ -61,6 +282,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional label for the device.",
             "title": "Device Label"
           },
           "device_public_key_jwk": {
@@ -73,9 +295,11 @@
                 "type": "null"
               }
             ],
+            "description": "Optional device public key in JWK format to bind a device identity.",
             "title": "Device Public Key Jwk"
           },
           "flow_id": {
+            "description": "Flow ID returned by add/start.",
             "title": "Flow Id",
             "type": "string"
           }
@@ -90,11 +314,13 @@
       "PasskeyAddStartResponse": {
         "properties": {
           "flow_id": {
+            "description": "Server-generated flow ID for add passkey.",
             "title": "Flow Id",
             "type": "string"
           },
           "options": {
             "additionalProperties": true,
+            "description": "PublicKeyCredentialCreationOptions payload as a JSON-safe dict.",
             "title": "Options",
             "type": "object"
           }
@@ -109,6 +335,7 @@
       "PasskeyFinishResponse": {
         "properties": {
           "device_id": {
+            "description": "Device ID that starts with the d prefix, empty when no device key is bound.",
             "title": "Device Id",
             "type": "string"
           },
@@ -121,13 +348,16 @@
                 "type": "null"
               }
             ],
+            "description": "Optional display name for the user, not set by default.",
             "title": "Display Name"
           },
           "role": {
+            "description": "Server-side role for the user.",
             "title": "Role",
             "type": "string"
           },
           "user_id": {
+            "description": "User ID that starts with the u prefix.",
             "title": "User Id",
             "type": "string"
           }
@@ -143,24 +373,15 @@
       "PasskeyInfo": {
         "properties": {
           "created_at": {
+            "description": "Creation timestamp in UTC.",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
           "id": {
+            "description": "Internal passkey ID that starts with the k prefix.",
             "title": "Id",
             "type": "string"
-          },
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
           },
           "last_used_at": {
             "anyOf": [
@@ -172,7 +393,20 @@
                 "type": "null"
               }
             ],
+            "description": "Last successful use timestamp.",
             "title": "Last Used At"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User-provided passkey name.",
+            "title": "Name"
           },
           "revoked_at": {
             "anyOf": [
@@ -184,15 +418,13 @@
                 "type": "null"
               }
             ],
+            "description": "Revocation timestamp, if revoked.",
             "title": "Revoked At"
           }
         },
         "required": [
           "id",
-          "label",
-          "created_at",
-          "last_used_at",
-          "revoked_at"
+          "created_at"
         ],
         "title": "PasskeyInfo",
         "type": "object"
@@ -200,6 +432,7 @@
       "PasskeyListResponse": {
         "properties": {
           "passkeys": {
+            "description": "Passkeys for the current user.",
             "items": {
               "$ref": "#/components/schemas/PasskeyInfo"
             },
@@ -217,6 +450,7 @@
         "properties": {
           "credential": {
             "additionalProperties": true,
+            "description": "Browser PublicKeyCredential response as JSON.",
             "title": "Credential",
             "type": "object"
           },
@@ -229,6 +463,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional label for the device.",
             "title": "Device Label"
           },
           "device_public_key_jwk": {
@@ -241,9 +476,11 @@
                 "type": "null"
               }
             ],
+            "description": "Optional device public key in JWK format to bind a device identity.",
             "title": "Device Public Key Jwk"
           },
           "flow_id": {
+            "description": "Flow ID returned by login/start.",
             "title": "Flow Id",
             "type": "string"
           }
@@ -258,11 +495,13 @@
       "PasskeyLoginStartResponse": {
         "properties": {
           "flow_id": {
+            "description": "Server-generated flow ID for login.",
             "title": "Flow Id",
             "type": "string"
           },
           "options": {
             "additionalProperties": true,
+            "description": "PublicKeyCredentialRequestOptions payload as a JSON-safe dict.",
             "title": "Options",
             "type": "object"
           }
@@ -278,6 +517,7 @@
         "properties": {
           "credential": {
             "additionalProperties": true,
+            "description": "Browser PublicKeyCredential response as JSON.",
             "title": "Credential",
             "type": "object"
           },
@@ -290,6 +530,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional label for the device.",
             "title": "Device Label"
           },
           "device_public_key_jwk": {
@@ -302,9 +543,11 @@
                 "type": "null"
               }
             ],
+            "description": "Optional device public key in JWK format to bind a device identity.",
             "title": "Device Public Key Jwk"
           },
           "flow_id": {
+            "description": "Flow ID returned by register/start.",
             "title": "Flow Id",
             "type": "string"
           }
@@ -319,11 +562,13 @@
       "PasskeyRegisterStartResponse": {
         "properties": {
           "flow_id": {
+            "description": "Server-generated flow ID for registration.",
             "title": "Flow Id",
             "type": "string"
           },
           "options": {
             "additionalProperties": true,
+            "description": "PublicKeyCredentialCreationOptions payload as a JSON-safe dict.",
             "title": "Options",
             "type": "object"
           }
@@ -333,6 +578,65 @@
           "options"
         ],
         "title": "PasskeyRegisterStartResponse",
+        "type": "object"
+      },
+      "PasskeyRenameRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New passkey name. Null or empty to clear.",
+            "title": "Name"
+          }
+        },
+        "title": "PasskeyRenameRequest",
+        "type": "object"
+      },
+      "PasskeyRenameResponse": {
+        "properties": {
+          "id": {
+            "description": "Internal passkey ID.",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Updated passkey name.",
+            "title": "Name"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "PasskeyRenameResponse",
+        "type": "object"
+      },
+      "PasskeyRevokeResponse": {
+        "properties": {
+          "message": {
+            "description": "Status message for the revocation action.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "PasskeyRevokeResponse",
         "type": "object"
       },
       "PingResponse": {
@@ -346,6 +650,143 @@
           "ok"
         ],
         "title": "PingResponse",
+        "type": "object"
+      },
+      "PushSubscribeRequest": {
+        "properties": {
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "keys": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "object"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent"
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "PushSubscribeRequest",
+        "type": "object"
+      },
+      "PushSubscribeResponse": {
+        "properties": {
+          "subscription_id": {
+            "title": "Subscription Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "subscription_id"
+        ],
+        "title": "PushSubscribeResponse",
+        "type": "object"
+      },
+      "PushUnsubscribeRequest": {
+        "properties": {
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint"
+        ],
+        "title": "PushUnsubscribeRequest",
+        "type": "object"
+      },
+      "PushUnsubscribeResponse": {
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "PushUnsubscribeResponse",
+        "type": "object"
+      },
+      "RootResponse": {
+        "properties": {
+          "message": {
+            "description": "Welcome message.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "RootResponse",
+        "type": "object"
+      },
+      "SendMessageRequest": {
+        "properties": {
+          "client_msg_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Msg Id"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "SendMessageRequest",
+        "type": "object"
+      },
+      "SendMessageResponse": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "integer"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "server_msg_id": {
+            "title": "Server Msg Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "server_msg_id",
+          "role",
+          "content"
+        ],
+        "title": "SendMessageResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -387,10 +828,24 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "VapidPublicKeyResponse": {
+        "properties": {
+          "public_key": {
+            "title": "Public Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "public_key"
+        ],
+        "title": "VapidPublicKeyResponse",
+        "type": "object"
       }
     },
     "securitySchemes": {
-      "HTTPBearer": {
+      "DeviceJWT": {
+        "description": "Device-signed ES256 JWT minted by the client. The JWT header must include kid set to the device id, and the aud claim must be h4ckath0n:http.",
         "scheme": "bearer",
         "type": "http"
       }
@@ -399,28 +854,32 @@
   "info": {
     "description": "Hackathon app powered by h4ckath0n",
     "title": "h4ckath0n",
-    "version": "0.1.1"
+    "version": "0.1.7"
   },
   "openapi": "3.1.0",
   "paths": {
     "/": {
       "get": {
+        "description": "Default root route provided by h4ckath0n.",
         "operationId": "root__get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RootResponse"
+                }
               }
             },
             "description": "Successful Response"
           }
         },
-        "summary": "Root"
+        "summary": "Welcome"
       }
     },
     "/auth/passkey/add/finish": {
       "post": {
+        "description": "Verify the WebAuthn attestation and attach the new passkey to the user.",
         "operationId": "add_finish_auth_passkey_add_finish_post",
         "requestBody": {
           "content": {
@@ -436,10 +895,32 @@
           "201": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyFinishResponse"
+                }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid or expired flow, or WebAuthn verification error."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid token."
           },
           "422": {
             "content": {
@@ -454,10 +935,10 @@
         },
         "security": [
           {
-            "HTTPBearer": []
+            "DeviceJWT": []
           }
         ],
-        "summary": "Add Finish",
+        "summary": "Finish adding a passkey",
         "tags": [
           "passkey"
         ]
@@ -465,6 +946,7 @@
     },
     "/auth/passkey/add/start": {
       "post": {
+        "description": "Begin adding a new passkey for the authenticated user and return registration options.",
         "operationId": "add_start_auth_passkey_add_start_post",
         "responses": {
           "200": {
@@ -476,14 +958,24 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid token."
           }
         },
         "security": [
           {
-            "HTTPBearer": []
+            "DeviceJWT": []
           }
         ],
-        "summary": "Add Start",
+        "summary": "Start adding a passkey",
         "tags": [
           "passkey"
         ]
@@ -491,6 +983,7 @@
     },
     "/auth/passkey/login/finish": {
       "post": {
+        "description": "Finish passkey login by verifying the WebAuthn assertion for the flow and binding an optional device key.",
         "operationId": "login_finish_auth_passkey_login_finish_post",
         "requestBody": {
           "content": {
@@ -513,6 +1006,16 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid credentials, revoked passkey, or expired flow."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -524,7 +1027,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Login Finish",
+        "summary": "Finish passkey login",
         "tags": [
           "passkey"
         ]
@@ -532,6 +1035,7 @@
     },
     "/auth/passkey/login/start": {
       "post": {
+        "description": "Begin a username-less passkey login ceremony and return WebAuthn authentication options.",
         "operationId": "login_start_auth_passkey_login_start_post",
         "responses": {
           "200": {
@@ -545,7 +1049,7 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Login Start",
+        "summary": "Start passkey login",
         "tags": [
           "passkey"
         ]
@@ -553,6 +1057,7 @@
     },
     "/auth/passkey/register/finish": {
       "post": {
+        "description": "Finish passkey registration by verifying the WebAuthn attestation for the flow and binding an optional device key.",
         "operationId": "register_finish_auth_passkey_register_finish_post",
         "requestBody": {
           "content": {
@@ -575,6 +1080,16 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid or expired flow, or invalid WebAuthn payload."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -586,7 +1101,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Register Finish",
+        "summary": "Finish passkey registration",
         "tags": [
           "passkey"
         ]
@@ -594,6 +1109,7 @@
     },
     "/auth/passkey/register/start": {
       "post": {
+        "description": "Begin a passkey registration ceremony. Creates a new user and a single-use challenge flow, then returns WebAuthn registration options.",
         "operationId": "register_start_auth_passkey_register_start_post",
         "responses": {
           "200": {
@@ -605,9 +1121,19 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request or WebAuthn configuration error."
           }
         },
-        "summary": "Register Start",
+        "summary": "Start passkey registration",
         "tags": [
           "passkey"
         ]
@@ -615,6 +1141,7 @@
     },
     "/auth/passkeys": {
       "get": {
+        "description": "List all passkeys, including revoked entries, for the current user.",
         "operationId": "passkeys_list_auth_passkeys_get",
         "responses": {
           "200": {
@@ -626,14 +1153,112 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid token."
           }
         },
         "security": [
           {
-            "HTTPBearer": []
+            "DeviceJWT": []
           }
         ],
-        "summary": "Passkeys List",
+        "summary": "List passkeys",
+        "tags": [
+          "passkey"
+        ]
+      }
+    },
+    "/auth/passkeys/{key_id}": {
+      "patch": {
+        "description": "Update the user-facing name of a passkey.",
+        "operationId": "passkey_rename_auth_passkeys__key_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "title": "Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRenameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyRenameResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Passkey not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cannot rename a revoked passkey."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error."
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Rename a passkey",
         "tags": [
           "passkey"
         ]
@@ -641,6 +1266,7 @@
     },
     "/auth/passkeys/{key_id}/revoke": {
       "post": {
+        "description": "Revoke a passkey by its internal key ID. The last active passkey cannot be revoked and returns the LAST_PASSKEY error.",
         "operationId": "passkey_revoke_auth_passkeys__key_id__revoke_post",
         "parameters": [
           {
@@ -657,10 +1283,48 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyRevokeResponse"
+                }
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Passkey not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "LAST_PASSKEY",
+                    "message": "Cannot revoke the last active passkey."
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cannot revoke the last active passkey."
           },
           "422": {
             "content": {
@@ -675,12 +1339,39 @@
         },
         "security": [
           {
-            "HTTPBearer": []
+            "DeviceJWT": []
           }
         ],
-        "summary": "Passkey Revoke",
+        "summary": "Revoke a passkey",
         "tags": [
           "passkey"
+        ]
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "description": "Return all memberships with project info for the current user.",
+        "operationId": "dashboard_dashboard_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Dashboard",
+        "tags": [
+          "dashboard"
         ]
       }
     },
@@ -770,12 +1461,15 @@
     },
     "/health": {
       "get": {
+        "description": "Basic health check for the app.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -805,6 +1499,423 @@
           }
         },
         "summary": "Healthz"
+      }
+    },
+    "/p/{project_id}/activate/claim": {
+      "post": {
+        "description": "Validate invite code, create membership and conversation.",
+        "operationId": "claim_invite_p__project_id__activate_claim_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Claim Invite",
+        "tags": [
+          "activation"
+        ]
+      }
+    },
+    "/p/{project_id}/events": {
+      "get": {
+        "description": "SSE stream for real-time events on a project conversation.",
+        "operationId": "event_stream_p__project_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Event Stream P  Project Id  Events Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Event Stream",
+        "tags": [
+          "streaming"
+        ]
+      }
+    },
+    "/p/{project_id}/me": {
+      "get": {
+        "description": "Return membership status, conversation id, and stored email.",
+        "operationId": "project_me_p__project_id__me_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Project Me",
+        "tags": [
+          "activation"
+        ]
+      }
+    },
+    "/p/{project_id}/messages": {
+      "get": {
+        "description": "Return persisted messages for a project conversation.",
+        "operationId": "list_messages_p__project_id__messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "List Messages",
+        "tags": [
+          "messaging"
+        ]
+      },
+      "post": {
+        "description": "Persist user message, run engine turn, persist assistant reply.",
+        "operationId": "send_message_p__project_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendMessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Send Message",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
+    "/p/{project_id}/push/subscribe": {
+      "post": {
+        "description": "Store a push subscription for the current membership.",
+        "operationId": "push_subscribe_p__project_id__push_subscribe_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscribeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Push Subscribe",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/p/{project_id}/push/unsubscribe": {
+      "post": {
+        "description": "Revoke a push subscription by endpoint.",
+        "operationId": "push_unsubscribe_p__project_id__push_unsubscribe_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushUnsubscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushUnsubscribeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Push Unsubscribe",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/p/{project_id}/push/vapid-public-key": {
+      "get": {
+        "description": "Return the VAPID public key from environment.",
+        "operationId": "vapid_public_key_p__project_id__push_vapid_public_key_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VapidPublicKeyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Vapid Public Key",
+        "tags": [
+          "push"
+        ]
       }
     }
   }
