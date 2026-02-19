@@ -84,6 +84,8 @@ npm run dev
 
 The frontend dev server runs at `http://localhost:5173` and proxies API requests to the backend.
 
+To run real LLM responses instead of stub mode, set `OPENAI_API_KEY` (or `H4CKATH0N_OPENAI_API_KEY`) in your root `.env` before starting the backend. Keep this value secret and never commit it.
+
 ## Project Structure
 
 ```
@@ -303,6 +305,8 @@ Configure in `.env` at the repository root (see `.env.example`):
 | `H4CKATH0N_RP_ID` | WebAuthn relying party ID (e.g., `localhost`) |
 | `H4CKATH0N_ORIGIN` | Allowed origin for CORS and WebAuthn |
 | `VITE_API_BASE_URL` | API base URL for the frontend (e.g., `/api`) |
+| `OPENAI_API_KEY` | OpenAI API key for live LLM responses (backend only) |
+| `H4CKATH0N_OPENAI_API_KEY` | Optional alternate env name for the OpenAI key |
 | `VAPID_PUBLIC_KEY` | VAPID public key for Web Push |
 | `VAPID_PRIVATE_KEY` | VAPID private key for Web Push (never log this) |
 

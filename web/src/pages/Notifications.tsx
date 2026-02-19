@@ -60,7 +60,7 @@ export function Notifications() {
 
       // Get VAPID public key from backend
       const token = await getOrMintToken("http");
-      const vapidRes = await fetch(`${API_BASE}/push/vapid-key`, {
+      const vapidRes = await fetch(`${API_BASE}/p/${projectId}/push/vapid-public-key`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!vapidRes.ok) throw new Error("Failed to fetch VAPID key");
@@ -91,7 +91,11 @@ export function Notifications() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(subscription.toJSON()),
+          body: JSON.stringify({
+            endpoint: subscription.endpoint,
+            keys: subscription.toJSON().keys,
+            user_agent: navigator.userAgent,
+          }),
         },
       );
       if (!subRes.ok) throw new Error("Failed to register subscription");

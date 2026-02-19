@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import json
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -48,7 +49,13 @@ app.include_router(router)
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     """Readiness check for E2E and deployment probes."""
-    return {"status": "ok"}
+    llm_configured = bool(
+        os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    )
+    return {
+        "status": "ok",
+        "llm_mode": "openai" if llm_configured else "stub",
+    }
 
 
 # ---------------------------------------------------------------------------

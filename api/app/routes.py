@@ -32,6 +32,7 @@ from app.models import (
 from h4ckath0n.auth import require_user
 from h4ckath0n.auth.models import User
 from h4ckath0n.realtime import AuthError, authenticate_sse_request, sse_response
+from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,18 @@ class SendMessageResponse(BaseModel):
     server_msg_id: str
     role: str
     content: str
+
+
+class MessageItem(BaseModel):
+    message_id: int
+    server_msg_id: str
+    role: str
+    content: str
+    created_at: str
+
+
+class MessageListResponse(BaseModel):
+    messages: list[MessageItem]
 
 
 class PushSubscribeRequest(BaseModel):
@@ -330,6 +343,33 @@ async def project_me(
 # ---------------------------------------------------------------------------
 
 
+@router.get("/p/{project_id}/messages", tags=["messaging"])
+async def list_messages(
+    project_id: str,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> MessageListResponse:
+    """Return persisted messages for a project conversation."""
+    membership = await _get_membership(db, project_id, user.id)
+    conv = await _get_conversation(db, membership.id)
+    result = await db.execute(
+        select(Message)
+        .where(Message.conversation_id == conv.id)
+        .order_by(Message.id.asc())
+    )
+    items = [
+        MessageItem(
+            message_id=msg.id,
+            server_msg_id=msg.server_msg_id,
+            role=msg.role,
+            content=msg.content,
+            created_at=msg.created_at.isoformat(),
+        )
+        for msg in result.scalars().all()
+    ]
+    return MessageListResponse(messages=items)
+
+
 @router.post("/p/{project_id}/messages", tags=["messaging"])
 async def send_message(
     project_id: str,
@@ -340,6 +380,10 @@ async def send_message(
     """Persist user message, run engine turn, persist assistant reply."""
     membership = await _get_membership(db, project_id, user.id)
     conv = await _get_conversation(db, membership.id)
+    llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
+        "OPENAI_API_KEY"
+    )
+    llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key) if llm_key else None
 
     # Persist user message
     user_msg = Message(
@@ -361,6 +405,8 @@ async def send_message(
         membership_id=membership.id,
         user_msg=user_msg,
         user_text=body.text,
+        llm=llm,
+        router_llm=llm,
     )
 
     assistant_msg = Message(

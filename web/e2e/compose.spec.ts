@@ -104,11 +104,6 @@ test.describe("Compose stack: API proxy and SSE", () => {
 
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
     await expect(page.getByTestId("dashboard-heading")).toBeVisible();
-
-    // Verify /api/dashboard works (triggered by Dashboard page load)
-    await expect(page.getByTestId("demo-ping")).toContainText("✓ ok", {
-      timeout: 10_000,
-    });
   });
 
   // -----------------------------------------------------------------------

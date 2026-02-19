@@ -113,7 +113,9 @@ async def seeded_client(client: AsyncClient) -> AsyncGenerator[dict[str, Any], N
 async def test_healthz(client: AsyncClient) -> None:
     resp = await client.get("/healthz")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["llm_mode"] in {"stub", "openai"}
 
 
 # ---------------------------------------------------------------------------
@@ -218,6 +220,13 @@ async def test_send_message(seeded_client: dict[str, Any]) -> None:
     assert data["role"] == "assistant"
     assert data["content"]  # non-empty assistant response from engine
     assert data["server_msg_id"]
+
+    list_resp = await client.get(f"/p/{project_id}/messages")
+    assert list_resp.status_code == 200
+    items = list_resp.json()["messages"]
+    assert len(items) == 2
+    assert items[0]["role"] == "user"
+    assert items[1]["role"] == "assistant"
 
 
 @pytest.mark.asyncio

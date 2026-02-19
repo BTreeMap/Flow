@@ -14,6 +14,8 @@ export function Settings() {
   const [addLoading, setAddLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastPasskeyError, setLastPasskeyError] = useState<string | null>(null);
+  const [editingPasskeyId, setEditingPasskeyId] = useState<string | null>(null);
+  const [pendingName, setPendingName] = useState("");
 
   const { data: passkeys, isLoading } = useQuery<PasskeyInfo[]>({
     queryKey: ["passkeys"],
@@ -55,6 +57,33 @@ export function Settings() {
       } else {
         setError(err.message);
       }
+    },
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: async ({
+      passkeyId,
+      name,
+    }: {
+      passkeyId: string;
+      name: string;
+    }) => {
+      const trimmed = name.trim();
+      const res = await apiFetch(`/auth/passkeys/${passkeyId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: trimmed.length > 0 ? trimmed : null }),
+      });
+      if (!res.ok) {
+        throw new Error("Rename failed");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["passkeys"] });
+      setEditingPasskeyId(null);
+      setPendingName("");
+    },
+    onError: () => {
+      setError("Failed to rename passkey");
     },
   });
 
@@ -134,12 +163,41 @@ export function Settings() {
               {passkeys.map((passkey) => (
                 <div key={passkey.id} className="flex items-center justify-between py-3" data-testid="passkey-item">
                   <div>
-                    <p className="text-sm font-medium text-text">
-                      {passkey.label || "Unnamed passkey"}
-                      {passkey.revoked_at && (
-                        <span className="ml-2 text-xs text-danger">(revoked)</span>
-                      )}
-                    </p>
+                    {editingPasskeyId === passkey.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={pendingName}
+                          onChange={(e) => setPendingName(e.target.value)}
+                          maxLength={64}
+                          className="text-sm px-2 py-1 border border-border rounded-md bg-surface text-text"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => renameMutation.mutate({ passkeyId: passkey.id, name: pendingName })}
+                          disabled={renameMutation.isPending}
+                          data-testid="save-passkey-rename-btn"
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setEditingPasskeyId(null);
+                            setPendingName("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-medium text-text" data-testid="passkey-label">
+                        {passkey.label || "Unnamed passkey"}
+                        {passkey.revoked_at && (
+                          <span className="ml-2 text-xs text-danger">(revoked)</span>
+                        )}
+                      </p>
+                    )}
                     <p className="text-xs text-text-muted font-mono">{passkey.id}</p>
                     <p className="text-xs text-text-muted">
                       Created: {new Date(passkey.created_at).toLocaleDateString()}
@@ -149,16 +207,29 @@ export function Settings() {
                     </p>
                   </div>
                   {!passkey.revoked_at && (
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => revokeMutation.mutate(passkey.id)}
-                      disabled={revokeMutation.isPending}
-                      data-testid="revoke-passkey-btn"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Revoke
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setEditingPasskeyId(passkey.id);
+                          setPendingName(passkey.label || "");
+                        }}
+                        data-testid="rename-passkey-btn"
+                      >
+                        Rename
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => revokeMutation.mutate(passkey.id)}
+                        disabled={revokeMutation.isPending}
+                        data-testid="revoke-passkey-btn"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Revoke
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}

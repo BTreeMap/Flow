@@ -6,7 +6,6 @@ import { Register } from "./pages/Register";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
-import { Admin } from "./pages/Admin";
 import { DemoRealtime } from "./pages/DemoRealtime";
 import { Activation } from "./pages/Activation";
 import { ChatThread } from "./pages/ChatThread";
@@ -52,26 +51,18 @@ export function App() {
           }
         />
         <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <Admin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/demo/realtime"
           element={
             <ProtectedRoute>
               <DemoRealtime />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           }
         />
