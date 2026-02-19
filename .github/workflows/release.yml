@@ -132,18 +132,22 @@ jobs:
           IMAGE_BASE="ghcr.io/${GITHUB_REPOSITORY,,}"
           echo "image_base=$IMAGE_BASE" >> "$GITHUB_OUTPUT"
 
-          DEV_TAGS="${IMAGE_BASE}:dev,${IMAGE_BASE}:dev.${DATE},${IMAGE_BASE}:dev.${SHORT_SHA},${IMAGE_BASE}:dev.${DATE}.${SHORT_SHA}"
-          RELEASE_TAGS="${IMAGE_BASE}:latest,${IMAGE_BASE}:${DATE},${IMAGE_BASE}:${SHORT_SHA},${IMAGE_BASE}:${DATE}.${SHORT_SHA}"
+          # Dev tags always published (including :latest).
+          DEV_TAGS="${IMAGE_BASE}:dev,${IMAGE_BASE}:dev.${DATE},${IMAGE_BASE}:dev.${SHORT_SHA},${IMAGE_BASE}:dev.${DATE}.${SHORT_SHA},${IMAGE_BASE}:latest"
           echo "dev_tags=$DEV_TAGS" >> "$GITHUB_OUTPUT"
+
+          # Release tags are only published for GitHub Release events (no :latest here).
+          RELEASE_TAGS="${IMAGE_BASE}:${DATE},${IMAGE_BASE}:${SHORT_SHA},${IMAGE_BASE}:${DATE}.${SHORT_SHA}"
           echo "release_tags=$RELEASE_TAGS" >> "$GITHUB_OUTPUT"
 
           # Web image: flow-web
           WEB_IMAGE_BASE="${IMAGE_BASE}-web"
           echo "web_image_base=$WEB_IMAGE_BASE" >> "$GITHUB_OUTPUT"
 
-          WEB_DEV_TAGS="${WEB_IMAGE_BASE}:dev,${WEB_IMAGE_BASE}:dev.${DATE},${WEB_IMAGE_BASE}:dev.${SHORT_SHA},${WEB_IMAGE_BASE}:dev.${DATE}.${SHORT_SHA}"
-          WEB_RELEASE_TAGS="${WEB_IMAGE_BASE}:latest,${WEB_IMAGE_BASE}:${DATE},${WEB_IMAGE_BASE}:${SHORT_SHA},${WEB_IMAGE_BASE}:${DATE}.${SHORT_SHA}"
+          WEB_DEV_TAGS="${WEB_IMAGE_BASE}:dev,${WEB_IMAGE_BASE}:dev.${DATE},${WEB_IMAGE_BASE}:dev.${SHORT_SHA},${WEB_IMAGE_BASE}:dev.${DATE}.${SHORT_SHA},${WEB_IMAGE_BASE}:latest"
           echo "web_dev_tags=$WEB_DEV_TAGS" >> "$GITHUB_OUTPUT"
+
+          WEB_RELEASE_TAGS="${WEB_IMAGE_BASE}:${DATE},${WEB_IMAGE_BASE}:${SHORT_SHA},${WEB_IMAGE_BASE}:${DATE}.${SHORT_SHA}"
           echo "web_release_tags=$WEB_RELEASE_TAGS" >> "$GITHUB_OUTPUT"
 
       - name: Upload release metadata
@@ -389,12 +393,12 @@ jobs:
             docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
           done
 
-          IFS=',' read -ra REL_TAGS <<< "${{ needs.compute-version.outputs.release_tags }}"
-          for tag in "${REL_TAGS[@]}"; do
-            docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
-          done
-
           if [[ "${{ github.event_name }}" == "release" ]]; then
+            IFS=',' read -ra REL_TAGS <<< "${{ needs.compute-version.outputs.release_tags }}"
+            for tag in "${REL_TAGS[@]}"; do
+              docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
+            done
+
             docker buildx imagetools create -t "${{ env.IMAGE_BASE }}:stable" "$AMD64_SRC" "$ARM64_SRC"
           fi
 
@@ -414,12 +418,12 @@ jobs:
             docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
           done
 
-          IFS=',' read -ra REL_TAGS <<< "${{ needs.compute-version.outputs.web_release_tags }}"
-          for tag in "${REL_TAGS[@]}"; do
-            docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
-          done
-
           if [[ "${{ github.event_name }}" == "release" ]]; then
+            IFS=',' read -ra REL_TAGS <<< "${{ needs.compute-version.outputs.web_release_tags }}"
+            for tag in "${REL_TAGS[@]}"; do
+              docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
+            done
+
             docker buildx imagetools create -t "${{ env.WEB_IMAGE_BASE }}:stable" "$AMD64_SRC" "$ARM64_SRC"
           fi
 
@@ -588,9 +592,6 @@ jobs:
             - `${{ env.IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.short_sha }}`
             - `${{ env.IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
             - `${{ env.IMAGE_BASE }}:latest`
-            - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}`
-            - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.short_sha }}`
-            - `${{ env.IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
 
             ### Web image: `${{ env.WEB_IMAGE_BASE }}`
             - `${{ env.WEB_IMAGE_BASE }}:dev`
@@ -598,9 +599,6 @@ jobs:
             - `${{ env.WEB_IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.short_sha }}`
             - `${{ env.WEB_IMAGE_BASE }}:dev.${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
             - `${{ env.WEB_IMAGE_BASE }}:latest`
-            - `${{ env.WEB_IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}`
-            - `${{ env.WEB_IMAGE_BASE }}:${{ needs.compute-version.outputs.short_sha }}`
-            - `${{ env.WEB_IMAGE_BASE }}:${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`
 
   # Attach artifacts to an already-published GitHub release (when triggered by release: published)
   attach-assets-to-existing-release:
@@ -640,8 +638,12 @@ jobs:
 
             Multi-arch images (linux/amd64, linux/arm64) signed with Sigstore Cosign.
 
-            **Backend image:** `${{ env.IMAGE_BASE }}`
-            **Web image:** `${{ env.WEB_IMAGE_BASE }}`
+            Use the `:stable` tag for this release:
+
+            **Backend image:** `${{ env.IMAGE_BASE }}:stable`
+            **Web image:** `${{ env.WEB_IMAGE_BASE }}:stable`
+
+            (Additional tags for this release are also available on both images: `${{ github.event.release.tag_name }}`, `${{ needs.compute-version.outputs.date }}`, `${{ needs.compute-version.outputs.short_sha }}`, `${{ needs.compute-version.outputs.date }}.${{ needs.compute-version.outputs.short_sha }}`.)
 
   # Non-blocking E2E (does not gate release)
   non-blocking-e2e:
