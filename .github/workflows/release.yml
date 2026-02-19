@@ -152,6 +152,30 @@ jobs:
           name: release-metadata
           path: release-metadata.json
 
+  # Package frontend
+  package-frontend:
+    runs-on: ubuntu-24.04
+    needs: [compute-version]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build and package frontend
+        run: bash scripts/ci/package_frontend.sh web
+
+      - name: Upload frontend archives
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-dist
+          path: |
+            frontend.zip
+            frontend.tar.xz
+
   # Build + push amd64
   build-push-amd64:
     runs-on: ubuntu-24.04
@@ -431,13 +455,15 @@ jobs:
           key: trivy-db-${{ github.run_id }}
           restore-keys: trivy-db-
 
-      - name: Trivy scan backend
+      - name: Trivy scan backend (CRITICAL)
+        id: trivy-backend
+        continue-on-error: true
         if: always()
         uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ env.IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.digest }}
           format: table
-          exit-code: "0"
+          exit-code: "1"
           severity: CRITICAL
           ignore-unfixed: true
           output: trivy-release-report.txt
@@ -449,13 +475,15 @@ jobs:
           name: trivy-release-report
           path: trivy-release-report.txt
 
-      - name: Trivy scan flow-web
+      - name: Trivy scan flow-web (CRITICAL)
+        id: trivy-web
+        continue-on-error: true
         if: always()
         uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ env.WEB_IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.web_digest }}
           format: table
-          exit-code: "0"
+          exit-code: "1"
           severity: CRITICAL
           ignore-unfixed: true
           output: trivy-web-release-report.txt
@@ -467,29 +495,43 @@ jobs:
           name: trivy-web-release-report
           path: trivy-web-release-report.txt
 
-  # Package frontend
-  package-frontend:
-    runs-on: ubuntu-24.04
-    needs: [compute-version]
-    steps:
-      - uses: actions/checkout@v6
+      - name: Report release scan results prominently
+        if: always()
+        shell: bash
+        run: |
+          BACKEND_OUTCOME="${{ steps.trivy-backend.outcome }}"
+          WEB_OUTCOME="${{ steps.trivy-web.outcome }}"
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "lts/*"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
+          {
+            echo "## Container vulnerability scan summary"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Build and package frontend
-        run: bash scripts/ci/package_frontend.sh web
+          if [[ "$BACKEND_OUTCOME" == "failure" ]]; then
+            echo "::warning title=Container scan failed (backend)::Trivy found CRITICAL vulnerabilities in the backend release image. See trivy-release-report artifact."
+            {
+              echo "- Backend: **FAILED** (CRITICAL findings)"
+              echo "  - Artifact: trivy-release-report"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "- Backend: PASSED (no CRITICAL findings)"
+              echo "  - Artifact: trivy-release-report"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
-      - name: Upload frontend archives
-        uses: actions/upload-artifact@v6
-        with:
-          name: frontend-dist
-          path: |
-            frontend.zip
-            frontend.tar.xz
+          if [[ "$WEB_OUTCOME" == "failure" ]]; then
+            echo "::warning title=Container scan failed (web)::Trivy found CRITICAL vulnerabilities in the flow-web release image. See trivy-web-release-report artifact."
+            {
+              echo "- Web: **FAILED** (CRITICAL findings)"
+              echo "  - Artifact: trivy-web-release-report"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "- Web: PASSED (no CRITICAL findings)"
+              echo "  - Artifact: trivy-web-release-report"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   # Create GitHub release (only when triggered by push or workflow_dispatch)
   create-github-release:

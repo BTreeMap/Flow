@@ -229,15 +229,40 @@ jobs:
             VCS_REF=${{ github.sha }}
             SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
 
-      - name: Run Trivy vulnerability scan
+      - name: Run Trivy vulnerability scan (CRITICAL)
+        id: trivy-backend
+        continue-on-error: true
         uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: flow-backend:scan
           format: table
-          exit-code: "0"
+          exit-code: "1"
           severity: CRITICAL
           ignore-unfixed: true
           output: trivy-report.txt
+
+      - name: Report backend scan result prominently
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.trivy-backend.outcome }}" == "failure" ]]; then
+            echo "::warning title=Container scan failed (backend)::Trivy found CRITICAL vulnerabilities in flow-backend:scan. See trivy-ci-report / trivy-sarif-report artifacts."
+            {
+              echo "## Container scan failed (backend)"
+              echo ""
+              echo "Trivy found **CRITICAL** vulnerabilities in \`flow-backend:scan\`."
+              echo ""
+              echo "Artifacts:"
+              echo "- trivy-ci-report (table output)"
+              echo "- trivy-sarif-report (SARIF output)"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## Container scan passed (backend)"
+              echo ""
+              echo "No **CRITICAL** vulnerabilities found in \`flow-backend:scan\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload Trivy report
         if: always()
@@ -296,15 +321,40 @@ jobs:
             VCS_REF=${{ github.sha }}
             SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
 
-      - name: Run Trivy vulnerability scan
+      - name: Run Trivy vulnerability scan (CRITICAL)
+        id: trivy-web
+        continue-on-error: true
         uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: flow-web:scan
           format: table
-          exit-code: "0"
+          exit-code: "1"
           severity: CRITICAL
           ignore-unfixed: true
           output: trivy-web-report.txt
+
+      - name: Report web scan result prominently
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.trivy-web.outcome }}" == "failure" ]]; then
+            echo "::warning title=Container scan failed (web)::Trivy found CRITICAL vulnerabilities in flow-web:scan. See trivy-web-ci-report / trivy-web-sarif-report artifacts."
+            {
+              echo "## Container scan failed (web)"
+              echo ""
+              echo "Trivy found **CRITICAL** vulnerabilities in \`flow-web:scan\`."
+              echo ""
+              echo "Artifacts:"
+              echo "- trivy-web-ci-report (table output)"
+              echo "- trivy-web-sarif-report (SARIF output)"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## Container scan passed (web)"
+              echo ""
+              echo "No **CRITICAL** vulnerabilities found in \`flow-web:scan\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload Trivy report
         if: always()
