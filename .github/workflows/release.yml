@@ -42,7 +42,6 @@ jobs:
           --health-retries=10
     env:
       H4CKATH0N_ENV: testing
-      H4CKATH0N_AUTH_SIGNING_KEY: ci-test-signing-key-not-a-real-secret
       H4CKATH0N_RP_ID: localhost
       H4CKATH0N_ORIGIN: http://localhost:5173
       H4CKATH0N_DATABASE_URL: ${{ matrix.db == 'postgres'
@@ -621,7 +620,6 @@ jobs:
           --health-retries=10
     env:
       H4CKATH0N_ENV: testing
-      H4CKATH0N_AUTH_SIGNING_KEY: ci-test-signing-key-not-a-real-secret
       H4CKATH0N_RP_ID: localhost
       H4CKATH0N_ORIGIN: http://localhost:5173
       H4CKATH0N_DATABASE_URL: ${{ matrix.db == 'postgres'

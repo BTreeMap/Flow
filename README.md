@@ -300,7 +300,6 @@ Configure in `.env` at the repository root (see `.env.example`):
 |----------|-------------|
 | `H4CKATH0N_ENV` | Environment mode (`development` / `production`) |
 | `H4CKATH0N_DATABASE_URL` | SQLAlchemy async database URL |
-| `H4CKATH0N_AUTH_SIGNING_KEY` | Hex secret for JWT signing |
 | `H4CKATH0N_RP_ID` | WebAuthn relying party ID (e.g., `localhost`) |
 | `H4CKATH0N_ORIGIN` | Allowed origin for CORS and WebAuthn |
 | `VITE_API_BASE_URL` | API base URL for the frontend (e.g., `/api`) |

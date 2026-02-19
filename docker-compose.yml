@@ -28,7 +28,6 @@ services:
     image: ${FLOW_IMAGE:-ghcr.io/btreemap/flow:latest}
     environment:
       H4CKATH0N_ENV: ${H4CKATH0N_ENV:-production}
-      H4CKATH0N_AUTH_SIGNING_KEY: ${H4CKATH0N_AUTH_SIGNING_KEY:-change-me-in-production}
       H4CKATH0N_RP_ID: ${H4CKATH0N_RP_ID:-localhost}
       H4CKATH0N_ORIGIN: ${H4CKATH0N_ORIGIN:-http://localhost:8080}
       H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-sqlite+aiosqlite:///./data/flow.db}
