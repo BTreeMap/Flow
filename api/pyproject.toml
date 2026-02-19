@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-h4ckath0n = "app.cli:main"
+h4ckath0n = "h4ckath0n.cli:main"
 
 [build-system]
 requires = ["hatchling"]
