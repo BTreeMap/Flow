@@ -8,7 +8,7 @@
  * These types are also re-exported for use in app code.
  */
 
-import type { components, paths } from "../gen/openapi";
+import type { components, paths } from "./openapi";
 
 // ── Library-supplied types ────────────────────────────────────────────────
 
@@ -17,6 +17,10 @@ export type PasskeyListResponse = components["schemas"]["PasskeyListResponse"];
 
 /** Single passkey info object */
 export type PasskeyInfo = components["schemas"]["PasskeyInfo"];
+
+/** Response body for PATCH /auth/passkeys/{key_id} */
+export type PasskeyRenameResponse =
+  components["schemas"]["PasskeyRenameResponse"];
 
 /** Response body for POST /auth/passkey/register/finish (and login/finish) */
 export type PasskeyFinishResponse =
@@ -36,6 +40,7 @@ export type EchoResponse = components["schemas"]["EchoResponse"];
 // ── Path-level assertions (ensure routes exist in the schema) ─────────────
 
 type _AssertPasskeysGet = paths["/auth/passkeys"]["get"];
+type _AssertPasskeysPatch = paths["/auth/passkeys/{key_id}"]["patch"];
 type _AssertDemoEchoPost = paths["/demo/echo"]["post"];
 type _AssertDemoPingGet = paths["/demo/ping"]["get"];
 type _AssertDemoSseGet = paths["/demo/sse"]["get"];
@@ -43,6 +48,7 @@ type _AssertDemoSseGet = paths["/demo/sse"]["get"];
 // Suppress "declared but never read" – they exist purely for the type check.
 export type {
   _AssertPasskeysGet,
+  _AssertPasskeysPatch,
   _AssertDemoEchoPost,
   _AssertDemoPingGet,
   _AssertDemoSseGet,

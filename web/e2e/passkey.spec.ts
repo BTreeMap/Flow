@@ -145,10 +145,10 @@ test.describe("Passkey auth flows", () => {
       timeout: 15_000,
     });
 
-    await page.getByTestId("rename-passkey-btn").first().click();
-    await page.getByRole("textbox").fill("Laptop key");
-    await page.getByTestId("save-passkey-rename-btn").click();
-    await expect(page.getByTestId("passkey-label").first()).toContainText("Laptop key");
+    await page.getByTestId("passkey-edit-btn").first().click();
+    await page.getByTestId("passkey-name-input").fill("Laptop key");
+    await page.getByTestId("passkey-name-save").click();
+    await expect(page.getByTestId("passkey-name").first()).toContainText("Laptop key");
   });
 
   // -----------------------------------------------------------------------

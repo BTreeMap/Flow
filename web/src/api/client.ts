@@ -7,7 +7,7 @@
  */
 
 import createClient, { type Middleware } from "openapi-fetch";
-import type { paths } from "../gen/openapi";
+import type { paths } from "./openapi";
 import { getOrMintToken, clearCachedToken } from "../auth/token";
 import { getDeviceIdentity } from "../auth/deviceKey";
 
