@@ -394,6 +394,10 @@ jobs:
             docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
           done
 
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            docker buildx imagetools create -t "${{ env.IMAGE_BASE }}:stable" "$AMD64_SRC" "$ARM64_SRC"
+          fi
+
           docker buildx imagetools inspect "${{ env.IMAGE_BASE }}:dev" --format '{{json .Manifest.Digest}}' | tr -d '"' > /tmp/digest.txt
           echo "digest=$(cat /tmp/digest.txt)" >> "$GITHUB_OUTPUT"
 
@@ -414,6 +418,10 @@ jobs:
           for tag in "${REL_TAGS[@]}"; do
             docker buildx imagetools create -t "$tag" "$AMD64_SRC" "$ARM64_SRC"
           done
+
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            docker buildx imagetools create -t "${{ env.WEB_IMAGE_BASE }}:stable" "$AMD64_SRC" "$ARM64_SRC"
+          fi
 
           docker buildx imagetools inspect "${{ env.WEB_IMAGE_BASE }}:dev" --format '{{json .Manifest.Digest}}' | tr -d '"' > /tmp/web-digest.txt
           echo "digest=$(cat /tmp/web-digest.txt)" >> "$GITHUB_OUTPUT"
