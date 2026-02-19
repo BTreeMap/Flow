@@ -1,4 +1,4 @@
-FROM caddy:2
+FROM caddy:2-alpine
 
 # OCI labels for traceability
 ARG BUILD_DATE
@@ -16,7 +16,8 @@ COPY Caddyfile /etc/caddy/Caddyfile
 # Copy and extract pre-built frontend assets
 # frontend.tar.xz is produced by scripts/ci/package_frontend.sh
 COPY frontend.tar.xz /tmp/frontend.tar.xz
-RUN tar -xJf /tmp/frontend.tar.xz -C /srv && \
+RUN mkdir -p /srv && \
+    tar -xJf /tmp/frontend.tar.xz -C /srv && \
     rm /tmp/frontend.tar.xz
 
 # Create non-root user and set ownership
