@@ -122,7 +122,7 @@ async def _send_push_for_membership(
                     },
                     data=payload,
                     vapid_private_key=os.environ.get("VAPID_PRIVATE_KEY"),
-                    vapid_claims={"sub": "mailto:research@flow.local"},
+                    vapid_claims={"sub": "mailto:flow@oss.joefang.org"},
                 ),
                 timeout=PUSH_TIMEOUT_SECONDS,
             )
