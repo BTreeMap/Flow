@@ -1,6 +1,7 @@
 import { Outlet, Link } from "react-router";
 import { useAuth } from "../auth";
 import {
+  ShieldCheck,
   Sun,
   Moon,
   Shield,
@@ -19,7 +20,7 @@ import {
 } from "../theme";
 
 export function Layout() {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, role } = useAuth();
   const [themePreference, setThemePreference] = useState<ThemePreference>(() =>
     typeof window === "undefined" ? "system" : readThemePreference(),
   );
@@ -115,6 +116,16 @@ export function Layout() {
                     <Settings className="w-4 h-4" />
                     Settings
                   </Link>
+                  {role === "admin" && (
+                    <Link
+                      to="/admin"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl hover:bg-surface-alt transition-colors"
+                      data-testid="nav-admin"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      Admin
+                    </Link>
+                  )}
                   <button
                     onClick={() => void logout()}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl hover:bg-surface-alt transition-colors text-danger"

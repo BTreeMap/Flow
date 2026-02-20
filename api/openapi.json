@@ -83,48 +83,66 @@
         "title": "AdminCreateProjectRequest",
         "type": "object"
       },
-      "AdminDebugCheck": {
-        "properties": {
-          "detail": {
-            "title": "Detail",
-            "type": "string"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "ok": {
-            "title": "Ok",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "key",
-          "ok",
-          "detail"
-        ],
-        "title": "AdminDebugCheck",
-        "type": "object"
-      },
       "AdminDebugStatusResponse": {
         "properties": {
-          "checks": {
-            "items": {
-              "$ref": "#/components/schemas/AdminDebugCheck"
-            },
-            "title": "Checks",
-            "type": "array"
-          },
           "llm_mode": {
             "title": "Llm Mode",
             "type": "string"
+          },
+          "openai_api_key_configured": {
+            "title": "Openai Api Key Configured",
+            "type": "boolean"
+          },
+          "vapid_private_key_configured": {
+            "title": "Vapid Private Key Configured",
+            "type": "boolean"
+          },
+          "vapid_public_key_configured": {
+            "title": "Vapid Public Key Configured",
+            "type": "boolean"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
           }
         },
         "required": [
           "llm_mode",
-          "checks"
+          "openai_api_key_configured",
+          "vapid_public_key_configured",
+          "vapid_private_key_configured",
+          "warnings"
         ],
         "title": "AdminDebugStatusResponse",
+        "type": "object"
+      },
+      "AdminLLMConnectivityRequest": {
+        "properties": {
+          "max_tokens": {
+            "default": 128,
+            "title": "Max Tokens",
+            "type": "integer"
+          },
+          "model": {
+            "default": "gpt-4o-mini",
+            "title": "Model",
+            "type": "string"
+          },
+          "prompt": {
+            "default": "Reply with exactly: OK",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "temperature": {
+            "default": 0.0,
+            "title": "Temperature",
+            "type": "number"
+          }
+        },
+        "title": "AdminLLMConnectivityRequest",
         "type": "object"
       },
       "AdminLLMConnectivityResponse": {
@@ -152,7 +170,7 @@
             "title": "Ok",
             "type": "boolean"
           },
-          "output": {
+          "response_text": {
             "anyOf": [
               {
                 "type": "string"
@@ -161,7 +179,7 @@
                 "type": "null"
               }
             ],
-            "title": "Output"
+            "title": "Response Text"
           }
         },
         "required": [
@@ -1386,6 +1404,16 @@
     "/admin/debug/llm-connectivity": {
       "post": {
         "operationId": "admin_debug_llm_connectivity_admin_debug_llm_connectivity_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLLMConnectivityRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -1396,6 +1424,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -2174,11 +2212,6 @@
             "description": "Successful Response"
           }
         },
-        "security": [
-          {
-            "DeviceJWT": []
-          }
-        ],
         "summary": "Auth Sessions",
         "tags": [
           "auth"
@@ -2221,11 +2254,6 @@
             "description": "Validation Error"
           }
         },
-        "security": [
-          {
-            "DeviceJWT": []
-          }
-        ],
         "summary": "Revoke Auth Session",
         "tags": [
           "auth"

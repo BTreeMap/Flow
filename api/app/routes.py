@@ -7,8 +7,8 @@ import hashlib
 import json
 import logging
 import os
-import time
 import secrets
+import time
 from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
@@ -40,10 +40,15 @@ from app.schemas.patches import UserProfileData
 from app.services.outbox_service import replace_next_scheduled_prompt
 from app.services.profile_service import load_user_profile, save_user_profile
 from h4ckath0n.auth import require_user
-from h4ckath0n.auth.dependencies import _get_auth_context, require_admin
+from h4ckath0n.auth.dependencies import require_admin
 from h4ckath0n.auth.models import Device, User
-from h4ckath0n.realtime.auth import AuthContext
-from h4ckath0n.realtime import AuthError, authenticate_sse_request, sse_response
+from h4ckath0n.realtime import (
+    AuthContext,
+    AuthError,
+    authenticate_http_request,
+    authenticate_sse_request,
+    sse_response,
+)
 from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
@@ -249,22 +254,26 @@ class AuthSessionRevokeResponse(BaseModel):
     ok: bool
 
 
-class AdminDebugCheck(BaseModel):
-    key: str
-    ok: bool
-    detail: str
-
-
 class AdminDebugStatusResponse(BaseModel):
     llm_mode: str
-    checks: list[AdminDebugCheck]
+    openai_api_key_configured: bool
+    vapid_public_key_configured: bool
+    vapid_private_key_configured: bool
+    warnings: list[str]
+
+
+class AdminLLMConnectivityRequest(BaseModel):
+    model: str = "gpt-4o-mini"
+    prompt: str = "Reply with exactly: OK"
+    max_tokens: int = 128
+    temperature: float = 0.0
 
 
 class AdminLLMConnectivityResponse(BaseModel):
     ok: bool
     model: str
     latency_ms: int
-    output: str | None = None
+    response_text: str | None = None
     error: str | None = None
 
 
@@ -315,15 +324,21 @@ async def auth_me(user: User = require_user()) -> AuthMeResponse:
     return AuthMeResponse(user_id=user.id, role=user.role)
 
 
+async def _require_auth_context(request: Request) -> AuthContext:
+    try:
+        return await authenticate_http_request(request)
+    except AuthError as exc:
+        raise HTTPException(status_code=401, detail=exc.detail) from None
+
+
 @router.get("/auth/sessions", tags=["auth"])
 async def auth_sessions(
-    user: User = require_user(),
-    auth_ctx: AuthContext = Depends(_get_auth_context),
+    auth_ctx: AuthContext = Depends(_require_auth_context),
     db: AsyncSession = Depends(get_db),
 ) -> AuthSessionsResponse:
     result = await db.execute(
         select(Device)
-        .where(Device.user_id == user.id)
+        .where(Device.user_id == auth_ctx.user_id)
         .order_by(Device.created_at.desc())
     )
     sessions = [
@@ -342,11 +357,11 @@ async def auth_sessions(
 @router.post("/auth/sessions/{device_id}/revoke", tags=["auth"])
 async def revoke_auth_session(
     device_id: str,
-    user: User = require_user(),
+    auth_ctx: AuthContext = Depends(_require_auth_context),
     db: AsyncSession = Depends(get_db),
 ) -> AuthSessionRevokeResponse:
     result = await db.execute(
-        select(Device).where(Device.id == device_id, Device.user_id == user.id)
+        select(Device).where(Device.id == device_id, Device.user_id == auth_ctx.user_id)
     )
     device = result.scalar_one_or_none()
     if device is None:
@@ -362,70 +377,71 @@ async def admin_debug_status(
     _admin_user: User = require_admin(),
 ) -> AdminDebugStatusResponse:
     llm_key_present = bool(
-        os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        os.environ.get("OPENAI_API_KEY") or os.environ.get("H4CKATH0N_OPENAI_API_KEY")
     )
-    vapid_public_present = bool(os.environ.get("FLOW_VAPID_PUBLIC_KEY"))
-    vapid_private_present = bool(os.environ.get("FLOW_VAPID_PRIVATE_KEY"))
-    checks = [
-        AdminDebugCheck(
-            key="llm_api_key",
-            ok=llm_key_present,
-            detail="Set H4CKATH0N_OPENAI_API_KEY or OPENAI_API_KEY",
-        ),
-        AdminDebugCheck(
-            key="vapid_public_key",
-            ok=vapid_public_present,
-            detail="Set FLOW_VAPID_PUBLIC_KEY",
-        ),
-        AdminDebugCheck(
-            key="vapid_private_key",
-            ok=vapid_private_present,
-            detail="Set FLOW_VAPID_PRIVATE_KEY",
-        ),
-    ]
+    vapid_public_present = bool(
+        os.environ.get("VAPID_PUBLIC_KEY") or os.environ.get("FLOW_VAPID_PUBLIC_KEY")
+    )
+    vapid_private_present = bool(
+        os.environ.get("VAPID_PRIVATE_KEY") or os.environ.get("FLOW_VAPID_PRIVATE_KEY")
+    )
+    warnings: list[str] = []
+    if not llm_key_present:
+        warnings.append("OpenAI API key missing: chat runs in stub mode")
+    if not vapid_public_present or not vapid_private_present:
+        warnings.append("VAPID keys missing: push notifications disabled")
     return AdminDebugStatusResponse(
         llm_mode="openai" if llm_key_present else "stub",
-        checks=checks,
+        openai_api_key_configured=llm_key_present,
+        vapid_public_key_configured=vapid_public_present,
+        vapid_private_key_configured=vapid_private_present,
+        warnings=warnings,
     )
 
 
 @router.post("/admin/debug/llm-connectivity", tags=["admin"])
 async def admin_debug_llm_connectivity(
+    body: AdminLLMConnectivityRequest,
     _admin_user: User = require_admin(),
 ) -> AdminLLMConnectivityResponse:
-    llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
-        "OPENAI_API_KEY"
+    llm_key = os.environ.get("OPENAI_API_KEY") or os.environ.get(
+        "H4CKATH0N_OPENAI_API_KEY"
     )
     if not llm_key:
-        return AdminLLMConnectivityResponse(
-            ok=False,
-            model="gpt-4o-mini",
-            latency_ms=0,
-            error="Missing OpenAI API key",
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OpenAI API key not configured",
         )
 
     started = time.perf_counter()
     try:
-        llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key)
-        response = await llm.ainvoke(
-            "Reply with exactly: OK",
+        llm = ChatOpenAI(
+            model=body.model,
+            api_key=llm_key,
+            max_tokens=body.max_tokens,
+            temperature=body.temperature,
+        )
+        response = await asyncio.wait_for(
+            llm.ainvoke(body.prompt),
+            timeout=15,
         )
         latency_ms = int((time.perf_counter() - started) * 1000)
+        response_text = (
+            response.content
+            if isinstance(response.content, str)
+            else str(response.content)
+        )[:2000]
         return AdminLLMConnectivityResponse(
             ok=True,
-            model="gpt-4o-mini",
+            model=body.model,
             latency_ms=latency_ms,
-            output=(
-                response.content
-                if isinstance(response.content, str)
-                else str(response.content)
-            ),
+            response_text=response_text,
         )
     except Exception as exc:  # pragma: no cover - depends on environment/network
         latency_ms = int((time.perf_counter() - started) * 1000)
         return AdminLLMConnectivityResponse(
             ok=False,
-            model="gpt-4o-mini",
+            model=body.model,
             latency_ms=latency_ms,
             error=str(exc),
         )
