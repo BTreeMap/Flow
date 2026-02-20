@@ -208,7 +208,7 @@ All project-scoped endpoints require passkey authentication.
 | `project_memberships` | auto-increment int | Links (project, user) with status; unique constraint |
 | `participant_contacts` | auto-increment int | Optional email contact metadata (not used for identity) |
 | `conversations` | auto-increment int | 1:1 with membership |
-| `messages` | auto-increment int | Chat history with `server_msg_id` (UUID) |
+| `messages` | auto-increment int | Chat history with `server_msg_id` (36-char string: `msg_` + 32 lowercase base32 chars; UUID-length for DB schema compatibility) |
 | `conversation_runtime_state` | FK to conversation | JSON blob for engine state |
 | `user_profiles` | auto-increment int | **Store A** — structured profile JSON (1:1 with membership) |
 | `memory_items` | auto-increment int | **Store B** — semi-structured memory items per membership |
