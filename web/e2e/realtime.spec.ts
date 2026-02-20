@@ -15,11 +15,24 @@ import {
 
 let auth: VirtualAuthenticator;
 
-/** Register a new user via passkey and navigate to the realtime demo page. */
+/** Register a new user via the 3-step passkey flow and navigate to the realtime demo page. */
 async function registerAndGoToRealtime(page: Page): Promise<void> {
   await page.goto("/register");
-  await page.getByTestId("register-display-name").fill("RT E2E User");
+
+  // Step 1: Email
+  const uniqueEmail = `rt-e2e-${Date.now()}@test.local`;
+  await page.getByTestId("register-email").fill(uniqueEmail);
+  await page.getByTestId("register-email-submit").click();
+
+  // Step 2: Passkey enrollment
   await page.getByTestId("register-submit").click();
+
+  // Step 3: Display name (pre-filled) – confirm
+  await expect(page.getByTestId("register-display-name")).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.getByTestId("register-finish").click();
+
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
   await page.goto("/demo/realtime");
   await expect(page.getByTestId("realtime-heading")).toBeVisible({

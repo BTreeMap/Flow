@@ -17,14 +17,28 @@ import {
 
 let auth: VirtualAuthenticator;
 
-/** Register a new user and return to dashboard. */
+/** Register a new user via the 3-step passkey flow and return to dashboard. */
 async function registerUser(
   page: Page,
   name = "Security Test User",
 ): Promise<void> {
+  const uniqueEmail = `sec-${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}@test.local`;
   await page.goto("/register");
-  await page.getByTestId("register-display-name").fill(name);
+
+  // Step 1: Email
+  await page.getByTestId("register-email").fill(uniqueEmail);
+  await page.getByTestId("register-email-submit").click();
+
+  // Step 2: Passkey enrollment
   await page.getByTestId("register-submit").click();
+
+  // Step 3: Display name (pre-filled) – optionally override, then confirm
+  await expect(page.getByTestId("register-display-name")).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.getByTestId("register-display-name").fill(name);
+  await page.getByTestId("register-finish").click();
+
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
 }
 

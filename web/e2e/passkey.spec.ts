@@ -14,9 +14,37 @@ import {
  * The tests run **serially** (fullyParallel: false, workers: 1) because
  * they share server-side state (SQLite database) and each test builds
  * on the state established by previous tests.
+ *
+ * Registration is a 3-step stepper: email → passkey enrollment → display name.
  */
 
 let auth: VirtualAuthenticator;
+
+/** Perform the full 3-step registration flow and land on /dashboard. */
+async function registerViaPasskey(
+  page: import("@playwright/test").Page,
+  email: string,
+  displayName?: string,
+): Promise<void> {
+  // Step 1: Email
+  await page.getByTestId("register-email").fill(email);
+  await page.getByTestId("register-email-submit").click();
+
+  // Step 2: Passkey enrollment
+  await page.getByTestId("register-submit").click();
+
+  // Step 3: Display name (pre-filled from email local-part)
+  await expect(page.getByTestId("register-display-name")).toBeVisible({
+    timeout: 15_000,
+  });
+  if (displayName) {
+    await page.getByTestId("register-display-name").fill(displayName);
+  }
+  await page.getByTestId("register-finish").click();
+
+  // Should arrive at /dashboard
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+}
 
 test.describe("Passkey auth flows", () => {
   test.beforeEach(async ({ page }) => {
@@ -40,12 +68,8 @@ test.describe("Passkey auth flows", () => {
     await page.getByTestId("landing-register").click();
     await expect(page).toHaveURL(/\/register/);
 
-    // Fill display name and submit
-    await page.getByTestId("register-display-name").fill("E2E Test User");
-    await page.getByTestId("register-submit").click();
-
-    // Should redirect to dashboard
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+    // Complete 3-step registration
+    await registerViaPasskey(page, "e2e-test@test.local", "E2E Test User");
     await expect(page.getByTestId("dashboard-heading")).toBeVisible();
 
     // Verify backend auth works – hit /api/health (library-provided)
@@ -83,14 +107,12 @@ test.describe("Passkey auth flows", () => {
   });
 
   // -----------------------------------------------------------------------
-  // 2) Logout then login with passkey
+  // 3) Logout then login with passkey
   // -----------------------------------------------------------------------
   test("logout and login with passkey", async ({ page }) => {
     // First register
     await page.goto("/register");
-    await page.getByTestId("register-display-name").fill("E2E Login User");
-    await page.getByTestId("register-submit").click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+    await registerViaPasskey(page, "e2e-login@test.local", "E2E Login User");
 
     // Logout
     await page.getByTestId("nav-logout").click();
@@ -107,14 +129,12 @@ test.describe("Passkey auth flows", () => {
   });
 
   // -----------------------------------------------------------------------
-  // 3) Add a second passkey
+  // 4) Add a second passkey
   // -----------------------------------------------------------------------
   test("add a second passkey", async ({ page }) => {
     // Register
     await page.goto("/register");
-    await page.getByTestId("register-display-name").fill("E2E Multi Key");
-    await page.getByTestId("register-submit").click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+    await registerViaPasskey(page, "e2e-multikey@test.local", "E2E Multi Key");
 
     // Go to settings
     await page.getByTestId("nav-settings").click();
@@ -147,14 +167,16 @@ test.describe("Passkey auth flows", () => {
   });
 
   // -----------------------------------------------------------------------
-  // 4) Revoke passkey + LAST_PASSKEY invariant
+  // 5) Revoke passkey + LAST_PASSKEY invariant
   // -----------------------------------------------------------------------
   test("revoke passkey and LAST_PASSKEY invariant", async ({ page }) => {
     // Register
     await page.goto("/register");
-    await page.getByTestId("register-display-name").fill("E2E Revoke User");
-    await page.getByTestId("register-submit").click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+    await registerViaPasskey(
+      page,
+      "e2e-revoke@test.local",
+      "E2E Revoke User",
+    );
 
     // Go to settings
     await page.getByTestId("nav-settings").click();

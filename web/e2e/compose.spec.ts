@@ -48,7 +48,8 @@ test.describe("Compose stack: static serving and SPA", () => {
   // -----------------------------------------------------------------------
   test("SPA deep link /register returns the app", async ({ page }) => {
     await page.goto("/register");
-    await expect(page.getByTestId("register-display-name")).toBeVisible({
+    // The register page now starts with the email step
+    await expect(page.getByTestId("register-email")).toBeVisible({
       timeout: 15_000,
     });
   });
@@ -99,8 +100,19 @@ test.describe("Compose stack: API proxy and SSE", () => {
     await page.getByTestId("landing-register").click();
     await expect(page).toHaveURL(/\/register/);
 
-    await page.getByTestId("register-display-name").fill("Compose E2E User");
+    // Step 1: Email
+    await page.getByTestId("register-email").fill("compose-e2e@test.local");
+    await page.getByTestId("register-email-submit").click();
+
+    // Step 2: Passkey enrollment
     await page.getByTestId("register-submit").click();
+
+    // Step 3: Display name (pre-filled from email) – confirm
+    await expect(page.getByTestId("register-display-name")).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByTestId("register-display-name").fill("Compose E2E User");
+    await page.getByTestId("register-finish").click();
 
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
     await expect(page.getByTestId("dashboard-heading")).toBeVisible();
@@ -110,10 +122,23 @@ test.describe("Compose stack: API proxy and SSE", () => {
   // C7) SSE connectivity through the proxy
   // -----------------------------------------------------------------------
   test("SSE streams through /api proxy", async ({ page }) => {
-    // Register first
+    // Register first (3-step flow)
     await page.goto("/register");
-    await page.getByTestId("register-display-name").fill("SSE Compose User");
+
+    // Step 1: Email
+    await page.getByTestId("register-email").fill("sse-compose@test.local");
+    await page.getByTestId("register-email-submit").click();
+
+    // Step 2: Passkey enrollment
     await page.getByTestId("register-submit").click();
+
+    // Step 3: Display name – confirm
+    await expect(page.getByTestId("register-display-name")).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByTestId("register-display-name").fill("SSE Compose User");
+    await page.getByTestId("register-finish").click();
+
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
 
     // Navigate to the realtime demo page
