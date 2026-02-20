@@ -24,6 +24,7 @@ from starlette.responses import JSONResponse
 from app.db import get_db
 from app.id_utils import generate_server_msg_id
 from app.models import (
+    FlowUserProfile,
     MemoryItem,
     OutboxEvent,
     PatchAuditLog,
@@ -123,7 +124,6 @@ class DashboardResponse(BaseModel):
 
 class ClaimRequest(BaseModel):
     invite_code: str
-    email: EmailStr
 
 
 class ClaimResponse(BaseModel):
@@ -199,6 +199,7 @@ class AdminCreateProjectRequest(BaseModel):
 class AdminProjectItem(BaseModel):
     project_id: str
     display_name: str | None = None
+    status: str = "active"
     created_at: str
     member_count: int
 
@@ -236,6 +237,57 @@ class AdminParticipantsResponse(BaseModel):
 class AuthMeResponse(BaseModel):
     user_id: str
     role: str
+
+
+class UserMeResponse(BaseModel):
+    user_id: str
+    email: str | None = None
+    display_name: str | None = None
+    is_admin: bool = False
+
+
+class UserMeUpdateRequest(BaseModel):
+    email: EmailStr | None = None
+    display_name: str | None = None
+
+
+class AdminProjectUpdateRequest(BaseModel):
+    display_name: str | None = None
+    status: str | None = None
+
+
+class AdminPushChannelItem(BaseModel):
+    subscription_id: int
+    membership_id: int
+    user_id: str
+    user_email: str | None = None
+    display_name: str | None = None
+    endpoint_hint: str
+    created_at: str
+    last_success_at: str | None = None
+    last_failure_at: str | None = None
+
+
+class AdminPushChannelsResponse(BaseModel):
+    channels: list[AdminPushChannelItem]
+
+
+class AdminPushTestRequest(BaseModel):
+    project_id: str
+    subscription_ids: list[int]
+    title: str
+    body: str
+    url: str | None = None
+
+
+class AdminPushTestResultItem(BaseModel):
+    subscription_id: int
+    ok: bool
+    error: str | None = None
+
+
+class AdminPushTestResponse(BaseModel):
+    results: list[AdminPushTestResultItem]
 
 
 class AuthSessionItem(BaseModel):
@@ -322,6 +374,68 @@ async def dashboard(
 @router.get("/auth/me", tags=["auth"])
 async def auth_me(user: User = require_user()) -> AuthMeResponse:
     return AuthMeResponse(user_id=user.id, role=user.role)
+
+
+@router.get("/me", tags=["user"])
+async def get_me(
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> UserMeResponse:
+    """Return current user profile including email and display name."""
+    profile_result = await db.execute(
+        select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+    return UserMeResponse(
+        user_id=user.id,
+        email=user.email,
+        display_name=profile.display_name if profile else None,
+        is_admin=user.role == "admin",
+    )
+
+
+@router.patch("/me", tags=["user"])
+async def update_me(
+    body: UserMeUpdateRequest,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> UserMeResponse:
+    """Update current user's email and/or display name."""
+    if body.email is not None:
+        user.email = str(body.email).strip().lower()
+
+    if body.display_name is not None:
+        trimmed = body.display_name.strip()
+        if len(trimmed) > 255:
+            raise HTTPException(
+                status_code=422, detail="Display name too long (max 255)"
+            )
+        if len(trimmed) == 0:
+            raise HTTPException(status_code=422, detail="Display name cannot be empty")
+
+        profile_result = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+        )
+        profile = profile_result.scalar_one_or_none()
+        if profile is None:
+            profile = FlowUserProfile(user_id=user.id, display_name=trimmed)
+            db.add(profile)
+        else:
+            profile.display_name = trimmed
+
+    await db.commit()
+
+    # Reload for response
+    profile_result = await db.execute(
+        select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+    return UserMeResponse(
+        user_id=user.id,
+        email=user.email,
+        display_name=profile.display_name if profile else None,
+        is_admin=user.role == "admin",
+    )
 
 
 async def _require_auth_context(request: Request) -> AuthContext:
@@ -468,6 +582,16 @@ async def claim_invite(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
+    # Require email on user profile before joining
+    if user.email is None:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "code": "EMAIL_REQUIRED",
+                "message": "Email required before joining a project",
+            },
+        )
+
     # Hash the invite code and look up the invite token for this project.
     # For existing members, invite validity is not required (idempotent re-open).
     code_hash = hashlib.sha256(body.invite_code.encode()).hexdigest()
@@ -556,15 +680,6 @@ async def claim_invite(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid or expired invite code",
                 )
-
-    # Store email contact metadata
-    contact = ParticipantContact(
-        membership_id=membership.id,
-        email_raw=str(body.email),
-        email_normalized=str(body.email).strip().lower(),
-    )
-    db.add(contact)
-    await db.flush()
 
     # Create conversation if absent
     conv_result = await db.execute(
@@ -952,12 +1067,34 @@ async def admin_list_projects(
         AdminProjectItem(
             project_id=project.id,
             display_name=project.display_name,
+            status=project.status,
             created_at=project.created_at.isoformat(),
             member_count=member_count,
         )
         for project, member_count in result.all()
     ]
     return AdminProjectsResponse(projects=projects)
+
+
+@router.patch("/admin/projects/{project_id}", tags=["admin"])
+async def admin_update_project(
+    project_id: str,
+    body: AdminProjectUpdateRequest,
+    _admin_user: User = require_admin(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if body.display_name is not None:
+        project.display_name = body.display_name.strip()
+    if body.status is not None:
+        if body.status not in ("active", "paused", "ended"):
+            raise HTTPException(status_code=422, detail="Invalid status")
+        project.status = body.status
+    await db.commit()
+    return {"project_id": project.id, "display_name": project.display_name or ""}
 
 
 @router.post("/admin/projects/{project_id}/invites", tags=["admin"])
@@ -1219,3 +1356,116 @@ async def admin_project_export(
             for s in push_result.scalars().all()
         ],
     }
+
+
+@router.get("/admin/projects/{project_id}/push/channels", tags=["admin"])
+async def admin_push_channels(
+    project_id: str,
+    _admin_user: User = require_admin(),
+    db: AsyncSession = Depends(get_db),
+) -> AdminPushChannelsResponse:
+    result = await db.execute(
+        select(PushSubscription, ProjectMembership)
+        .join(ProjectMembership, PushSubscription.membership_id == ProjectMembership.id)
+        .where(
+            ProjectMembership.project_id == project_id,
+            PushSubscription.revoked_at.is_(None),
+        )
+    )
+    channels = []
+    for sub, membership in result.all():
+        user_result = await db.execute(
+            select(User).where(User.id == membership.user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        profile_result = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id == membership.user_id)
+        )
+        profile = profile_result.scalar_one_or_none()
+
+        endpoint_hint = (
+            sub.endpoint[:80] + "..." if len(sub.endpoint) > 80 else sub.endpoint
+        )
+
+        channels.append(
+            AdminPushChannelItem(
+                subscription_id=sub.id,
+                membership_id=membership.id,
+                user_id=membership.user_id,
+                user_email=user.email if user else None,
+                display_name=profile.display_name if profile else None,
+                endpoint_hint=endpoint_hint,
+                created_at=sub.created_at.isoformat(),
+                last_success_at=sub.last_success_at.isoformat()
+                if sub.last_success_at
+                else None,
+                last_failure_at=sub.last_failure_at.isoformat()
+                if sub.last_failure_at
+                else None,
+            )
+        )
+    return AdminPushChannelsResponse(channels=channels)
+
+
+@router.post("/admin/push/test", tags=["admin"])
+async def admin_push_test(
+    body: AdminPushTestRequest,
+    _admin_user: User = require_admin(),
+    db: AsyncSession = Depends(get_db),
+) -> AdminPushTestResponse:
+    from pywebpush import webpush, WebPushException  # noqa: F401
+
+    vapid_private_key = os.environ.get("VAPID_PRIVATE_KEY") or os.environ.get(
+        "FLOW_VAPID_PRIVATE_KEY", ""
+    )
+    vapid_claims = {"sub": "mailto:admin@flow.local"}
+
+    if not vapid_private_key:
+        raise HTTPException(status_code=503, detail="VAPID private key not configured")
+
+    # Load subscriptions
+    result = await db.execute(
+        select(PushSubscription).where(
+            PushSubscription.id.in_(body.subscription_ids),
+            PushSubscription.revoked_at.is_(None),
+        )
+    )
+    subscriptions = result.scalars().all()
+
+    payload = json.dumps(
+        {
+            "title": body.title,
+            "body": body.body,
+            "url": body.url,
+        }
+    )
+
+    results: list[AdminPushTestResultItem] = []
+    now = datetime.now(UTC)
+    for sub in subscriptions:
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    webpush,
+                    subscription_info={
+                        "endpoint": sub.endpoint,
+                        "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
+                    },
+                    data=payload,
+                    vapid_private_key=vapid_private_key,
+                    vapid_claims=vapid_claims,
+                ),
+                timeout=10,
+            )
+            sub.last_success_at = now
+            results.append(AdminPushTestResultItem(subscription_id=sub.id, ok=True))
+        except Exception as exc:
+            sub.last_failure_at = now
+            results.append(
+                AdminPushTestResultItem(
+                    subscription_id=sub.id, ok=False, error=str(exc)[:500]
+                )
+            )
+
+    await db.commit()
+    return AdminPushTestResponse(results=results)

@@ -48,6 +48,7 @@ def _make_fake_user(
     user = MagicMock()
     user.id = user_id
     user.role = role
+    user.email = "test@example.com"
     return user
 
 
@@ -175,7 +176,7 @@ async def test_claim_invite(seeded_client: dict[str, Any]) -> None:
 
     resp = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "alice@example.com"},
+        json={"invite_code": invite_code},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -191,7 +192,7 @@ async def test_claim_invite_invalid_code(seeded_client: dict[str, Any]) -> None:
 
     resp = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": "wrong-code", "email": "alice@example.com"},
+        json={"invite_code": "wrong-code"},
     )
     assert resp.status_code == 400
 
@@ -200,26 +201,9 @@ async def test_claim_invite_invalid_code(seeded_client: dict[str, Any]) -> None:
 async def test_claim_invite_nonexistent_project(client: AsyncClient) -> None:
     resp = await client.post(
         "/p/p_nonexistent_00000000000000000/activate/claim",
-        json={"invite_code": "any", "email": "alice@example.com"},
+        json={"invite_code": "any"},
     )
     assert resp.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_claim_invite_empty_email_returns_422(
-    seeded_client: dict[str, Any],
-) -> None:
-    client = seeded_client["client"]
-    project_id = seeded_client["project_id"]
-    invite_code = seeded_client["invite_code"]
-
-    resp = await client.post(
-        f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": ""},
-    )
-    assert resp.status_code == 422
-    errors = resp.json().get("detail", [])
-    assert any(error.get("loc") == ["body", "email"] for error in errors)
 
 
 @pytest.mark.asyncio
@@ -232,7 +216,7 @@ async def test_claim_invite_existing_membership_after_expiry_succeeds(
 
     first = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "existing@test.com"},
+        json={"invite_code": invite_code},
     )
     assert first.status_code == 200
 
@@ -248,7 +232,7 @@ async def test_claim_invite_existing_membership_after_expiry_succeeds(
 
     second = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "existing@test.com"},
+        json={"invite_code": invite_code},
     )
     assert second.status_code == 200
 
@@ -270,7 +254,7 @@ async def test_claim_invite_existing_ended_membership_returns_403(
 
     first = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "ended@test.com"},
+        json={"invite_code": invite_code},
     )
     assert first.status_code == 200
 
@@ -285,7 +269,7 @@ async def test_claim_invite_existing_ended_membership_returns_403(
 
     second = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "ended@test.com"},
+        json={"invite_code": invite_code},
     )
     assert second.status_code == 403
 
@@ -312,7 +296,7 @@ async def test_dashboard_after_activation(seeded_client: dict[str, Any]) -> None
     # Activate first
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "alice@example.com"},
+        json={"invite_code": invite_code},
     )
 
     resp = await client.get("/dashboard")
@@ -337,7 +321,7 @@ async def test_send_message(seeded_client: dict[str, Any]) -> None:
     # Activate
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "alice@example.com"},
+        json={"invite_code": invite_code},
     )
 
     resp = await client.post(
@@ -381,7 +365,7 @@ async def test_push_subscribe(seeded_client: dict[str, Any]) -> None:
     # Activate
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "alice@example.com"},
+        json={"invite_code": invite_code},
     )
 
     resp = await client.post(
@@ -406,7 +390,7 @@ async def test_push_subscribe_duplicate_updates(seeded_client: dict[str, Any]) -
 
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "alice@example.com"},
+        json={"invite_code": invite_code},
     )
 
     endpoint = "https://push.example.com/sub/dedup"
@@ -449,11 +433,11 @@ async def test_push_subscribe_same_endpoint_across_projects(
 
     await client.post(
         f"/p/{first_project_id}/activate/claim",
-        json={"invite_code": first_invite_code, "email": "same-endpoint@test.com"},
+        json={"invite_code": first_invite_code},
     )
     await client.post(
         f"/p/{second_project_id}/activate/claim",
-        json={"invite_code": second_invite_code, "email": "same-endpoint@test.com"},
+        json={"invite_code": second_invite_code},
     )
 
     endpoint = "https://push.example.com/sub/shared-endpoint"
@@ -483,7 +467,7 @@ async def test_push_unsubscribe(seeded_client: dict[str, Any]) -> None:
 
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "alice@example.com"},
+        json={"invite_code": invite_code},
     )
 
     endpoint = "https://push.example.com/sub/unsub"
@@ -511,7 +495,7 @@ async def test_push_unsubscribe_nonexistent(seeded_client: dict[str, Any]) -> No
 
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "alice@example.com"},
+        json={"invite_code": invite_code},
     )
 
     resp = await client.post(
@@ -534,7 +518,7 @@ async def test_project_me(seeded_client: dict[str, Any]) -> None:
 
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "me@test.com"},
+        json={"invite_code": invite_code},
     )
 
     resp = await client.get(f"/p/{project_id}/me")
@@ -542,7 +526,7 @@ async def test_project_me(seeded_client: dict[str, Any]) -> None:
     data = resp.json()
     assert data["membership_status"] == "active"
     assert data["conversation_id"] is not None
-    assert data["email"] == "me@test.com"
+    assert data["email"] is None
 
 
 @pytest.mark.asyncio
@@ -553,7 +537,7 @@ async def test_profile_get_returns_defaults(seeded_client: dict[str, Any]) -> No
 
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "default@test.com"},
+        json={"invite_code": invite_code},
     )
     resp = await client.get(f"/p/{project_id}/profile")
     assert resp.status_code == 200
@@ -572,7 +556,7 @@ async def test_profile_put_enables_non_intake_route(
 
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "profile@test.com"},
+        json={"invite_code": invite_code},
     )
     put_resp = await client.put(
         f"/p/{project_id}/profile",
@@ -660,7 +644,7 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
 
     await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "admin-flow@test.com"},
+        json={"invite_code": invite_code},
     )
     await client.post(
         f"/p/{project_id}/push/subscribe",
@@ -694,7 +678,7 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
     assert participants_after.status_code == 200
     participants = participants_after.json()["participants"]
     assert len(participants) == 1
-    assert participants[0]["email"] == "admin-flow@test.com"
+    assert participants[0]["email"] is None
     assert "last_push_success_at" in participants[0]
     assert "last_push_failure_at" in participants[0]
     export_after = await client.get(f"/admin/projects/{project_id}/export")
@@ -867,7 +851,7 @@ async def test_multi_use_invite_limit_enforced(client: AsyncClient) -> None:
     )
     first = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "one@test.com"},
+        json={"invite_code": invite_code},
     )
     assert first.status_code == 200
 
@@ -876,7 +860,7 @@ async def test_multi_use_invite_limit_enforced(client: AsyncClient) -> None:
     )
     second = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "two@test.com"},
+        json={"invite_code": invite_code},
     )
     assert second.status_code == 200
 
@@ -885,7 +869,7 @@ async def test_multi_use_invite_limit_enforced(client: AsyncClient) -> None:
     )
     third = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "three@test.com"},
+        json={"invite_code": invite_code},
     )
     assert third.status_code == 400
 
@@ -900,12 +884,12 @@ async def test_repeat_claim_same_user_does_not_increment_invite_use(
 
     first = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "repeat@test.com"},
+        json={"invite_code": invite_code},
     )
     assert first.status_code == 200
     second = await client.post(
         f"/p/{project_id}/activate/claim",
-        json={"invite_code": invite_code, "email": "repeat@test.com"},
+        json={"invite_code": invite_code},
     )
     assert second.status_code == 200
 
@@ -956,3 +940,75 @@ async def test_invite_use_atomic_update_allows_single_consumer(
 
     first, second = await asyncio.gather(_consume_once(), _consume_once())
     assert first + second == 1
+
+
+# ---------------------------------------------------------------------------
+# GET /me and PATCH /me
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_me(client: AsyncClient) -> None:
+    resp = await client.get("/me")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["user_id"] == "u_testuser_000000000000000000"
+    assert "email" in data
+    assert "display_name" in data
+    assert "is_admin" in data
+
+
+@pytest.mark.asyncio
+async def test_patch_me_display_name(client: AsyncClient) -> None:
+    resp = await client.patch("/me", json={"display_name": "Alice"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["display_name"] == "Alice"
+
+    # Verify persistence
+    resp2 = await client.get("/me")
+    assert resp2.json()["display_name"] == "Alice"
+
+
+@pytest.mark.asyncio
+async def test_patch_me_email(client: AsyncClient) -> None:
+    resp = await client.patch("/me", json={"email": "new@example.com"})
+    assert resp.status_code == 200
+    assert resp.json()["email"] == "new@example.com"
+
+
+# ---------------------------------------------------------------------------
+# Claim invite without email returns 409
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_claim_invite_without_email_returns_409(
+    seeded_client: dict[str, Any],
+) -> None:
+    """Claim invite without user email returns EMAIL_REQUIRED."""
+    from app.main import app
+    from h4ckath0n.auth.dependencies import _get_current_user
+
+    no_email_user = _make_fake_user()
+    no_email_user.email = None
+
+    async def _dep() -> Any:
+        return no_email_user
+
+    app.dependency_overrides[_get_current_user] = _dep
+
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    resp = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+    assert resp.status_code == 409
+    data = resp.json()
+    assert data["code"] == "EMAIL_REQUIRED"
+
+    # Restore override
+    app.dependency_overrides[_get_current_user] = _override_require_user()
