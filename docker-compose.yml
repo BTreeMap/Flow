@@ -48,6 +48,27 @@ services:
     networks:
       - flow-net
 
+  flow-worker:
+    image: ${FLOW_IMAGE:-ghcr.io/btreemap/flow:latest}
+    hostname: flow-worker
+    command:
+      [
+        "/opt/venv/bin/python",
+        "-m",
+        "app.worker.outbox_worker",
+      ]
+    environment:
+      H4CKATH0N_ENV: ${H4CKATH0N_ENV:-production}
+      H4CKATH0N_RP_ID: ${H4CKATH0N_RP_ID:-localhost}
+      H4CKATH0N_ORIGIN: ${H4CKATH0N_ORIGIN:-http://localhost:8080}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-postgresql+asyncpg://flow:flow@postgres:5432/flow}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - flow-net
+
   postgres:
     image: postgres:18.2
     hostname: postgres

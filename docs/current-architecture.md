@@ -177,6 +177,18 @@ All proposals are logged in the `patch_audit_log` table:
 
 ---
 
+## Milestone 1 operational additions
+
+- Activation requires an email end-to-end (`POST /p/{project_id}/activate/claim` validates `email` as `EmailStr`). Email remains contact metadata only and is not used for identity/auth.
+- Deterministic onboarding endpoint (`GET/PUT /p/{project_id}/profile`) writes `UserProfileData` directly from explicit participant input.
+- Runtime protocol state is persisted in `conversation_runtime_state` after INTAKE/FEEDBACK tool mutations.
+- Outbox worker (`app.worker.outbox_worker`) processes due `outbox_events`, handles `scheduled_prompt`, inserts assistant messages, and best-effort push delivery.
+- Invites are multi-use by default with `max_uses`/`uses` and optional `revoked_at`; `consumed_at` is no longer used for invite availability checks.
+
+> Note: schema changes rely on `create_all` (no Alembic yet), so existing deployed databases require reset to pick up new columns.
+
+---
+
 ## Key Code Entrypoints
 
 | File | Purpose |

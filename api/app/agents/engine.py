@@ -23,7 +23,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Conversation, Message
+from app.models import Conversation, ConversationRuntimeState, Message
 from app.schemas.patches import (
     MemoryItemData,
     MemoryPatchProposal,
@@ -266,8 +266,6 @@ async def process_turn(
     recent_message_ids = [m.id for m in recent_msgs]
 
     # Read conversation state from runtime state if available
-    from app.models import ConversationRuntimeState
-
     state_result = await db.execute(
         select(ConversationRuntimeState).where(
             ConversationRuntimeState.conversation_id == conversation.id
@@ -295,6 +293,7 @@ async def process_turn(
     logger.info("Route decision: %s (reason: %s)", decision.route, decision.reason)
 
     # Step 3: Invoke specialist
+    state_data: dict[str, str] | None = None
     if llm is not None:
         # LLM-backed agent invocation
         collector = ProposalCollector()
@@ -313,7 +312,7 @@ async def process_turn(
             from app.agents.intake import run_intake
             from app.tools.langchain_tools import make_intake_tools
 
-            state_data: dict[str, str] = {}
+            state_data = {}
             if runtime_state:
                 try:
                     state_data = json.loads(runtime_state.state_json)
@@ -366,5 +365,16 @@ async def process_turn(
 
     # Step 4: Process proposals through Router validator
     await _process_proposals(db, membership_id, profile, collector, recent_message_ids)
+
+    if state_data is not None:
+        if runtime_state is None:
+            runtime_state = ConversationRuntimeState(
+                conversation_id=conversation.id,
+                state_json=json.dumps(state_data),
+            )
+            db.add(runtime_state)
+        else:
+            runtime_state.state_json = json.dumps(state_data)
+        await db.flush()
 
     return assistant_text, decision

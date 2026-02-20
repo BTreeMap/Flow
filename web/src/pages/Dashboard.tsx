@@ -19,7 +19,7 @@ interface DashboardData {
 }
 
 export function Dashboard() {
-  const { displayName } = useAuth();
+  const { displayName, role } = useAuth();
 
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ["dashboard"],
@@ -49,6 +49,11 @@ export function Dashboard() {
         <p className="text-text-muted">
           Welcome{displayName ? `, ${displayName}` : ""}!
         </p>
+        {role === "admin" && (
+          <Link to="/admin" className="text-sm text-primary hover:underline">
+            Admin
+          </Link>
+        )}
       </div>
 
       {isLoading && (

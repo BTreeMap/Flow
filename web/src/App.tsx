@@ -8,8 +8,10 @@ import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
 import { DemoRealtime } from "./pages/DemoRealtime";
 import { Activation } from "./pages/Activation";
+import { Onboarding } from "./pages/Onboarding";
 import { ChatThread } from "./pages/ChatThread";
 import { Notifications } from "./pages/Notifications";
+import { Admin } from "./pages/Admin";
 
 export function App() {
   return (
@@ -35,10 +37,26 @@ export function App() {
           }
         />
         <Route
+          path="/p/:projectId/onboarding"
+          element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/p/:projectId/chat"
           element={
             <ProtectedRoute>
               <ChatThread />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Admin />
             </ProtectedRoute>
           }
         />
