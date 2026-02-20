@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 SCHEDULED_PROMPT_TEXT = "Daily check-in: how did it go today?"
 MAX_ATTEMPTS = 5
 FAILED_EVENT_POSTPONE_DAYS = 3650
-LOCK_DURATION_SECONDS = 60
+LOCK_DURATION_SECONDS = 300
+PUSH_TIMEOUT_SECONDS = 10
 
 
 def _make_worker_id() -> str:
@@ -77,7 +78,6 @@ async def _claim_due_events(worker_id: str, limit: int = 20) -> list[OutboxEvent
             select(OutboxEvent).where(
                 OutboxEvent.id.in_(ids),
                 OutboxEvent.locked_by == worker_id,
-                OutboxEvent.claimed_at == now,
             )
         )
         return list(claimed_result.scalars().all())
@@ -103,6 +103,7 @@ async def _send_push_for_membership(
         )
     )
     subscriptions = result.scalars().all()
+    had_timeout = False
     for sub in subscriptions:
         payload = json.dumps(
             {
@@ -112,20 +113,29 @@ async def _send_push_for_membership(
             }
         )
         try:
-            await asyncio.to_thread(
-                webpush,
-                subscription_info={
-                    "endpoint": sub.endpoint,
-                    "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
-                },
-                data=payload,
-                vapid_private_key=os.environ.get("VAPID_PRIVATE_KEY"),
-                vapid_claims={"sub": "mailto:research@flow.local"},
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    webpush,
+                    subscription_info={
+                        "endpoint": sub.endpoint,
+                        "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
+                    },
+                    data=payload,
+                    vapid_private_key=os.environ.get("VAPID_PRIVATE_KEY"),
+                    vapid_claims={"sub": "mailto:research@flow.local"},
+                ),
+                timeout=PUSH_TIMEOUT_SECONDS,
             )
             sub.last_success_at = datetime.now(UTC)
+        except asyncio.TimeoutError:
+            had_timeout = True
+            sub.last_failure_at = datetime.now(UTC)
+            logger.warning("Push send timed out for subscription %s", sub.id)
         except WebPushException as exc:
             sub.last_failure_at = datetime.now(UTC)
             logger.warning("Push send failed for subscription %s: %s", sub.id, exc)
+    if had_timeout:
+        raise TimeoutError("Push send timed out")
 
 
 async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
@@ -142,16 +152,23 @@ async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
     if conversation is None:
         return
 
-    db.add(
-        Message(
-            conversation_id=conversation.id,
-            role="assistant",
-            content=SCHEDULED_PROMPT_TEXT,
-            server_msg_id=generate_server_msg_id(),
+    existing_message_result = await db.execute(
+        select(Message).where(
+            Message.conversation_id == conversation.id,
+            Message.role == "assistant",
+            Message.client_msg_id == event.dedupe_key,
         )
     )
-
-    await _send_push_for_membership(db, membership.id, membership.project_id)
+    if existing_message_result.scalar_one_or_none() is None:
+        db.add(
+            Message(
+                conversation_id=conversation.id,
+                role="assistant",
+                content=SCHEDULED_PROMPT_TEXT,
+                server_msg_id=generate_server_msg_id(),
+                client_msg_id=event.dedupe_key,
+            )
+        )
 
     profile = await load_user_profile(db, membership.id)
     await enqueue_next_scheduled_prompt(
@@ -159,6 +176,11 @@ async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
         membership=membership,
         preferred_time=profile.preferred_time,
     )
+    await db.flush()
+    await db.commit()
+
+    await _send_push_for_membership(db, membership.id, membership.project_id)
+    await db.flush()
 
 
 async def _process_event(event: OutboxEvent, worker_id: str) -> None:
@@ -185,6 +207,14 @@ async def _process_event(event: OutboxEvent, worker_id: str) -> None:
             )
             await db.commit()
         except Exception as exc:  # noqa: BLE001
+            # Reset failed transaction state before reloading the persisted row.
+            await db.rollback()
+            row_result = await db.execute(
+                select(OutboxEvent).where(OutboxEvent.id == event.id)
+            )
+            row = row_result.scalar_one_or_none()
+            if row is None:
+                return
             row.attempts += 1
             row.last_error = str(exc)
             row.locked_by = None

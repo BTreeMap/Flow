@@ -299,7 +299,8 @@ async def claim_invite(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
-    # Hash the invite code and look up a matching, unexpired, non-revoked invite
+    # Hash the invite code and look up the invite token for this project.
+    # For existing members, invite validity is not required (idempotent re-open).
     code_hash = hashlib.sha256(body.invite_code.encode()).hexdigest()
     now = datetime.now(UTC)
 
@@ -307,8 +308,6 @@ async def claim_invite(
         select(ProjectInvite).where(
             ProjectInvite.project_id == project_id,
             ProjectInvite.invite_code_hash == code_hash,
-            ProjectInvite.expires_at > now,
-            ProjectInvite.revoked_at.is_(None),
         )
     )
     invite = invite_result.scalar_one_or_none()
@@ -327,8 +326,27 @@ async def claim_invite(
     )
     membership = existing_result.scalar_one_or_none()
 
+    if membership is not None and (
+        membership.status == "ended" or membership.ended_at is not None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Membership ended",
+        )
+
     created_membership = False
-    if membership is None:
+    if membership is not None:
+        # Existing non-ended membership: idempotent success regardless invite validity.
+        pass
+    else:
+        expires_at = invite.expires_at
+        compare_now = now if expires_at.tzinfo else now.replace(tzinfo=None)
+        if invite.revoked_at is not None or expires_at <= compare_now:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired invite code",
+            )
+
         membership = ProjectMembership(
             project_id=project_id, user_id=user.id, status="active"
         )
@@ -814,22 +832,53 @@ async def admin_project_participants(
         select(ProjectMembership).where(ProjectMembership.project_id == project_id)
     )
     memberships = memberships_result.scalars().all()
-    participants: list[AdminParticipantItem] = []
-    for membership in memberships:
-        contact_result = await db.execute(
+    membership_ids = [membership.id for membership in memberships]
+
+    latest_contact_by_membership: dict[int, ParticipantContact] = {}
+    if membership_ids:
+        contacts_result = await db.execute(
             select(ParticipantContact)
-            .where(ParticipantContact.membership_id == membership.id)
-            .order_by(ParticipantContact.created_at.desc())
-            .limit(1)
+            .where(ParticipantContact.membership_id.in_(membership_ids))
+            .order_by(
+                ParticipantContact.membership_id.asc(),
+                ParticipantContact.created_at.desc(),
+            )
         )
-        contact = contact_result.scalar_one_or_none()
+        for contact in contacts_result.scalars().all():
+            latest_contact_by_membership.setdefault(contact.membership_id, contact)
+
+    push_stats_by_membership: dict[int, dict[str, Any]] = {
+        membership_id: {"count": 0, "last_success_at": None, "last_failure_at": None}
+        for membership_id in membership_ids
+    }
+    if membership_ids:
         push_result = await db.execute(
             select(PushSubscription).where(
-                PushSubscription.membership_id == membership.id,
+                PushSubscription.membership_id.in_(membership_ids),
                 PushSubscription.revoked_at.is_(None),
             )
         )
-        push_subs = push_result.scalars().all()
+        for sub in push_result.scalars().all():
+            stats = push_stats_by_membership[sub.membership_id]
+            stats["count"] += 1
+            if sub.last_success_at and (
+                stats["last_success_at"] is None
+                or sub.last_success_at > stats["last_success_at"]
+            ):
+                stats["last_success_at"] = sub.last_success_at
+            if sub.last_failure_at and (
+                stats["last_failure_at"] is None
+                or sub.last_failure_at > stats["last_failure_at"]
+            ):
+                stats["last_failure_at"] = sub.last_failure_at
+
+    participants: list[AdminParticipantItem] = []
+    for membership in memberships:
+        contact = latest_contact_by_membership.get(membership.id)
+        stats = push_stats_by_membership.get(
+            membership.id,
+            {"count": 0, "last_success_at": None, "last_failure_at": None},
+        )
         participants.append(
             AdminParticipantItem(
                 user_id=membership.user_id,
@@ -839,18 +888,12 @@ async def admin_project_participants(
                 if membership.ended_at
                 else None,
                 email=contact.email_raw if contact else None,
-                push_subscription_count=len(push_subs),
-                last_push_success_at=max(
-                    (s.last_success_at for s in push_subs if s.last_success_at),
-                    default=None,
-                ).isoformat()
-                if any(s.last_success_at for s in push_subs)
+                push_subscription_count=stats["count"],
+                last_push_success_at=stats["last_success_at"].isoformat()
+                if stats["last_success_at"]
                 else None,
-                last_push_failure_at=max(
-                    (s.last_failure_at for s in push_subs if s.last_failure_at),
-                    default=None,
-                ).isoformat()
-                if any(s.last_failure_at for s in push_subs)
+                last_push_failure_at=stats["last_failure_at"].isoformat()
+                if stats["last_failure_at"]
                 else None,
             )
         )
@@ -938,6 +981,7 @@ async def admin_project_export(
         ],
         "messages": [
             {
+                "id": m.id,
                 "message_id": m.id,
                 "project_id": project_id,
                 "conversation_id": m.conversation_id,
@@ -979,9 +1023,13 @@ async def admin_project_export(
                 "membership_id": e.membership_id,
                 "type": e.type,
                 "payload_json": e.payload_json,
+                "dedupe_key": e.dedupe_key,
                 "available_at": e.available_at.isoformat(),
                 "attempts": e.attempts,
                 "last_error": e.last_error,
+                "locked_until": e.locked_until.isoformat() if e.locked_until else None,
+                "locked_by": e.locked_by,
+                "claimed_at": e.claimed_at.isoformat() if e.claimed_at else None,
             }
             for e in outbox_result.scalars().all()
         ],

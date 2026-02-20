@@ -25,6 +25,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Conversation, ConversationRuntimeState, Message
 from app.schemas.patches import (
+    FEEDBACK_ALLOWED_FIELDS,
+    INTAKE_ALLOWED_FIELDS,
     MemoryItemData,
     MemoryPatchProposal,
     ProfilePatchProposal,
@@ -168,12 +170,38 @@ async def _process_proposals(
     profile: UserProfileData,
     collector: ProposalCollector,
     recent_message_ids: list[int],
+    latest_user_message_id: int | None = None,
 ) -> UserProfileData:
     """Validate and commit proposals from the specialist. Returns updated profile."""
     now = datetime.now(timezone.utc)
 
     # Process profile proposals
     for raw in collector.profile_proposals:
+        if latest_user_message_id and isinstance(raw, dict):
+            evidence = raw.get("evidence", {})
+            message_ids = (
+                evidence.get("message_ids", []) if isinstance(evidence, dict) else []
+            )
+            patch = raw.get("patch", {})
+            source_bot = raw.get("source_bot")
+            allowed_fields = (
+                INTAKE_ALLOWED_FIELDS
+                if source_bot == "INTAKE"
+                else FEEDBACK_ALLOWED_FIELDS
+                if source_bot == "FEEDBACK"
+                else set()
+            )
+            if (
+                not message_ids
+                and isinstance(patch, dict)
+                and set(patch).issubset(allowed_fields)
+            ):
+                raw["evidence"] = {
+                    "message_ids": [latest_user_message_id],
+                    "quotes": evidence.get("quotes", [])
+                    if isinstance(evidence, dict)
+                    else [],
+                }
         try:
             proposal = ProfilePatchProposal.model_validate(raw)
         except Exception:
@@ -201,6 +229,19 @@ async def _process_proposals(
 
     # Process memory proposals
     for raw in collector.memory_proposals:
+        if latest_user_message_id and isinstance(raw, dict):
+            evidence = raw.get("evidence", {})
+            message_ids = (
+                evidence.get("message_ids", []) if isinstance(evidence, dict) else []
+            )
+            source_bot = raw.get("source_bot")
+            if not message_ids and source_bot in {"INTAKE", "FEEDBACK"}:
+                raw["evidence"] = {
+                    "message_ids": [latest_user_message_id],
+                    "quotes": evidence.get("quotes", [])
+                    if isinstance(evidence, dict)
+                    else [],
+                }
         try:
             proposal = MemoryPatchProposal.model_validate(raw)
         except Exception:
@@ -364,7 +405,14 @@ async def process_turn(
         assistant_text, collector = _run_specialist_stub(decision.route, user_text)
 
     # Step 4: Process proposals through Router validator
-    await _process_proposals(db, membership_id, profile, collector, recent_message_ids)
+    await _process_proposals(
+        db,
+        membership_id,
+        profile,
+        collector,
+        recent_message_ids,
+        latest_user_message_id=user_msg.id,
+    )
 
     if state_data is not None:
         if runtime_state is None:

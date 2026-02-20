@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
 from typing import AsyncGenerator
 
@@ -15,6 +14,7 @@ from app.models import (
     OutboxEvent,
     Project,
     ProjectMembership,
+    PushSubscription,
 )
 from app.services.outbox_service import enqueue_outbox_event
 from app.services.profile_service import save_user_profile
@@ -157,3 +157,69 @@ async def test_claim_due_events_prevents_double_claim(
 
     assert len(claimed_by_worker_1) == 1
     assert claimed_by_worker_2 == []
+
+
+@pytest.mark.asyncio
+async def test_slow_push_times_out_without_duplicate_messages(
+    db: AsyncSession, seeded: dict[str, int | str], monkeypatch
+) -> None:
+    project_id = str(seeded["project_id"])
+    membership_id = int(seeded["membership_id"])
+    event = OutboxEvent(
+        project_id=project_id,
+        membership_id=membership_id,
+        type="scheduled_prompt",
+        payload_json='{"project_id":"%s"}' % project_id,
+        dedupe_key=f"scheduled_prompt:{membership_id}:2099-01-03",
+        available_at=datetime.now(UTC),
+        locked_by="worker-timeout",
+        claimed_at=datetime.now(UTC),
+        locked_until=datetime.now(UTC) + timedelta(minutes=5),
+    )
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+
+    db.add(
+        PushSubscription(
+            membership_id=membership_id,
+            endpoint="https://push.example.com/sub/slow",
+            p256dh="pk",
+            auth="ak",
+            user_agent="pytest",
+        )
+    )
+    await db.commit()
+
+    def fake_slow_webpush(*args, **kwargs):  # type: ignore[no-untyped-def]
+        import time
+
+        time.sleep(0.05)
+        return None
+
+    monkeypatch.setenv("VAPID_PRIVATE_KEY", "test-private")
+    monkeypatch.setenv("VAPID_PUBLIC_KEY", "test-public")
+    monkeypatch.setattr("app.worker.outbox_worker.PUSH_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr("app.worker.outbox_worker.webpush", fake_slow_webpush)
+    monkeypatch.setattr(
+        "app.worker.outbox_worker.async_session_factory", _session_factory
+    )
+
+    await _process_event(event, worker_id="worker-timeout")
+    await _process_event(event, worker_id="worker-timeout")
+
+    async with _session_factory() as verify_db:
+        message_result = await verify_db.execute(
+            select(Message).where(
+                Message.role == "assistant",
+                Message.client_msg_id == event.dedupe_key,
+            )
+        )
+        messages = message_result.scalars().all()
+        assert len(messages) == 1
+
+        event_result = await verify_db.execute(
+            select(OutboxEvent).where(OutboxEvent.id == event.id)
+        )
+        retry_event = event_result.scalar_one()
+        assert retry_event.attempts >= 1

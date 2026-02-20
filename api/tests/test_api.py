@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any, AsyncGenerator
 from unittest.mock import MagicMock
@@ -197,6 +198,74 @@ async def test_claim_invite_empty_email_returns_422(
     assert resp.status_code == 422
     errors = resp.json().get("detail", [])
     assert any(error.get("loc") == ["body", "email"] for error in errors)
+
+
+@pytest.mark.asyncio
+async def test_claim_invite_existing_membership_after_expiry_succeeds(
+    seeded_client: dict[str, Any],
+) -> None:
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    first = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code, "email": "existing@test.com"},
+    )
+    assert first.status_code == 200
+
+    async with _test_session_factory() as db:
+        invite_result = await db.execute(
+            select(ProjectInvite).where(ProjectInvite.project_id == project_id)
+        )
+        invite = invite_result.scalar_one()
+        initial_uses = invite.uses
+        invite.expires_at = datetime.now(UTC) - timedelta(minutes=1)
+        invite.revoked_at = datetime.now(UTC)
+        await db.commit()
+
+    second = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code, "email": "existing@test.com"},
+    )
+    assert second.status_code == 200
+
+    async with _test_session_factory() as db:
+        invite_result = await db.execute(
+            select(ProjectInvite).where(ProjectInvite.project_id == project_id)
+        )
+        invite = invite_result.scalar_one()
+        assert invite.uses == initial_uses
+
+
+@pytest.mark.asyncio
+async def test_claim_invite_existing_ended_membership_returns_403(
+    seeded_client: dict[str, Any],
+) -> None:
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    first = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code, "email": "ended@test.com"},
+    )
+    assert first.status_code == 200
+
+    async with _test_session_factory() as db:
+        membership_result = await db.execute(
+            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+        )
+        membership = membership_result.scalar_one()
+        membership.status = "ended"
+        membership.ended_at = datetime.now(UTC)
+        await db.commit()
+
+    second = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code, "email": "ended@test.com"},
+    )
+    assert second.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -582,15 +651,40 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
         f"/p/{project_id}/messages",
         json={"text": "hello export"},
     )
+    async with _test_session_factory() as db:
+        membership_result = await db.execute(
+            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+        )
+        membership = membership_result.scalar_one()
+        db.add(
+            OutboxEvent(
+                project_id=project_id,
+                membership_id=membership.id,
+                type="scheduled_prompt",
+                payload_json='{"project_id":"%s"}' % project_id,
+                dedupe_key=f"scheduled_prompt:{membership.id}:2099-01-01",
+                available_at=datetime.now(UTC),
+            )
+        )
+        await db.commit()
+
     participants_after = await client.get(f"/admin/projects/{project_id}/participants")
     assert participants_after.status_code == 200
-    assert len(participants_after.json()["participants"]) == 1
+    participants = participants_after.json()["participants"]
+    assert len(participants) == 1
+    assert participants[0]["email"] == "admin-flow@test.com"
+    assert "last_push_success_at" in participants[0]
+    assert "last_push_failure_at" in participants[0]
     export_after = await client.get(f"/admin/projects/{project_id}/export")
     payload = export_after.json()
     assert isinstance(payload["messages"][0]["server_msg_id"], str)
     assert payload["messages"][0]["server_msg_id"] != ""
+    assert "id" in payload["messages"][0]
     assert "client_msg_id" in payload["messages"][0]
     assert payload["push_subscriptions"][0]["membership_id"] is not None
+    assert "dedupe_key" in payload["outbox_events"][0]
+    assert "locked_until" in payload["outbox_events"][0]
+    assert invite_code not in json.dumps(payload)
 
 
 @pytest.mark.asyncio
