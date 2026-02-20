@@ -24,6 +24,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/debug/llm-connectivity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin Debug Llm Connectivity */
+        post: operations["admin_debug_llm_connectivity_admin_debug_llm_connectivity_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/debug/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Debug Status */
+        get: operations["admin_debug_status_admin_debug_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/projects": {
         parameters: {
             query?: never;
@@ -284,6 +318,40 @@ export interface paths {
          * @description Revoke a passkey by its internal key ID. The last active passkey cannot be revoked and returns the LAST_PASSKEY error.
          */
         post: operations["passkey_revoke_auth_passkeys__key_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Auth Sessions */
+        get: operations["auth_sessions_auth_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/{device_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke Auth Session */
+        post: operations["revoke_auth_session_auth_sessions__device_id__revoke_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -609,6 +677,35 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** AdminDebugCheck */
+        AdminDebugCheck: {
+            /** Detail */
+            detail: string;
+            /** Key */
+            key: string;
+            /** Ok */
+            ok: boolean;
+        };
+        /** AdminDebugStatusResponse */
+        AdminDebugStatusResponse: {
+            /** Checks */
+            checks: components["schemas"]["AdminDebugCheck"][];
+            /** Llm Mode */
+            llm_mode: string;
+        };
+        /** AdminLLMConnectivityResponse */
+        AdminLLMConnectivityResponse: {
+            /** Error */
+            error?: string | null;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Model */
+            model: string;
+            /** Ok */
+            ok: boolean;
+            /** Output */
+            output?: string | null;
+        };
         /** AdminParticipantItem */
         AdminParticipantItem: {
             /** Created At */
@@ -655,6 +752,29 @@ export interface components {
             role: string;
             /** User Id */
             user_id: string;
+        };
+        /** AuthSessionItem */
+        AuthSessionItem: {
+            /** Created At */
+            created_at: string;
+            /** Device Id */
+            device_id: string;
+            /** Is Current */
+            is_current: boolean;
+            /** Label */
+            label?: string | null;
+            /** Revoked At */
+            revoked_at?: string | null;
+        };
+        /** AuthSessionRevokeResponse */
+        AuthSessionRevokeResponse: {
+            /** Ok */
+            ok: boolean;
+        };
+        /** AuthSessionsResponse */
+        AuthSessionsResponse: {
+            /** Sessions */
+            sessions: components["schemas"]["AuthSessionItem"][];
         };
         /** ClaimRequest */
         ClaimRequest: {
@@ -1155,6 +1275,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RootResponse"];
+                };
+            };
+        };
+    };
+    admin_debug_llm_connectivity_admin_debug_llm_connectivity_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminLLMConnectivityResponse"];
+                };
+            };
+        };
+    };
+    admin_debug_status_admin_debug_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDebugStatusResponse"];
                 };
             };
         };
@@ -1690,6 +1850,57 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auth_sessions_auth_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSessionsResponse"];
+                };
+            };
+        };
+    };
+    revoke_auth_session_auth_sessions__device_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSessionRevokeResponse"];
                 };
             };
             /** @description Validation Error */
