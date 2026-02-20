@@ -39,6 +39,22 @@ export type AdminCreateProjectRequest =
   components["schemas"]["AdminCreateProjectRequest"];
 export type AdminCreateInvitesResponse =
   components["schemas"]["AdminCreateInvitesResponse"];
+export type AdminProjectItem = components["schemas"]["AdminProjectItem"];
+export type AdminProjectUpdateRequest =
+  components["schemas"]["AdminProjectUpdateRequest"];
+export type AdminPushChannelItem =
+  components["schemas"]["AdminPushChannelItem"];
+export type AdminPushChannelsResponse =
+  components["schemas"]["AdminPushChannelsResponse"];
+export type AdminPushTestRequest =
+  components["schemas"]["AdminPushTestRequest"];
+export type AdminPushTestResponse =
+  components["schemas"]["AdminPushTestResponse"];
+export type AdminPushTestResultItem =
+  components["schemas"]["AdminPushTestResultItem"];
+export type UserMeResponse = components["schemas"]["UserMeResponse"];
+export type UserMeUpdateRequest =
+  components["schemas"]["UserMeUpdateRequest"];
 
 // ── User-defined (demo) types ─────────────────────────────────────────────
 
@@ -63,6 +79,13 @@ type _AssertAdminDebugConnectivityPost =
 type _AssertDemoEchoPost = paths["/demo/echo"]["post"];
 type _AssertDemoPingGet = paths["/demo/ping"]["get"];
 type _AssertDemoSseGet = paths["/demo/sse"]["get"];
+type _AssertMeGet = paths["/me"]["get"];
+type _AssertMePatch = paths["/me"]["patch"];
+type _AssertAdminProjectPatch =
+  paths["/admin/projects/{project_id}"]["patch"];
+type _AssertAdminPushChannelsGet =
+  paths["/admin/projects/{project_id}/push/channels"]["get"];
+type _AssertAdminPushTestPost = paths["/admin/push/test"]["post"];
 
 // Suppress "declared but never read" – they exist purely for the type check.
 export type {
@@ -75,4 +98,9 @@ export type {
   _AssertDemoEchoPost,
   _AssertDemoPingGet,
   _AssertDemoSseGet,
+  _AssertMeGet,
+  _AssertMePatch,
+  _AssertAdminProjectPatch,
+  _AssertAdminPushChannelsGet,
+  _AssertAdminPushTestPost,
 };

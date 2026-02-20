@@ -170,9 +170,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           displayName: finishRes.data.display_name ?? displayName,
         }),
       );
-      navigate("/dashboard");
     },
-    [navigate],
+    [],
   );
 
   const login = useCallback(async () => {
@@ -220,8 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         displayName: finishRes.data.display_name ?? null,
       }),
     );
-    navigate("/dashboard");
-  }, [navigate]);
+  }, []);
 
   const logout = useCallback(async () => {
     clearCachedToken();

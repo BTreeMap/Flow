@@ -8,6 +8,8 @@ import {
   LogOut,
   LayoutDashboard,
   Settings,
+  Menu,
+  X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -21,6 +23,7 @@ import {
 
 export function Layout() {
   const { isAuthenticated, logout, role } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [themePreference, setThemePreference] = useState<ThemePreference>(() =>
     typeof window === "undefined" ? "system" : readThemePreference(),
   );
@@ -71,7 +74,8 @@ export function Layout() {
               <span>{"Flow"}</span>
             </Link>
 
-            <div className="flex items-center gap-3">
+            {/* Desktop nav */}
+            <div className="hidden sm:flex items-center gap-3">
               <button
                 onClick={() => {
                   if (themePreference === "system") {
@@ -152,7 +156,105 @@ export function Layout() {
                 </>
               )}
             </div>
+
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="sm:hidden p-2 rounded-xl hover:bg-surface-alt transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
+
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="sm:hidden pb-3 space-y-1">
+              <button
+                onClick={() => {
+                  if (themePreference === "system") {
+                    setThemePreference(
+                      effectiveTheme === "dark" ? "light" : "dark",
+                    );
+                  } else {
+                    setThemePreference(
+                      themePreference === "light" ? "dark" : "light",
+                    );
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors"
+              >
+                {effectiveTheme === "dark" ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+                Theme
+              </button>
+
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors"
+                    data-testid="nav-dashboard-mobile"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    Dashboard
+                  </Link>
+                  <Link
+                    to="/settings"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors"
+                    data-testid="nav-settings-mobile"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </Link>
+                  {role === "admin" && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors"
+                      data-testid="nav-admin-mobile"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      Admin
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      void logout();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors text-danger"
+                    data-testid="nav-logout-mobile"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors text-primary"
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </nav>
 

@@ -76,6 +76,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Admin Update Project */
+        patch: operations["admin_update_project_admin_projects__project_id__patch"];
+        trace?: never;
+    };
     "/admin/projects/{project_id}/export": {
         parameters: {
             query?: never;
@@ -121,6 +138,40 @@ export interface paths {
         get: operations["admin_project_participants_admin_projects__project_id__participants_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/projects/{project_id}/push/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Push Channels */
+        get: operations["admin_push_channels_admin_projects__project_id__push_channels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/push/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin Push Test */
+        post: operations["admin_push_test_admin_push_test_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -480,6 +531,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Me
+         * @description Return current user profile including email and display name.
+         */
+        get: operations["get_me_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Me
+         * @description Update current user's email and/or display name.
+         */
+        patch: operations["update_me_me_patch"];
+        trace?: never;
+    };
     "/p/{project_id}/activate/claim": {
         parameters: {
             query?: never;
@@ -760,11 +835,76 @@ export interface components {
             member_count: number;
             /** Project Id */
             project_id: string;
+            /**
+             * Status
+             * @default active
+             */
+            status: string;
+        };
+        /** AdminProjectUpdateRequest */
+        AdminProjectUpdateRequest: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Status */
+            status?: string | null;
         };
         /** AdminProjectsResponse */
         AdminProjectsResponse: {
             /** Projects */
             projects: components["schemas"]["AdminProjectItem"][];
+        };
+        /** AdminPushChannelItem */
+        AdminPushChannelItem: {
+            /** Created At */
+            created_at: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Endpoint Hint */
+            endpoint_hint: string;
+            /** Last Failure At */
+            last_failure_at?: string | null;
+            /** Last Success At */
+            last_success_at?: string | null;
+            /** Membership Id */
+            membership_id: number;
+            /** Subscription Id */
+            subscription_id: number;
+            /** User Email */
+            user_email?: string | null;
+            /** User Id */
+            user_id: string;
+        };
+        /** AdminPushChannelsResponse */
+        AdminPushChannelsResponse: {
+            /** Channels */
+            channels: components["schemas"]["AdminPushChannelItem"][];
+        };
+        /** AdminPushTestRequest */
+        AdminPushTestRequest: {
+            /** Body */
+            body: string;
+            /** Project Id */
+            project_id: string;
+            /** Subscription Ids */
+            subscription_ids: number[];
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+        };
+        /** AdminPushTestResponse */
+        AdminPushTestResponse: {
+            /** Results */
+            results: components["schemas"]["AdminPushTestResultItem"][];
+        };
+        /** AdminPushTestResultItem */
+        AdminPushTestResultItem: {
+            /** Error */
+            error?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Subscription Id */
+            subscription_id: number;
         };
         /** AuthMeResponse */
         AuthMeResponse: {
@@ -798,11 +938,6 @@ export interface components {
         };
         /** ClaimRequest */
         ClaimRequest: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
             /** Invite Code */
             invite_code: string;
         };
@@ -1185,6 +1320,27 @@ export interface components {
             /** Server Msg Id */
             server_msg_id: string;
         };
+        /** UserMeResponse */
+        UserMeResponse: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * Is Admin
+             * @default false
+             */
+            is_admin: boolean;
+            /** User Id */
+            user_id: string;
+        };
+        /** UserMeUpdateRequest */
+        UserMeUpdateRequest: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email?: string | null;
+        };
         /**
          * UserProfileData
          * @description Structured user profile fields (Store A). Pydantic validated.
@@ -1407,6 +1563,43 @@ export interface operations {
             };
         };
     };
+    admin_update_project_admin_projects__project_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProjectUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_project_export_admin_projects__project_id__export_get: {
         parameters: {
             query?: never;
@@ -1493,6 +1686,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminParticipantsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_push_channels_admin_projects__project_id__push_channels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPushChannelsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_push_test_admin_push_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPushTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPushTestResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2078,6 +2335,59 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    get_me_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMeResponse"];
+                };
+            };
+        };
+    };
+    update_me_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserMeUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
