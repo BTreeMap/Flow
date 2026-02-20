@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, Link, useNavigate } from "react-router";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
@@ -20,6 +20,7 @@ interface Message {
 
 export function ChatThread() {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   useAuth(); // ensure user is authenticated
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -43,6 +44,20 @@ export function ChatThread() {
     (async () => {
       try {
         const token = await getOrMintToken("http");
+        const profileRes = await fetch(`${API_BASE}/p/${projectId}/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!profileRes.ok) {
+          throw new Error(`Failed to load profile (${profileRes.status})`);
+        }
+        const profile = (await profileRes.json()) as {
+          prompt_anchor?: string;
+          preferred_time?: string;
+        };
+        if (!profile.prompt_anchor || !profile.preferred_time) {
+          navigate(`/p/${projectId}/onboarding`, { replace: true });
+          return;
+        }
         const res = await fetch(`${API_BASE}/p/${projectId}/messages`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -80,7 +95,7 @@ export function ChatThread() {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, navigate]);
 
   // SSE connection for real-time updates
   useEffect(() => {

@@ -16,6 +16,7 @@ from sqlalchemy import select
 from app.models import (
     Base,
     Conversation,
+    ConversationRuntimeState,
     Message,
     PatchAuditLog,
     Project,
@@ -23,7 +24,7 @@ from app.models import (
     UserProfileStore,
 )
 from app.id_utils import generate_project_id, generate_server_msg_id
-from app.agents.engine import process_turn
+from app.agents.engine import _process_proposals, process_turn
 from app.schemas.patches import UserProfileData
 from app.services.profile_service import (
     load_user_profile,
@@ -33,6 +34,7 @@ from app.services.profile_service import (
     log_patch_audit,
 )
 from app.schemas.patches import MemoryItemData
+from app.tools.proposal_tools import ProposalCollector
 
 
 # ---------------------------------------------------------------------------
@@ -316,3 +318,107 @@ class TestEngineTurnPipeline:
             user_text="How am I doing?",
         )
         assert decision.route == "COACH"
+
+    @pytest.mark.asyncio
+    async def test_feedback_state_data_persisted(
+        self, seeded_db: dict, monkeypatch
+    ) -> None:
+        db = seeded_db["db"]
+        conv = seeded_db["conversation"]
+        mid = seeded_db["membership_id"]
+
+        await save_user_profile(
+            db,
+            mid,
+            UserProfileData(prompt_anchor="after coffee", preferred_time="8am"),
+        )
+        db.add(
+            ConversationRuntimeState(
+                conversation_id=conv.id,
+                state_json='{"conversationState":"FEEDBACK"}',
+            )
+        )
+        await db.flush()
+
+        user_msg = Message(
+            conversation_id=conv.id,
+            role="user",
+            content="state change",
+            server_msg_id=generate_server_msg_id(),
+        )
+        db.add(user_msg)
+        await db.flush()
+
+        from app.tools import langchain_tools
+
+        def fake_make_feedback_tools(state_data: dict[str, str]):  # type: ignore[no-untyped-def]
+            state_data["conversationState"] = "COACH"
+            state_data["feedbackTransitionedAt"] = "now"
+            return []
+
+        monkeypatch.setattr(
+            langchain_tools, "make_feedback_tools", fake_make_feedback_tools
+        )
+        monkeypatch.setattr(
+            "langchain.agents.create_agent", lambda *args, **kwargs: object()
+        )
+        monkeypatch.setattr(
+            "app.agents.feedback.run_feedback", lambda *args, **kwargs: "ok"
+        )
+
+        await process_turn(
+            db=db,
+            conversation=conv,
+            membership_id=mid,
+            user_msg=user_msg,
+            user_text="state change",
+            llm=object(),  # type: ignore[arg-type]
+            router_llm=None,
+        )
+
+        result = await db.execute(
+            select(ConversationRuntimeState).where(
+                ConversationRuntimeState.conversation_id == conv.id
+            )
+        )
+        state = result.scalar_one()
+        assert '"conversationState": "COACH"' in state.state_json
+        assert '"feedbackTransitionedAt": "now"' in state.state_json
+
+    @pytest.mark.asyncio
+    async def test_missing_evidence_message_ids_are_attached_for_feedback_profile_patch(
+        self, seeded_db: dict
+    ) -> None:
+        db = seeded_db["db"]
+        mid = seeded_db["membership_id"]
+        conv = seeded_db["conversation"]
+
+        user_msg = Message(
+            conversation_id=conv.id,
+            role="user",
+            content="I struggled because evenings are hard",
+            server_msg_id=generate_server_msg_id(),
+        )
+        db.add(user_msg)
+        await db.flush()
+
+        collector = ProposalCollector()
+        collector.add_profile_proposal(
+            {
+                "patch": {"last_barrier": "evening fatigue"},
+                "confidence": 0.9,
+                "evidence": {"message_ids": [], "quotes": []},
+                "source_bot": "FEEDBACK",
+            }
+        )
+
+        profile = await load_user_profile(db, mid)
+        updated = await _process_proposals(
+            db,
+            mid,
+            profile,
+            collector,
+            recent_message_ids=[user_msg.id],
+            latest_user_message_id=user_msg.id,
+        )
+        assert updated.last_barrier == "evening fatigue"

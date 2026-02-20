@@ -20,6 +20,11 @@ export function Activation() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      setError("Email is required");
+      return;
+    }
     setError(null);
     setSubmitting(true);
 
@@ -33,7 +38,7 @@ export function Activation() {
         },
         body: JSON.stringify({
           invite_code: inviteCode,
-          email: email || undefined,
+          email: normalizedEmail,
         }),
       });
 
@@ -42,7 +47,7 @@ export function Activation() {
         throw new Error(body?.detail || `Activation failed (${res.status})`);
       }
 
-      navigate(`/p/${projectId}/chat`);
+      navigate(`/p/${projectId}/onboarding`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Activation failed");
     } finally {
@@ -70,19 +75,20 @@ export function Activation() {
             )}
 
             <Input
-              label="Email (optional)"
+              label="Email"
               type="email"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              required
             />
             <p className="text-xs text-text-muted -mt-2">
-              Optional contact info only — not used for login or identity.
+              Contact info only — not used for login or identity.
             </p>
 
             <Button
               type="submit"
-              disabled={submitting || !inviteCode}
+              disabled={submitting || !inviteCode || !email.trim()}
               className="w-full"
             >
               {submitting ? "Joining…" : "Join Project"}

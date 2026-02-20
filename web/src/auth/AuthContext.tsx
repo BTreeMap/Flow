@@ -12,7 +12,7 @@ import {
   setDeviceIdentity,
   clearDeviceAuthorization,
 } from "./deviceKey";
-import { clearCachedToken } from "./token";
+import { clearCachedToken, getOrMintToken } from "./token";
 import { publicFetch } from "./api";
 import {
   toCreateOptions,
@@ -71,6 +71,7 @@ function buildState(partial: Omit<AuthState, "user" | "loading">): AuthState {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
   const [state, setState] = useState<AuthState>(
     buildState({
       isAuthenticated: false,
@@ -89,13 +90,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const identity = await getDeviceIdentity();
         if (identity) {
+          let role: string | null = null;
+          try {
+            const token = await getOrMintToken("http");
+            const meRes = await fetch(`${apiBase}/auth/me`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (meRes.ok) {
+              const me = (await meRes.json()) as { role: string };
+              role = me.role;
+            }
+          } catch {
+            role = null;
+          }
           setState(
             buildState({
               isAuthenticated: true,
               isLoading: false,
               userId: identity.userId,
               deviceId: identity.deviceId,
-              role: null,
+              role,
               displayName: null,
             }),
           );
@@ -106,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState((s) => buildState({ ...s, isLoading: false }));
       }
     })();
-  }, []);
+  }, [apiBase]);
 
   const register = useCallback(
     async (displayName: string) => {

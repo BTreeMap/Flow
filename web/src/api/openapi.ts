@@ -24,6 +24,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin List Projects */
+        get: operations["admin_list_projects_admin_projects_get"];
+        put?: never;
+        /** Admin Create Project */
+        post: operations["admin_create_project_admin_projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/projects/{project_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Project Export */
+        get: operations["admin_project_export_admin_projects__project_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/projects/{project_id}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin Create Invites */
+        post: operations["admin_create_invites_admin_projects__project_id__invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/projects/{project_id}/participants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Project Participants */
+        get: operations["admin_project_participants_admin_projects__project_id__participants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Auth Me */
+        get: operations["auth_me_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/passkey/add/finish": {
         parameters: {
             query?: never;
@@ -410,6 +496,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/p/{project_id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Profile */
+        get: operations["get_profile_p__project_id__profile_get"];
+        /** Put Profile */
+        put: operations["put_profile_p__project_id__profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/p/{project_id}/push/subscribe": {
         parameters: {
             query?: never;
@@ -474,9 +578,90 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdminCreateInviteRequest */
+        AdminCreateInviteRequest: {
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Label */
+            label?: string | null;
+            /** Max Uses */
+            max_uses?: number | null;
+        };
+        /** AdminCreateInvitesResponse */
+        AdminCreateInvitesResponse: {
+            /** Invite Codes */
+            invite_codes: string[];
+        };
+        /** AdminCreateProjectRequest */
+        AdminCreateProjectRequest: {
+            /** Display Name */
+            display_name: string;
+            /** Study Settings */
+            study_settings?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** AdminParticipantItem */
+        AdminParticipantItem: {
+            /** Created At */
+            created_at: string;
+            /** Email */
+            email?: string | null;
+            /** Ended At */
+            ended_at?: string | null;
+            /** Last Push Failure At */
+            last_push_failure_at?: string | null;
+            /** Last Push Success At */
+            last_push_success_at?: string | null;
+            /** Push Subscription Count */
+            push_subscription_count: number;
+            /** Status */
+            status: string;
+            /** User Id */
+            user_id: string;
+        };
+        /** AdminParticipantsResponse */
+        AdminParticipantsResponse: {
+            /** Participants */
+            participants: components["schemas"]["AdminParticipantItem"][];
+        };
+        /** AdminProjectItem */
+        AdminProjectItem: {
+            /** Created At */
+            created_at: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Member Count */
+            member_count: number;
+            /** Project Id */
+            project_id: string;
+        };
+        /** AdminProjectsResponse */
+        AdminProjectsResponse: {
+            /** Projects */
+            projects: components["schemas"]["AdminProjectItem"][];
+        };
+        /** AuthMeResponse */
+        AuthMeResponse: {
+            /** Role */
+            role: string;
+            /** User Id */
+            user_id: string;
+        };
         /** ClaimRequest */
         ClaimRequest: {
-            /** Email */
+            /**
+             * Email
+             * Format: email
+             */
             email: string;
             /** Invite Code */
             invite_code: string;
@@ -791,6 +976,23 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
+        /** ProfileUpdateRequest */
+        ProfileUpdateRequest: {
+            /**
+             * Habit Domain
+             * @default
+             */
+            habit_domain: string;
+            /**
+             * Motivational Frame
+             * @default
+             */
+            motivational_frame: string;
+            /** Preferred Time */
+            preferred_time: string;
+            /** Prompt Anchor */
+            prompt_anchor: string;
+        };
         /** PushSubscribeRequest */
         PushSubscribeRequest: {
             /** Endpoint */
@@ -843,6 +1045,73 @@ export interface components {
             /** Server Msg Id */
             server_msg_id: string;
         };
+        /**
+         * UserProfileData
+         * @description Structured user profile fields (Store A). Pydantic validated.
+         */
+        UserProfileData: {
+            /**
+             * Habit Domain
+             * @default
+             */
+            habit_domain: string;
+            /**
+             * Intensity
+             * @default normal
+             */
+            intensity: string;
+            /**
+             * Last Barrier
+             * @default
+             */
+            last_barrier: string;
+            /**
+             * Last Motivator
+             * @default
+             */
+            last_motivator: string;
+            /**
+             * Last Successful Prompt
+             * @default
+             */
+            last_successful_prompt: string;
+            /**
+             * Last Tweak
+             * @default
+             */
+            last_tweak: string;
+            /**
+             * Motivational Frame
+             * @default
+             */
+            motivational_frame: string;
+            /**
+             * Preferred Time
+             * @default
+             */
+            preferred_time: string;
+            /**
+             * Prompt Anchor
+             * @default
+             */
+            prompt_anchor: string;
+            /**
+             * Success Count
+             * @default 0
+             */
+            success_count: number;
+            /** Tone Scores */
+            tone_scores?: {
+                [key: string]: number;
+            };
+            /** Tone Tags */
+            tone_tags?: string[];
+            /**
+             * Total Prompts
+             * @default 0
+             */
+            total_prompts: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -886,6 +1155,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RootResponse"];
+                };
+            };
+        };
+    };
+    admin_list_projects_admin_projects_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProjectsResponse"];
+                };
+            };
+        };
+    };
+    admin_create_project_admin_projects_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCreateProjectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_project_export_admin_projects__project_id__export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_create_invites_admin_projects__project_id__invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCreateInviteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCreateInvitesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_project_participants_admin_projects__project_id__participants_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminParticipantsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auth_me_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMeResponse"];
                 };
             };
         };
@@ -1545,6 +1988,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SendMessageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_profile_p__project_id__profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileData"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_profile_p__project_id__profile_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileData"];
                 };
             };
             /** @description Validation Error */

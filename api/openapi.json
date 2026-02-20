@@ -1,9 +1,248 @@
 {
   "components": {
     "schemas": {
+      "AdminCreateInviteRequest": {
+        "properties": {
+          "count": {
+            "default": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "max_uses": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Uses"
+          }
+        },
+        "required": [
+          "expires_at"
+        ],
+        "title": "AdminCreateInviteRequest",
+        "type": "object"
+      },
+      "AdminCreateInvitesResponse": {
+        "properties": {
+          "invite_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Invite Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "invite_codes"
+        ],
+        "title": "AdminCreateInvitesResponse",
+        "type": "object"
+      },
+      "AdminCreateProjectRequest": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "study_settings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Study Settings"
+          }
+        },
+        "required": [
+          "display_name"
+        ],
+        "title": "AdminCreateProjectRequest",
+        "type": "object"
+      },
+      "AdminParticipantItem": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "last_push_failure_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Push Failure At"
+          },
+          "last_push_success_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Push Success At"
+          },
+          "push_subscription_count": {
+            "title": "Push Subscription Count",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "status",
+          "created_at",
+          "push_subscription_count"
+        ],
+        "title": "AdminParticipantItem",
+        "type": "object"
+      },
+      "AdminParticipantsResponse": {
+        "properties": {
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/AdminParticipantItem"
+            },
+            "title": "Participants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "participants"
+        ],
+        "title": "AdminParticipantsResponse",
+        "type": "object"
+      },
+      "AdminProjectItem": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "created_at",
+          "member_count"
+        ],
+        "title": "AdminProjectItem",
+        "type": "object"
+      },
+      "AdminProjectsResponse": {
+        "properties": {
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/AdminProjectItem"
+            },
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "projects"
+        ],
+        "title": "AdminProjectsResponse",
+        "type": "object"
+      },
+      "AuthMeResponse": {
+        "properties": {
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "role"
+        ],
+        "title": "AuthMeResponse",
+        "type": "object"
+      },
       "ClaimRequest": {
         "properties": {
           "email": {
+            "format": "email",
             "title": "Email",
             "type": "string"
           },
@@ -652,6 +891,34 @@
         "title": "PingResponse",
         "type": "object"
       },
+      "ProfileUpdateRequest": {
+        "properties": {
+          "habit_domain": {
+            "default": "",
+            "title": "Habit Domain",
+            "type": "string"
+          },
+          "motivational_frame": {
+            "default": "",
+            "title": "Motivational Frame",
+            "type": "string"
+          },
+          "preferred_time": {
+            "title": "Preferred Time",
+            "type": "string"
+          },
+          "prompt_anchor": {
+            "title": "Prompt Anchor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt_anchor",
+          "preferred_time"
+        ],
+        "title": "ProfileUpdateRequest",
+        "type": "object"
+      },
       "PushSubscribeRequest": {
         "properties": {
           "endpoint": {
@@ -789,6 +1056,82 @@
         "title": "SendMessageResponse",
         "type": "object"
       },
+      "UserProfileData": {
+        "description": "Structured user profile fields (Store A). Pydantic validated.",
+        "properties": {
+          "habit_domain": {
+            "default": "",
+            "title": "Habit Domain",
+            "type": "string"
+          },
+          "intensity": {
+            "default": "normal",
+            "title": "Intensity",
+            "type": "string"
+          },
+          "last_barrier": {
+            "default": "",
+            "title": "Last Barrier",
+            "type": "string"
+          },
+          "last_motivator": {
+            "default": "",
+            "title": "Last Motivator",
+            "type": "string"
+          },
+          "last_successful_prompt": {
+            "default": "",
+            "title": "Last Successful Prompt",
+            "type": "string"
+          },
+          "last_tweak": {
+            "default": "",
+            "title": "Last Tweak",
+            "type": "string"
+          },
+          "motivational_frame": {
+            "default": "",
+            "title": "Motivational Frame",
+            "type": "string"
+          },
+          "preferred_time": {
+            "default": "",
+            "title": "Preferred Time",
+            "type": "string"
+          },
+          "prompt_anchor": {
+            "default": "",
+            "title": "Prompt Anchor",
+            "type": "string"
+          },
+          "success_count": {
+            "default": 0,
+            "title": "Success Count",
+            "type": "integer"
+          },
+          "tone_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Tone Scores",
+            "type": "object"
+          },
+          "tone_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tone Tags",
+            "type": "array"
+          },
+          "total_prompts": {
+            "default": 0,
+            "title": "Total Prompts",
+            "type": "integer"
+          }
+        },
+        "title": "UserProfileData",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -854,7 +1197,7 @@
   "info": {
     "description": "Hackathon app powered by h4ckath0n",
     "title": "h4ckath0n",
-    "version": "0.1.7"
+    "version": "0.1.8.dev20260220000653"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -875,6 +1218,259 @@
           }
         },
         "summary": "Welcome"
+      }
+    },
+    "/admin/projects": {
+      "get": {
+        "operationId": "admin_list_projects_admin_projects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProjectsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin List Projects",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "admin_create_project_admin_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCreateProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Admin Create Project Admin Projects Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin Create Project",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/projects/{project_id}/export": {
+      "get": {
+        "operationId": "admin_project_export_admin_projects__project_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Admin Project Export Admin Projects  Project Id  Export Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin Project Export",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/projects/{project_id}/invites": {
+      "post": {
+        "operationId": "admin_create_invites_admin_projects__project_id__invites_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCreateInviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCreateInvitesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin Create Invites",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/projects/{project_id}/participants": {
+      "get": {
+        "operationId": "admin_project_participants_admin_projects__project_id__participants_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminParticipantsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin Project Participants",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "auth_me_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Auth Me",
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/auth/passkey/add/finish": {
@@ -1751,6 +2347,108 @@
         "summary": "Send Message",
         "tags": [
           "messaging"
+        ]
+      }
+    },
+    "/p/{project_id}/profile": {
+      "get": {
+        "operationId": "get_profile_p__project_id__profile_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileData"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Get Profile",
+        "tags": [
+          "profile"
+        ]
+      },
+      "put": {
+        "operationId": "put_profile_p__project_id__profile_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileData"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Put Profile",
+        "tags": [
+          "profile"
         ]
       }
     },

@@ -23,8 +23,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Conversation, Message
+from app.models import Conversation, ConversationRuntimeState, Message
 from app.schemas.patches import (
+    FEEDBACK_ALLOWED_FIELDS,
+    INTAKE_ALLOWED_FIELDS,
     MemoryItemData,
     MemoryPatchProposal,
     ProfilePatchProposal,
@@ -168,12 +170,38 @@ async def _process_proposals(
     profile: UserProfileData,
     collector: ProposalCollector,
     recent_message_ids: list[int],
+    latest_user_message_id: int | None = None,
 ) -> UserProfileData:
     """Validate and commit proposals from the specialist. Returns updated profile."""
     now = datetime.now(timezone.utc)
 
     # Process profile proposals
     for raw in collector.profile_proposals:
+        if latest_user_message_id and isinstance(raw, dict):
+            evidence = raw.get("evidence", {})
+            message_ids = (
+                evidence.get("message_ids", []) if isinstance(evidence, dict) else []
+            )
+            patch = raw.get("patch", {})
+            source_bot = raw.get("source_bot")
+            allowed_fields = (
+                INTAKE_ALLOWED_FIELDS
+                if source_bot == "INTAKE"
+                else FEEDBACK_ALLOWED_FIELDS
+                if source_bot == "FEEDBACK"
+                else set()
+            )
+            if (
+                not message_ids
+                and isinstance(patch, dict)
+                and set(patch).issubset(allowed_fields)
+            ):
+                raw["evidence"] = {
+                    "message_ids": [latest_user_message_id],
+                    "quotes": evidence.get("quotes", [])
+                    if isinstance(evidence, dict)
+                    else [],
+                }
         try:
             proposal = ProfilePatchProposal.model_validate(raw)
         except Exception:
@@ -201,6 +229,19 @@ async def _process_proposals(
 
     # Process memory proposals
     for raw in collector.memory_proposals:
+        if latest_user_message_id and isinstance(raw, dict):
+            evidence = raw.get("evidence", {})
+            message_ids = (
+                evidence.get("message_ids", []) if isinstance(evidence, dict) else []
+            )
+            source_bot = raw.get("source_bot")
+            if not message_ids and source_bot in {"INTAKE", "FEEDBACK"}:
+                raw["evidence"] = {
+                    "message_ids": [latest_user_message_id],
+                    "quotes": evidence.get("quotes", [])
+                    if isinstance(evidence, dict)
+                    else [],
+                }
         try:
             proposal = MemoryPatchProposal.model_validate(raw)
         except Exception:
@@ -266,8 +307,6 @@ async def process_turn(
     recent_message_ids = [m.id for m in recent_msgs]
 
     # Read conversation state from runtime state if available
-    from app.models import ConversationRuntimeState
-
     state_result = await db.execute(
         select(ConversationRuntimeState).where(
             ConversationRuntimeState.conversation_id == conversation.id
@@ -295,6 +334,7 @@ async def process_turn(
     logger.info("Route decision: %s (reason: %s)", decision.route, decision.reason)
 
     # Step 3: Invoke specialist
+    state_data: dict[str, str] | None = None
     if llm is not None:
         # LLM-backed agent invocation
         collector = ProposalCollector()
@@ -313,7 +353,7 @@ async def process_turn(
             from app.agents.intake import run_intake
             from app.tools.langchain_tools import make_intake_tools
 
-            state_data: dict[str, str] = {}
+            state_data = {}
             if runtime_state:
                 try:
                     state_data = json.loads(runtime_state.state_json)
@@ -365,6 +405,24 @@ async def process_turn(
         assistant_text, collector = _run_specialist_stub(decision.route, user_text)
 
     # Step 4: Process proposals through Router validator
-    await _process_proposals(db, membership_id, profile, collector, recent_message_ids)
+    await _process_proposals(
+        db,
+        membership_id,
+        profile,
+        collector,
+        recent_message_ids,
+        latest_user_message_id=user_msg.id,
+    )
+
+    if state_data is not None:
+        if runtime_state is None:
+            runtime_state = ConversationRuntimeState(
+                conversation_id=conversation.id,
+                state_json=json.dumps(state_data),
+            )
+            db.add(runtime_state)
+        else:
+            runtime_state.state_json = json.dumps(state_data)
+        await db.flush()
 
     return assistant_text, decision

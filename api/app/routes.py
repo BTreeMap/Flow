@@ -7,20 +7,25 @@ import hashlib
 import json
 import logging
 import os
+import secrets
 from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy import select
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.db import get_db
 from app.id_utils import generate_server_msg_id
 from app.models import (
+    MemoryItem,
+    OutboxEvent,
+    PatchAuditLog,
     Conversation,
     Message,
     ParticipantContact,
@@ -28,8 +33,13 @@ from app.models import (
     ProjectInvite,
     ProjectMembership,
     PushSubscription,
+    UserProfileStore,
 )
+from app.schemas.patches import UserProfileData
+from app.services.outbox_service import replace_next_scheduled_prompt
+from app.services.profile_service import load_user_profile, save_user_profile
 from h4ckath0n.auth import require_user
+from h4ckath0n.auth.dependencies import require_admin
 from h4ckath0n.auth.models import User
 from h4ckath0n.realtime import AuthError, authenticate_sse_request, sse_response
 from langchain_openai import ChatOpenAI
@@ -106,7 +116,7 @@ class DashboardResponse(BaseModel):
 
 class ClaimRequest(BaseModel):
     invite_code: str
-    email: str
+    email: EmailStr
 
 
 class ClaimResponse(BaseModel):
@@ -167,6 +177,60 @@ class VapidPublicKeyResponse(BaseModel):
     public_key: str
 
 
+class ProfileUpdateRequest(BaseModel):
+    prompt_anchor: str
+    preferred_time: str
+    habit_domain: str = ""
+    motivational_frame: str = ""
+
+
+class AdminCreateProjectRequest(BaseModel):
+    display_name: str
+    study_settings: dict[str, Any] | None = None
+
+
+class AdminProjectItem(BaseModel):
+    project_id: str
+    display_name: str | None = None
+    created_at: str
+    member_count: int
+
+
+class AdminProjectsResponse(BaseModel):
+    projects: list[AdminProjectItem]
+
+
+class AdminCreateInviteRequest(BaseModel):
+    count: int = 1
+    expires_at: datetime
+    max_uses: int | None = None
+    label: str | None = None
+
+
+class AdminCreateInvitesResponse(BaseModel):
+    invite_codes: list[str]
+
+
+class AdminParticipantItem(BaseModel):
+    user_id: str
+    status: str
+    created_at: str
+    ended_at: str | None = None
+    email: str | None = None
+    push_subscription_count: int
+    last_push_success_at: str | None = None
+    last_push_failure_at: str | None = None
+
+
+class AdminParticipantsResponse(BaseModel):
+    participants: list[AdminParticipantItem]
+
+
+class AuthMeResponse(BaseModel):
+    user_id: str
+    role: str
+
+
 # ---------------------------------------------------------------------------
 # 1. Dashboard
 # ---------------------------------------------------------------------------
@@ -209,6 +273,11 @@ async def dashboard(
     return DashboardResponse(memberships=items)
 
 
+@router.get("/auth/me", tags=["auth"])
+async def auth_me(user: User = require_user()) -> AuthMeResponse:
+    return AuthMeResponse(user_id=user.id, role=user.role)
+
+
 # ---------------------------------------------------------------------------
 # 2. Activate / Claim invite
 # ---------------------------------------------------------------------------
@@ -230,7 +299,8 @@ async def claim_invite(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
-    # Hash the invite code and look up a matching, unexpired, unconsumed invite
+    # Hash the invite code and look up the invite token for this project.
+    # For existing members, invite validity is not required (idempotent re-open).
     code_hash = hashlib.sha256(body.invite_code.encode()).hexdigest()
     now = datetime.now(UTC)
 
@@ -238,8 +308,6 @@ async def claim_invite(
         select(ProjectInvite).where(
             ProjectInvite.project_id == project_id,
             ProjectInvite.invite_code_hash == code_hash,
-            ProjectInvite.expires_at > now,
-            ProjectInvite.consumed_at.is_(None),
         )
     )
     invite = invite_result.scalar_one_or_none()
@@ -258,28 +326,76 @@ async def claim_invite(
     )
     membership = existing_result.scalar_one_or_none()
 
-    if membership is None:
+    if membership is not None and (
+        membership.status == "ended" or membership.ended_at is not None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Membership ended",
+        )
+
+    created_membership = False
+    if membership is not None:
+        # Existing non-ended membership: idempotent success regardless invite validity.
+        pass
+    else:
+        expires_at = invite.expires_at
+        compare_now = now if expires_at.tzinfo else now.replace(tzinfo=None)
+        if invite.revoked_at is not None or expires_at <= compare_now:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired invite code",
+            )
+
         membership = ProjectMembership(
-            project_id=project_id,
-            user_id=user.id,
-            status="active",
+            project_id=project_id, user_id=user.id, status="active"
         )
         db.add(membership)
-        await db.flush()
+        try:
+            await db.flush()
+            created_membership = True
+        except IntegrityError:
+            await db.rollback()
+            existing_retry = await db.execute(
+                select(ProjectMembership).where(
+                    ProjectMembership.project_id == project_id,
+                    ProjectMembership.user_id == user.id,
+                )
+            )
+            membership = existing_retry.scalar_one_or_none()
+            if membership is None:
+                raise
 
-        # Mark invite as consumed
-        invite.consumed_at = now
-        await db.flush()
+        if created_membership:
+            consume_result = await db.execute(
+                update(ProjectInvite)
+                .where(
+                    ProjectInvite.id == invite.id,
+                    ProjectInvite.expires_at > now,
+                    ProjectInvite.revoked_at.is_(None),
+                    or_(
+                        ProjectInvite.max_uses.is_(None),
+                        ProjectInvite.uses < ProjectInvite.max_uses,
+                    ),
+                )
+                .values(uses=ProjectInvite.uses + 1)
+                .execution_options(synchronize_session=False)
+            )
+            if consume_result.rowcount != 1:
+                await db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid or expired invite code",
+                )
 
     # Store email contact metadata
-    if body.email:
-        contact = ParticipantContact(
-            membership_id=membership.id,
-            email_raw=body.email,
-            email_normalized=body.email.strip().lower() if body.email else None,
-        )
-        db.add(contact)
-        await db.flush()
+    contact = ParticipantContact(
+        membership_id=membership.id,
+        email_raw=str(body.email),
+        email_normalized=str(body.email).strip().lower(),
+    )
+    db.add(contact)
+    await db.flush()
 
     # Create conversation if absent
     conv_result = await db.execute(
@@ -336,6 +452,38 @@ async def project_me(
         conversation_id=conv.id if conv else None,
         email=contact.email_raw if contact else None,
     )
+
+
+@router.get("/p/{project_id}/profile", tags=["profile"])
+async def get_profile(
+    project_id: str,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> UserProfileData:
+    membership = await _get_membership(db, project_id, user.id)
+    return await load_user_profile(db, membership.id)
+
+
+@router.put("/p/{project_id}/profile", tags=["profile"])
+async def put_profile(
+    project_id: str,
+    body: ProfileUpdateRequest,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> UserProfileData:
+    membership = await _get_membership(db, project_id, user.id)
+    current = await load_user_profile(db, membership.id)
+    merged = current.model_dump()
+    merged.update(body.model_dump())
+    profile = UserProfileData.model_validate(merged)
+    await save_user_profile(db, membership.id, profile)
+    await replace_next_scheduled_prompt(
+        db,
+        membership=membership,
+        preferred_time=profile.preferred_time,
+    )
+    await db.commit()
+    return profile
 
 
 # ---------------------------------------------------------------------------
@@ -531,8 +679,11 @@ async def push_subscribe(
     membership = await _get_membership(db, project_id, user.id)
 
     # Check for existing subscription with same endpoint
+    # membership_id scoping intentionally allows the same endpoint to be
+    # registered for multiple project memberships by the same device.
     existing_result = await db.execute(
         select(PushSubscription).where(
+            PushSubscription.membership_id == membership.id,
             PushSubscription.endpoint == body.endpoint,
             PushSubscription.revoked_at.is_(None),
         )
@@ -595,3 +746,307 @@ async def push_unsubscribe(
     await db.commit()
 
     return PushUnsubscribeResponse(ok=True)
+
+
+@router.post("/admin/projects", tags=["admin"])
+async def admin_create_project(
+    body: AdminCreateProjectRequest,
+    _admin_user: User = require_admin(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    from app.id_utils import generate_project_id
+
+    project = Project(
+        id=generate_project_id(),
+        display_name=body.display_name,
+        study_settings_json=json.dumps(body.study_settings)
+        if body.study_settings is not None
+        else None,
+    )
+    db.add(project)
+    await db.commit()
+    return {"project_id": project.id}
+
+
+@router.get("/admin/projects", tags=["admin"])
+async def admin_list_projects(
+    _admin_user: User = require_admin(),
+    db: AsyncSession = Depends(get_db),
+) -> AdminProjectsResponse:
+    result = await db.execute(
+        select(Project, func.count(ProjectMembership.id))
+        .outerjoin(ProjectMembership, ProjectMembership.project_id == Project.id)
+        .group_by(Project.id)
+        .order_by(Project.created_at.desc())
+    )
+    projects = [
+        AdminProjectItem(
+            project_id=project.id,
+            display_name=project.display_name,
+            created_at=project.created_at.isoformat(),
+            member_count=member_count,
+        )
+        for project, member_count in result.all()
+    ]
+    return AdminProjectsResponse(projects=projects)
+
+
+@router.post("/admin/projects/{project_id}/invites", tags=["admin"])
+async def admin_create_invites(
+    project_id: str,
+    body: AdminCreateInviteRequest,
+    _admin_user: User = require_admin(),
+    db: AsyncSession = Depends(get_db),
+) -> AdminCreateInvitesResponse:
+    if body.count < 1:
+        raise HTTPException(status_code=400, detail="count must be >= 1")
+    project_result = await db.execute(select(Project).where(Project.id == project_id))
+    if project_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    invite_codes: list[str] = []
+    for _ in range(body.count):
+        code = secrets.token_urlsafe(16)
+        db.add(
+            ProjectInvite(
+                project_id=project_id,
+                invite_code_hash=hashlib.sha256(code.encode()).hexdigest(),
+                expires_at=body.expires_at,
+                max_uses=body.max_uses,
+                uses=0,
+                label=body.label,
+            )
+        )
+        invite_codes.append(code)
+    await db.commit()
+    return AdminCreateInvitesResponse(invite_codes=invite_codes)
+
+
+@router.get("/admin/projects/{project_id}/participants", tags=["admin"])
+async def admin_project_participants(
+    project_id: str,
+    _admin_user: User = require_admin(),
+    db: AsyncSession = Depends(get_db),
+) -> AdminParticipantsResponse:
+    memberships_result = await db.execute(
+        select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+    )
+    memberships = memberships_result.scalars().all()
+    membership_ids = [membership.id for membership in memberships]
+
+    latest_contact_by_membership: dict[int, ParticipantContact] = {}
+    if membership_ids:
+        contacts_result = await db.execute(
+            select(ParticipantContact)
+            .where(ParticipantContact.membership_id.in_(membership_ids))
+            .order_by(
+                ParticipantContact.membership_id.asc(),
+                ParticipantContact.created_at.desc(),
+            )
+        )
+        for contact in contacts_result.scalars().all():
+            latest_contact_by_membership.setdefault(contact.membership_id, contact)
+
+    push_stats_by_membership: dict[int, dict[str, Any]] = {
+        membership_id: {"count": 0, "last_success_at": None, "last_failure_at": None}
+        for membership_id in membership_ids
+    }
+    if membership_ids:
+        push_result = await db.execute(
+            select(PushSubscription).where(
+                PushSubscription.membership_id.in_(membership_ids),
+                PushSubscription.revoked_at.is_(None),
+            )
+        )
+        for sub in push_result.scalars().all():
+            stats = push_stats_by_membership[sub.membership_id]
+            stats["count"] += 1
+            if sub.last_success_at and (
+                stats["last_success_at"] is None
+                or sub.last_success_at > stats["last_success_at"]
+            ):
+                stats["last_success_at"] = sub.last_success_at
+            if sub.last_failure_at and (
+                stats["last_failure_at"] is None
+                or sub.last_failure_at > stats["last_failure_at"]
+            ):
+                stats["last_failure_at"] = sub.last_failure_at
+
+    participants: list[AdminParticipantItem] = []
+    for membership in memberships:
+        contact = latest_contact_by_membership.get(membership.id)
+        stats = push_stats_by_membership.get(
+            membership.id,
+            {"count": 0, "last_success_at": None, "last_failure_at": None},
+        )
+        participants.append(
+            AdminParticipantItem(
+                user_id=membership.user_id,
+                status=membership.status,
+                created_at=membership.created_at.isoformat(),
+                ended_at=membership.ended_at.isoformat()
+                if membership.ended_at
+                else None,
+                email=contact.email_raw if contact else None,
+                push_subscription_count=stats["count"],
+                last_push_success_at=stats["last_success_at"].isoformat()
+                if stats["last_success_at"]
+                else None,
+                last_push_failure_at=stats["last_failure_at"].isoformat()
+                if stats["last_failure_at"]
+                else None,
+            )
+        )
+    return AdminParticipantsResponse(participants=participants)
+
+
+@router.get("/admin/projects/{project_id}/export", tags=["admin"])
+async def admin_project_export(
+    project_id: str,
+    _admin_user: User = require_admin(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    memberships_result = await db.execute(
+        select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+    )
+    memberships = memberships_result.scalars().all()
+    membership_ids = [m.id for m in memberships]
+    conversations_result = await db.execute(
+        select(Conversation).where(Conversation.membership_id.in_(membership_ids))
+    )
+    conversations = conversations_result.scalars().all()
+    conversation_ids = [c.id for c in conversations]
+
+    contacts_result = await db.execute(
+        select(ParticipantContact).where(
+            ParticipantContact.membership_id.in_(membership_ids)
+        )
+    )
+    messages_result = await db.execute(
+        select(Message).where(Message.conversation_id.in_(conversation_ids))
+    )
+    profiles_result = await db.execute(
+        select(UserProfileStore).where(
+            UserProfileStore.membership_id.in_(membership_ids)
+        )
+    )
+    memory_result = await db.execute(
+        select(MemoryItem).where(MemoryItem.membership_id.in_(membership_ids))
+    )
+    patch_result = await db.execute(
+        select(PatchAuditLog).where(PatchAuditLog.membership_id.in_(membership_ids))
+    )
+    outbox_result = await db.execute(
+        select(OutboxEvent).where(
+            OutboxEvent.project_id == project_id,
+            OutboxEvent.membership_id.in_(membership_ids),
+        )
+    )
+    push_result = await db.execute(
+        select(PushSubscription).where(
+            PushSubscription.membership_id.in_(membership_ids)
+        )
+    )
+
+    return {
+        "project_id": project_id,
+        "memberships": [
+            {
+                # Keep both keys for backward compatibility with existing exports.
+                "id": m.id,
+                "membership_id": m.id,
+                "project_id": m.project_id,
+                "user_id": m.user_id,
+                "status": m.status,
+                "created_at": m.created_at.isoformat(),
+                "ended_at": m.ended_at.isoformat() if m.ended_at else None,
+            }
+            for m in memberships
+        ],
+        "conversations": [
+            {
+                "conversation_id": c.id,
+                "membership_id": c.membership_id,
+                "created_at": c.created_at.isoformat(),
+            }
+            for c in conversations
+        ],
+        "contacts": [
+            {
+                "membership_id": c.membership_id,
+                "email_raw": c.email_raw,
+                "created_at": c.created_at.isoformat(),
+            }
+            for c in contacts_result.scalars().all()
+        ],
+        "messages": [
+            {
+                "id": m.id,
+                "message_id": m.id,
+                "project_id": project_id,
+                "conversation_id": m.conversation_id,
+                "role": m.role,
+                "content": m.content,
+                "server_msg_id": m.server_msg_id,
+                "client_msg_id": m.client_msg_id,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in messages_result.scalars().all()
+        ],
+        "user_profiles": [
+            {"membership_id": p.membership_id, "profile_json": p.profile_json}
+            for p in profiles_result.scalars().all()
+        ],
+        "memory_items": [
+            {
+                "membership_id": i.membership_id,
+                "content": i.content,
+                "source_message_ids": i.source_message_ids,
+                "created_at": i.created_at.isoformat(),
+            }
+            for i in memory_result.scalars().all()
+        ],
+        "patch_audit_log": [
+            {
+                "membership_id": p.membership_id,
+                "proposal_type": p.proposal_type,
+                "source_bot": p.source_bot,
+                "patch_json": p.patch_json,
+                "decision": p.decision,
+                "created_at": p.created_at.isoformat(),
+            }
+            for p in patch_result.scalars().all()
+        ],
+        "outbox_events": [
+            {
+                "project_id": e.project_id,
+                "membership_id": e.membership_id,
+                "type": e.type,
+                "payload_json": e.payload_json,
+                "dedupe_key": e.dedupe_key,
+                "available_at": e.available_at.isoformat(),
+                "attempts": e.attempts,
+                "last_error": e.last_error,
+                "locked_until": e.locked_until.isoformat() if e.locked_until else None,
+                "locked_by": e.locked_by,
+                "claimed_at": e.claimed_at.isoformat() if e.claimed_at else None,
+            }
+            for e in outbox_result.scalars().all()
+        ],
+        "push_subscriptions": [
+            {
+                "subscription_id": s.id,
+                "membership_id": s.membership_id,
+                "endpoint": s.endpoint,
+                "created_at": s.created_at.isoformat(),
+                "revoked_at": s.revoked_at.isoformat() if s.revoked_at else None,
+                "last_success_at": s.last_success_at.isoformat()
+                if s.last_success_at
+                else None,
+                "last_failure_at": s.last_failure_at.isoformat()
+                if s.last_failure_at
+                else None,
+            }
+            for s in push_result.scalars().all()
+        ],
+    }

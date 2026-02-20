@@ -31,6 +31,7 @@ class Project(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    study_settings_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -53,8 +54,14 @@ class ProjectInvite(Base):
         String(32), ForeignKey("projects.id"), nullable=False
     )
     invite_code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
+    )
+    max_uses: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    uses: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     consumed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -175,12 +182,17 @@ class ConversationRuntimeState(Base):
 
 class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
+    __table_args__ = (
+        UniqueConstraint(
+            "membership_id", "endpoint", name="uq_push_subscription_membership_endpoint"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     membership_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("project_memberships.id"), nullable=False
     )
-    endpoint: Mapped[str] = mapped_column(String(2048), unique=True, nullable=False)
+    endpoint: Mapped[str] = mapped_column(String(2048), nullable=False)
     p256dh: Mapped[str] = mapped_column(String(255), nullable=False)
     auth: Mapped[str] = mapped_column(String(255), nullable=False)
     user_agent: Mapped[str] = mapped_column(String(512), nullable=False)
@@ -220,6 +232,13 @@ class OutboxEvent(Base):
     )
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    locked_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
