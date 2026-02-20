@@ -13,5 +13,16 @@ def generate_project_id() -> str:
 
 
 def generate_server_msg_id() -> str:
-    """Return a UUID4 string for server-side message identification."""
-    return str(uuid.uuid4())
+    """Return a server-side message ID as a fixed-width string.
+
+    Rationale:
+    - The DB column was originally defined as a string of length 36 (UUID-sized),
+      and some backends/environments enforce or assume that width.
+    - We therefore keep a UUID-like, fixed-width *string* identifier rather than
+      switching to a different type or length.
+
+    Format:
+    - "msg_" + 32 lowercase base32 chars (36 total), generated via `random_base32`.
+    - Opaque, URL-safe, CSPRNG-backed; intended for internal/server use.
+    """
+    return "msg_" + random_base32(nbytes=20)
