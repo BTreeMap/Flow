@@ -22,7 +22,12 @@ const styles = {
   error: "bg-danger/10 text-danger border-danger/20",
 };
 
-export function Alert({ variant = "info", children, className = "", "data-testid": testId }: AlertProps) {
+export function Alert({
+  variant = "info",
+  children,
+  className = "",
+  "data-testid": testId,
+}: AlertProps) {
   const Icon = icons[variant];
   return (
     <div

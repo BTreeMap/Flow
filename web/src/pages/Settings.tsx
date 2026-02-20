@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Fingerprint, Plus, Trash2, AlertCircle, Pencil, Check, X } from "lucide-react";
+import {
+  Fingerprint,
+  Plus,
+  Trash2,
+  AlertCircle,
+  Pencil,
+  Check,
+  X,
+} from "lucide-react";
 import { apiFetch } from "../auth";
 import { toCreateOptions, serializeCreateResponse } from "../auth/webauthn";
 import { Card, CardContent, CardHeader } from "../components/Card";
@@ -101,7 +109,10 @@ function PasskeyName({
           </button>
         </div>
         {error && (
-          <span className="text-xs text-danger block" data-testid="passkey-rename-error">
+          <span
+            className="text-xs text-danger block"
+            data-testid="passkey-rename-error"
+          >
             {error}
           </span>
         )}
@@ -111,7 +122,9 @@ function PasskeyName({
 
   return (
     <span className="inline-flex items-center gap-1">
-      <span data-testid="passkey-name">{passkey.name || "Unnamed passkey"}</span>
+      <span data-testid="passkey-name">
+        {passkey.name || "Unnamed passkey"}
+      </span>
       {!passkey.revoked_at && (
         <button
           data-testid="passkey-edit-btn"
@@ -131,7 +144,9 @@ export function Settings() {
   const [addLoading, setAddLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastPasskeyError, setLastPasskeyError] = useState<string | null>(null);
-  const [themePreference, setThemePreference] = useState<ThemePreference>(() => readThemePreference());
+  const [themePreference, setThemePreference] = useState<ThemePreference>(() =>
+    readThemePreference(),
+  );
 
   const { data: passkeys, isLoading } = useQuery<PasskeyInfo[]>({
     queryKey: ["passkeys"],
@@ -149,7 +164,10 @@ export function Settings() {
         method: "POST",
       });
       if (!res.ok) {
-        const data = res.data as { error?: string; detail?: string | { code?: string; message?: string } };
+        const data = res.data as {
+          error?: string;
+          detail?: string | { code?: string; message?: string };
+        };
         const detail = data.detail;
         if (
           data.error === "LAST_PASSKEY" ||
@@ -158,7 +176,10 @@ export function Settings() {
         ) {
           throw new Error("LAST_PASSKEY");
         }
-        const msg = typeof detail === "string" ? detail : (detail as { message?: string })?.message || "Revoke failed";
+        const msg =
+          typeof detail === "string"
+            ? detail
+            : (detail as { message?: string })?.message || "Revoke failed";
         throw new Error(msg);
       }
     },
@@ -168,7 +189,7 @@ export function Settings() {
     onError: (err: Error) => {
       if (err.message === "LAST_PASSKEY") {
         setLastPasskeyError(
-          "Cannot revoke your last active passkey. Add another passkey first to maintain account access."
+          "Cannot revoke your last active passkey. Add another passkey first to maintain account access.",
         );
       } else {
         setError(err.message);
@@ -180,17 +201,19 @@ export function Settings() {
     setAddLoading(true);
     setError(null);
     try {
-      const startRes = await apiFetch<{ options: Record<string, unknown>; flow_id: string }>(
-        "/auth/passkey/add/start",
-        { method: "POST" }
-      );
+      const startRes = await apiFetch<{
+        options: Record<string, unknown>;
+        flow_id: string;
+      }>("/auth/passkey/add/start", { method: "POST" });
       if (!startRes.ok) throw new Error("Failed to start passkey addition");
 
       const createOptions = toCreateOptions(
-        startRes.data.options as unknown as Parameters<typeof toCreateOptions>[0]
+        startRes.data.options as unknown as Parameters<
+          typeof toCreateOptions
+        >[0],
       );
       const credential = (await navigator.credentials.create(
-        createOptions
+        createOptions,
       )) as PublicKeyCredential | null;
       if (!credential) throw new Error("Passkey creation cancelled");
 
@@ -217,10 +240,16 @@ export function Settings() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text">Settings</h1>
-        <p className="text-text-muted">Manage your passkeys and account security</p>
+        <p className="text-text-muted">
+          Manage your passkeys and account security
+        </p>
       </div>
 
-      {error && <Alert variant="error" data-testid="settings-error">{error}</Alert>}
+      {error && (
+        <Alert variant="error" data-testid="settings-error">
+          {error}
+        </Alert>
+      )}
       {lastPasskeyError && (
         <Alert variant="warning" data-testid="last-passkey-error">
           <div className="flex items-start gap-2">
@@ -238,7 +267,10 @@ export function Settings() {
           <fieldset className="space-y-2">
             <legend className="sr-only">Theme preference</legend>
             {(["system", "light", "dark"] as const).map((option) => (
-              <label key={option} className="flex items-center gap-2 text-sm text-text">
+              <label
+                key={option}
+                className="flex items-center gap-2 text-sm text-text"
+              >
                 <input
                   type="radio"
                   name="theme-preference"
@@ -251,7 +283,9 @@ export function Settings() {
                 />
                 {option === "system"
                   ? "System"
-                  : option === "light" ? "Light" : "Dark"}
+                  : option === "light"
+                    ? "Light"
+                    : "Dark"}
               </label>
             ))}
           </fieldset>
@@ -263,9 +297,16 @@ export function Settings() {
           <div className="flex items-center gap-3">
             <Fingerprint className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-text">Passkeys</h2>
-            <span className="text-sm text-text-muted">({activePasskeys.length} active)</span>
+            <span className="text-sm text-text-muted">
+              ({activePasskeys.length} active)
+            </span>
           </div>
-          <Button size="sm" onClick={handleAddPasskey} disabled={addLoading} data-testid="add-passkey-btn">
+          <Button
+            size="sm"
+            onClick={handleAddPasskey}
+            disabled={addLoading}
+            data-testid="add-passkey-btn"
+          >
             <Plus className="w-4 h-4" />
             {addLoading ? "Adding..." : "Add Passkey"}
           </Button>
@@ -278,24 +319,39 @@ export function Settings() {
           ) : passkeys && passkeys.length > 0 ? (
             <div className="divide-y divide-border">
               {passkeys.map((passkey) => (
-                <div key={passkey.id} className="flex items-center justify-between py-3" data-testid="passkey-item">
+                <div
+                  key={passkey.id}
+                  className="flex items-center justify-between py-3"
+                  data-testid="passkey-item"
+                >
                   <div>
                     <div className="text-sm font-medium text-text">
                       <PasskeyName
                         passkey={passkey}
                         onRenamed={() =>
-                          queryClient.invalidateQueries({ queryKey: ["passkeys"] })
+                          queryClient.invalidateQueries({
+                            queryKey: ["passkeys"],
+                          })
                         }
                       />
                       {passkey.revoked_at && (
-                        <span className="ml-2 text-xs text-danger">(revoked)</span>
+                        <span className="ml-2 text-xs text-danger">
+                          (revoked)
+                        </span>
                       )}
                     </div>
-                    <p className="text-xs text-text-muted font-mono">{passkey.id}</p>
+                    <p className="text-xs text-text-muted font-mono">
+                      {passkey.id}
+                    </p>
                     <p className="text-xs text-text-muted">
-                      Created: {new Date(passkey.created_at).toLocaleDateString()}
+                      Created:{" "}
+                      {new Date(passkey.created_at).toLocaleDateString()}
                       {passkey.last_used_at && (
-                        <> | Last used: {new Date(passkey.last_used_at).toLocaleDateString()}</>
+                        <>
+                          {" "}
+                          | Last used:{" "}
+                          {new Date(passkey.last_used_at).toLocaleDateString()}
+                        </>
                       )}
                     </p>
                   </div>
@@ -315,7 +371,9 @@ export function Settings() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-text-muted py-4 text-center">No passkeys found.</p>
+            <p className="text-sm text-text-muted py-4 text-center">
+              No passkeys found.
+            </p>
           )}
         </CardContent>
       </Card>

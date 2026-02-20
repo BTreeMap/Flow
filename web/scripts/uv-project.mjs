@@ -2,22 +2,22 @@ import { dirname, resolve } from "node:path";
 import { existsSync } from "node:fs";
 
 function findMonorepoRoot(startDir) {
-    let dir = startDir;
-    while (true) {
-        const parent = dirname(dir);
-        const isRoot = parent === dir;
+  let dir = startDir;
+  while (true) {
+    const parent = dirname(dir);
+    const isRoot = parent === dir;
 
-        const hasPyproject = existsSync(resolve(dir, "pyproject.toml"));
-        const hasUvLock = existsSync(resolve(dir, "uv.lock"));
-        const hasLib = existsSync(resolve(dir, "src/h4ckath0n/__init__.py"));
-        const hasScaffolder = existsSync(
-            resolve(dir, "packages/create-h4ckath0n/package.json"),
-        );
+    const hasPyproject = existsSync(resolve(dir, "pyproject.toml"));
+    const hasUvLock = existsSync(resolve(dir, "uv.lock"));
+    const hasLib = existsSync(resolve(dir, "src/h4ckath0n/__init__.py"));
+    const hasScaffolder = existsSync(
+      resolve(dir, "packages/create-h4ckath0n/package.json"),
+    );
 
-        if (hasPyproject && hasUvLock && hasLib && hasScaffolder) return dir;
-        if (isRoot) return null;
-        dir = parent;
-    }
+    if (hasPyproject && hasUvLock && hasLib && hasScaffolder) return dir;
+    if (isRoot) return null;
+    dir = parent;
+  }
 }
 
 /**
@@ -29,8 +29,9 @@ function findMonorepoRoot(startDir) {
  * 3) The sibling API project (generated app layout: web/ next to api/)
  */
 export function resolveUvProject(webDir, apiDir) {
-    const override = process.env.H4CKATH0N_UV_PROJECT || process.env.UV_PROJECT || "";
-    if (override.trim()) return override;
-    const monorepoRoot = findMonorepoRoot(webDir);
-    return monorepoRoot || apiDir;
+  const override =
+    process.env.H4CKATH0N_UV_PROJECT || process.env.UV_PROJECT || "";
+  if (override.trim()) return override;
+  const monorepoRoot = findMonorepoRoot(webDir);
+  return monorepoRoot || apiDir;
 }

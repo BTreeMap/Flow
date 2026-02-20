@@ -25,26 +25,21 @@ export function Activation() {
 
     try {
       const token = await getOrMintToken("http");
-      const res = await fetch(
-        `${API_BASE}/p/${projectId}/activate/claim`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            invite_code: inviteCode,
-            email: email || undefined,
-          }),
+      const res = await fetch(`${API_BASE}/p/${projectId}/activate/claim`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({
+          invite_code: inviteCode,
+          email: email || undefined,
+        }),
+      });
 
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(
-          body?.detail || `Activation failed (${res.status})`,
-        );
+        throw new Error(body?.detail || `Activation failed (${res.status})`);
       }
 
       navigate(`/p/${projectId}/chat`);

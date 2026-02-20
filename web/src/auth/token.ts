@@ -32,7 +32,9 @@ export function isTokenValid(usage: TokenUsage = "http"): boolean {
   return now < entry.exp - RENEWAL_BUFFER;
 }
 
-export async function getOrMintToken(usage: TokenUsage = "http"): Promise<string> {
+export async function getOrMintToken(
+  usage: TokenUsage = "http",
+): Promise<string> {
   if (isTokenValid(usage)) {
     return tokenCache.get(usage)!.token;
   }

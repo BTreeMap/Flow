@@ -147,9 +147,9 @@ describe("Settings – passkey rename", () => {
     const input = screen.getByTestId("passkey-name-input");
     fireEvent.change(input, { target: { value: "x".repeat(65) } });
     fireEvent.click(screen.getByTestId("passkey-name-save"));
-    expect(
-      await screen.findByTestId("passkey-rename-error"),
-    ).toHaveTextContent("64 characters");
+    expect(await screen.findByTestId("passkey-rename-error")).toHaveTextContent(
+      "64 characters",
+    );
   });
 
   it("shows API error on failed rename", async () => {
@@ -164,9 +164,9 @@ describe("Settings – passkey rename", () => {
     await screen.findByText("My Laptop");
     fireEvent.click(screen.getByTestId("passkey-edit-btn"));
     fireEvent.click(screen.getByTestId("passkey-name-save"));
-    expect(
-      await screen.findByTestId("passkey-rename-error"),
-    ).toHaveTextContent("Something went wrong");
+    expect(await screen.findByTestId("passkey-rename-error")).toHaveTextContent(
+      "Something went wrong",
+    );
   });
 });
 
@@ -175,9 +175,7 @@ describe("Settings – theme preference", () => {
     mockMatchMedia(false);
     render(<Settings />, { wrapper });
 
-    expect(
-      await screen.findByRole("radio", { name: "System" }),
-    ).toBeChecked();
+    expect(await screen.findByRole("radio", { name: "System" })).toBeChecked();
   });
 
   it("selecting dark persists preference and applies dark theme", async () => {

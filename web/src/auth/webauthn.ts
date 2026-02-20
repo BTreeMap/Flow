@@ -69,8 +69,7 @@ export function toCreateOptions(
       alg: p.alg,
     })),
     timeout: serverOptions.timeout,
-    attestation:
-      serverOptions.attestation as AttestationConveyancePreference,
+    attestation: serverOptions.attestation as AttestationConveyancePreference,
     authenticatorSelection:
       serverOptions.authenticatorSelection as AuthenticatorSelectionCriteria,
     excludeCredentials: (serverOptions.excludeCredentials ?? []).map((c) => ({
@@ -93,7 +92,8 @@ export function toGetOptions(
     userVerification:
       (serverOptions.userVerification as UserVerificationRequirement) ??
       (serverOptions.authenticatorSelection
-        ?.userVerification as UserVerificationRequirement) ?? "preferred",
+        ?.userVerification as UserVerificationRequirement) ??
+      "preferred",
     allowCredentials: (serverOptions.allowCredentials ?? []).map((c) => ({
       id: base64urlDecode(c.id),
       type: c.type as PublicKeyCredentialType,
@@ -106,8 +106,7 @@ export function toGetOptions(
 export function serializeCreateResponse(
   credential: PublicKeyCredential,
 ): Record<string, unknown> {
-  const response =
-    credential.response as AuthenticatorAttestationResponse;
+  const response = credential.response as AuthenticatorAttestationResponse;
   return {
     id: credential.id,
     rawId: base64urlEncode(credential.rawId),
@@ -122,8 +121,7 @@ export function serializeCreateResponse(
 export function serializeGetResponse(
   credential: PublicKeyCredential,
 ): Record<string, unknown> {
-  const response =
-    credential.response as AuthenticatorAssertionResponse;
+  const response = credential.response as AuthenticatorAssertionResponse;
   return {
     id: credential.id,
     rawId: base64urlEncode(credential.rawId),

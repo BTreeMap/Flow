@@ -40,7 +40,12 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-text" data-testid="dashboard-heading">Dashboard</h1>
+        <h1
+          className="text-2xl font-bold text-text"
+          data-testid="dashboard-heading"
+        >
+          Dashboard
+        </h1>
         <p className="text-text-muted">
           Welcome{displayName ? `, ${displayName}` : ""}!
         </p>
@@ -63,14 +68,18 @@ export function Dashboard() {
           <CardContent className="py-12 text-center text-text-muted">
             <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-40" />
             <p>No projects yet.</p>
-            <p className="text-sm mt-1">Use an invite link to join a research project.</p>
+            <p className="text-sm mt-1">
+              Use an invite link to join a research project.
+            </p>
           </CardContent>
         </Card>
       )}
 
       {active.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide">Active Projects</h2>
+          <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide">
+            Active Projects
+          </h2>
           <div className="grid gap-3">
             {active.map((m) => (
               <Link key={m.project_id} to={`/p/${m.project_id}/chat`}>
@@ -80,8 +89,12 @@ export function Dashboard() {
                       <MessageSquare className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-text truncate">{m.display_name}</p>
-                      <p className="text-xs text-text-muted capitalize">{m.status}</p>
+                      <p className="font-medium text-text truncate">
+                        {m.display_name}
+                      </p>
+                      <p className="text-xs text-text-muted capitalize">
+                        {m.status}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -93,7 +106,9 @@ export function Dashboard() {
 
       {ended.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide">Ended</h2>
+          <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide">
+            Ended
+          </h2>
           <div className="grid gap-3 opacity-60">
             {ended.map((m) => (
               <Link key={m.project_id} to={`/p/${m.project_id}/chat`}>
@@ -103,8 +118,12 @@ export function Dashboard() {
                       <MessageSquare className="w-5 h-5 text-text-muted" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-text truncate">{m.display_name}</p>
-                      <p className="text-xs text-text-muted capitalize">{m.status}</p>
+                      <p className="font-medium text-text truncate">
+                        {m.display_name}
+                      </p>
+                      <p className="text-xs text-text-muted capitalize">
+                        {m.status}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

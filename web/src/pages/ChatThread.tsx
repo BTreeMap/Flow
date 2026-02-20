@@ -70,12 +70,16 @@ export function ChatThread() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load messages");
+          setError(
+            err instanceof Error ? err.message : "Failed to load messages",
+          );
           setLoading(false);
         }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [projectId]);
 
   // SSE connection for real-time updates
@@ -83,15 +87,13 @@ export function ChatThread() {
     const ctrl = new AbortController();
     let active = true;
 
-    const appendMessage = (
-      payload: {
-        message_id: number;
-        server_msg_id: string;
-        role: "user" | "assistant";
-        content: string;
-        created_at?: string;
-      },
-    ) => {
+    const appendMessage = (payload: {
+      message_id: number;
+      server_msg_id: string;
+      role: "user" | "assistant";
+      content: string;
+      created_at?: string;
+    }) => {
       const next: Message = {
         id: String(payload.message_id),
         serverMsgId: payload.server_msg_id,
@@ -307,7 +309,10 @@ export function ChatThread() {
           className="flex-1 px-4 py-2.5 bg-surface border border-border rounded-2xl text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
           disabled={sending}
         />
-        <Button onClick={() => void handleSend()} disabled={sending || !input.trim()}>
+        <Button
+          onClick={() => void handleSend()}
+          disabled={sending || !input.trim()}
+        >
           <Send className="w-4 h-4" />
         </Button>
       </div>

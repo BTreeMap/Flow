@@ -9,13 +9,18 @@ import { Bell, BellOff, Smartphone } from "lucide-react";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 function isIOS(): boolean {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
 }
 
 function isStandalone(): boolean {
-  return window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in navigator && (navigator as unknown as { standalone: boolean }).standalone);
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    ("standalone" in navigator &&
+      (navigator as unknown as { standalone: boolean }).standalone)
+  );
 }
 
 export function Notifications() {
@@ -60,15 +65,20 @@ export function Notifications() {
 
       // Get VAPID public key from backend
       const token = await getOrMintToken("http");
-      const vapidRes = await fetch(`${API_BASE}/p/${projectId}/push/vapid-public-key`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const vapidRes = await fetch(
+        `${API_BASE}/p/${projectId}/push/vapid-public-key`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (!vapidRes.ok) throw new Error("Failed to fetch VAPID key");
       const { public_key } = await vapidRes.json();
 
       // Convert VAPID key to Uint8Array
       const padding = "=".repeat((4 - (public_key.length % 4)) % 4);
-      const base64 = (public_key + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const base64 = (public_key + padding)
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
       const rawData = atob(base64);
       const applicationServerKey = new Uint8Array(rawData.length);
       for (let i = 0; i < rawData.length; i++) {
@@ -83,27 +93,26 @@ export function Notifications() {
       });
 
       // Send subscription to backend
-      const subRes = await fetch(
-        `${API_BASE}/p/${projectId}/push/subscribe`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            endpoint: subscription.endpoint,
-            keys: subscription.toJSON().keys,
-            user_agent: navigator.userAgent,
-          }),
+      const subRes = await fetch(`${API_BASE}/p/${projectId}/push/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+          keys: subscription.toJSON().keys,
+          user_agent: navigator.userAgent,
+        }),
+      });
       if (!subRes.ok) throw new Error("Failed to register subscription");
 
       setSubscribed(true);
       setSuccess("Notifications enabled!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to enable notifications");
+      setError(
+        err instanceof Error ? err.message : "Failed to enable notifications",
+      );
     } finally {
       setLoading(false);
     }
@@ -133,7 +142,9 @@ export function Notifications() {
       setSubscribed(false);
       setSuccess("Notifications disabled.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to disable notifications");
+      setError(
+        err instanceof Error ? err.message : "Failed to disable notifications",
+      );
     } finally {
       setLoading(false);
     }
@@ -148,16 +159,23 @@ export function Notifications() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Smartphone className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-text">Add to Home Screen</h2>
+              <h2 className="text-lg font-semibold text-text">
+                Add to Home Screen
+              </h2>
             </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-text-muted">
             <p>
-              To receive push notifications on iOS, you need to install this app first:
+              To receive push notifications on iOS, you need to install this app
+              first:
             </p>
             <ol className="list-decimal list-inside space-y-1">
-              <li>Tap the <strong>Share</strong> button in Safari</li>
-              <li>Select <strong>"Add to Home Screen"</strong></li>
+              <li>
+                Tap the <strong>Share</strong> button in Safari
+              </li>
+              <li>
+                Select <strong>"Add to Home Screen"</strong>
+              </li>
               <li>Open the app from your Home Screen</li>
               <li>Come back here to enable notifications</li>
             </ol>
@@ -169,7 +187,9 @@ export function Notifications() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-text">Push Notifications</h2>
+            <h2 className="text-lg font-semibold text-text">
+              Push Notifications
+            </h2>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -179,14 +199,18 @@ export function Notifications() {
           <div className="text-sm text-text-muted">
             {permission === "denied" ? (
               <p>
-                Notifications are blocked. Please enable them in your browser settings.
+                Notifications are blocked. Please enable them in your browser
+                settings.
               </p>
             ) : subscribed ? (
-              <p>You are currently subscribed to push notifications for this project.</p>
+              <p>
+                You are currently subscribed to push notifications for this
+                project.
+              </p>
             ) : (
               <p>
-                Enable push notifications to receive reminders and updates even when
-                the app is closed.
+                Enable push notifications to receive reminders and updates even
+                when the app is closed.
               </p>
             )}
           </div>
@@ -217,7 +241,12 @@ export function Notifications() {
           )}
 
           <p className="text-xs text-text-muted">
-            Status: {permission === "granted" ? "✓ Permitted" : permission === "denied" ? "✗ Blocked" : "Not yet asked"}
+            Status:{" "}
+            {permission === "granted"
+              ? "✓ Permitted"
+              : permission === "denied"
+                ? "✗ Blocked"
+                : "Not yet asked"}
             {subscribed ? " · Subscribed" : ""}
           </p>
         </CardContent>

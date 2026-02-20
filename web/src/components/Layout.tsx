@@ -1,6 +1,13 @@
 import { Outlet, Link } from "react-router";
 import { useAuth } from "../auth";
-import { Sun, Moon, Shield, LogOut, LayoutDashboard, Settings } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Shield,
+  LogOut,
+  LayoutDashboard,
+  Settings,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   applyEffectiveThemeForPreference,
@@ -14,14 +21,19 @@ import {
 export function Layout() {
   const { isAuthenticated, logout } = useAuth();
   const [themePreference, setThemePreference] = useState<ThemePreference>(() =>
-    typeof window === "undefined" ? "system" : readThemePreference()
+    typeof window === "undefined" ? "system" : readThemePreference(),
   );
   const [systemIsDark, setSystemIsDark] = useState(() =>
-    typeof window === "undefined" ? false : getEffectiveTheme("system") === "dark"
+    typeof window === "undefined"
+      ? false
+      : getEffectiveTheme("system") === "dark",
   );
-  const effectiveTheme: "light" | "dark" = themePreference === "system"
-    ? (systemIsDark ? "dark" : "light")
-    : themePreference;
+  const effectiveTheme: "light" | "dark" =
+    themePreference === "system"
+      ? systemIsDark
+        ? "dark"
+        : "light"
+      : themePreference;
 
   useEffect(() => {
     applyThemePreference(themePreference);
@@ -41,7 +53,8 @@ export function Layout() {
       }
     };
     window.addEventListener("theme-preference-change", onPreferenceChange);
-    return () => window.removeEventListener("theme-preference-change", onPreferenceChange);
+    return () =>
+      window.removeEventListener("theme-preference-change", onPreferenceChange);
   }, []);
 
   return (
@@ -49,7 +62,10 @@ export function Layout() {
       <nav className="border-b border-border bg-surface/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link to="/" className="flex items-center gap-2 font-bold text-lg text-text">
+            <Link
+              to="/"
+              className="flex items-center gap-2 font-bold text-lg text-text"
+            >
               <Shield className="w-5 h-5 text-primary" />
               <span>{"Flow"}</span>
             </Link>
@@ -58,17 +74,27 @@ export function Layout() {
               <button
                 onClick={() => {
                   if (themePreference === "system") {
-                    setThemePreference(effectiveTheme === "dark" ? "light" : "dark");
+                    setThemePreference(
+                      effectiveTheme === "dark" ? "light" : "dark",
+                    );
                     return;
                   }
-                  setThemePreference(themePreference === "light" ? "dark" : "light");
+                  setThemePreference(
+                    themePreference === "light" ? "dark" : "light",
+                  );
                 }}
                 className="p-2 rounded-xl hover:bg-surface-alt transition-colors"
-                aria-label={themePreference === "system"
-                  ? `Theme: system (${effectiveTheme})`
-                  : `Theme: ${themePreference}`}
+                aria-label={
+                  themePreference === "system"
+                    ? `Theme: system (${effectiveTheme})`
+                    : `Theme: ${themePreference}`
+                }
               >
-                {effectiveTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {effectiveTheme === "dark" ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
               </button>
 
               {isAuthenticated ? (

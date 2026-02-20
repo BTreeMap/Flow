@@ -5,12 +5,21 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export function Input({ label, error, className = "", id, ...props }: InputProps) {
+export function Input({
+  label,
+  error,
+  className = "",
+  id,
+  ...props
+}: InputProps) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-text">
+        <label
+          htmlFor={inputId}
+          className="block text-sm font-medium text-text"
+        >
           {label}
         </label>
       )}

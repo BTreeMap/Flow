@@ -46,9 +46,18 @@ export function Login() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && <Alert variant="error" data-testid="login-error">{error}</Alert>}
+          {error && (
+            <Alert variant="error" data-testid="login-error">
+              {error}
+            </Alert>
+          )}
 
-          <Button onClick={handleLogin} disabled={loading} className="w-full" data-testid="login-submit">
+          <Button
+            onClick={handleLogin}
+            disabled={loading}
+            className="w-full"
+            data-testid="login-submit"
+          >
             <Fingerprint className="w-4 h-4" />
             {loading ? "Authenticating..." : "Login with Passkey"}
           </Button>

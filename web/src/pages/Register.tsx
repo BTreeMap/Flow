@@ -52,7 +52,11 @@ export function Register() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && <Alert variant="error" data-testid="register-error">{error}</Alert>}
+          {error && (
+            <Alert variant="error" data-testid="register-error">
+              {error}
+            </Alert>
+          )}
 
           <Input
             label="Display Name"
@@ -63,7 +67,12 @@ export function Register() {
             data-testid="register-display-name"
           />
 
-          <Button onClick={handleRegister} disabled={loading} className="w-full" data-testid="register-submit">
+          <Button
+            onClick={handleRegister}
+            disabled={loading}
+            className="w-full"
+            data-testid="register-submit"
+          >
             <Fingerprint className="w-4 h-4" />
             {loading ? "Creating account..." : "Register with Passkey"}
           </Button>

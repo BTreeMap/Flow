@@ -124,8 +124,7 @@ function WebSocketPanel() {
         >
           {wsLog.map((entry, i) => (
             <div key={i}>
-              <span className="text-text-muted">{entry.time}</span>{" "}
-              {entry.text}
+              <span className="text-text-muted">{entry.time}</span> {entry.text}
             </div>
           ))}
         </div>
@@ -274,8 +273,7 @@ function SSEPanel() {
         >
           {sseLog.map((entry, i) => (
             <div key={i}>
-              <span className="text-text-muted">{entry.time}</span>{" "}
-              {entry.text}
+              <span className="text-text-muted">{entry.time}</span> {entry.text}
             </div>
           ))}
         </div>
@@ -294,13 +292,27 @@ export function DemoRealtime() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-text" data-testid="realtime-heading">
+        <h1
+          className="text-2xl font-bold text-text"
+          data-testid="realtime-heading"
+        >
           Realtime Demo
         </h1>
         <p className="text-text-muted">
           Authenticated WebSocket &amp; SSE with device-key JWTs
-          {userId && <> · <span className="font-mono text-xs">{userId.slice(0, 8)}…</span></>}
-          {deviceId && <> · <span className="font-mono text-xs">{deviceId.slice(0, 8)}…</span></>}
+          {userId && (
+            <>
+              {" "}
+              · <span className="font-mono text-xs">{userId.slice(0, 8)}…</span>
+            </>
+          )}
+          {deviceId && (
+            <>
+              {" "}
+              ·{" "}
+              <span className="font-mono text-xs">{deviceId.slice(0, 8)}…</span>
+            </>
+          )}
         </p>
       </div>
 

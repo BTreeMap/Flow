@@ -62,12 +62,11 @@ interface FinishResponse {
   display_name?: string;
 }
 
-function buildState(
-  partial: Omit<AuthState, "user" | "loading">,
-): AuthState {
-  const user = partial.isAuthenticated && partial.userId
-    ? { id: partial.userId, role: partial.role ?? "user", scopes: [] }
-    : null;
+function buildState(partial: Omit<AuthState, "user" | "loading">): AuthState {
+  const user =
+    partial.isAuthenticated && partial.userId
+      ? { id: partial.userId, role: partial.role ?? "user", scopes: [] }
+      : null;
   return { ...partial, user, loading: partial.isLoading };
 }
 
@@ -123,7 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!startRes.ok) throw new Error("Registration start failed");
 
       const createOptions = toCreateOptions(
-        startRes.data.options as unknown as Parameters<typeof toCreateOptions>[0],
+        startRes.data.options as unknown as Parameters<
+          typeof toCreateOptions
+        >[0],
       );
       const credential = (await navigator.credentials.create(
         createOptions,
@@ -144,10 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       if (!finishRes.ok) throw new Error("Registration finish failed");
 
-      await setDeviceIdentity(
-        finishRes.data.device_id,
-        finishRes.data.user_id,
-      );
+      await setDeviceIdentity(finishRes.data.device_id, finishRes.data.user_id);
       setState(
         buildState({
           isAuthenticated: true,
@@ -197,10 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     if (!finishRes.ok) throw new Error("Login finish failed");
 
-    await setDeviceIdentity(
-      finishRes.data.device_id,
-      finishRes.data.user_id,
-    );
+    await setDeviceIdentity(finishRes.data.device_id, finishRes.data.user_id);
     setState(
       buildState({
         isAuthenticated: true,

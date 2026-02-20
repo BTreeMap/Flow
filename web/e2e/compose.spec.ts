@@ -27,9 +27,9 @@ test.describe("Compose stack: static serving and SPA", () => {
   // -----------------------------------------------------------------------
   test("landing page loads", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByTestId("landing-register"),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("landing-register")).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   // -----------------------------------------------------------------------

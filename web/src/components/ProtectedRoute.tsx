@@ -25,7 +25,9 @@ export function ProtectedRoute({ children, requiredRole }: Props) {
     return (
       <div className="text-center py-16">
         <h2 className="text-2xl font-bold text-text mb-2">Access Denied</h2>
-        <p className="text-text-muted">You do not have permission to view this page.</p>
+        <p className="text-text-muted">
+          You do not have permission to view this page.
+        </p>
       </div>
     );
   }

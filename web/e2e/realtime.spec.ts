@@ -125,9 +125,7 @@ test.describe("Realtime demo", () => {
   // -----------------------------------------------------------------------
   // D3) SSE – positive test
   // -----------------------------------------------------------------------
-  test("SSE: start stream, receive chunks and done event", async ({
-    page,
-  }) => {
+  test("SSE: start stream, receive chunks and done event", async ({ page }) => {
     await registerAndGoToRealtime(page);
 
     // Click Start Stream

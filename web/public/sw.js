@@ -23,7 +23,7 @@ self.addEventListener("push", (event) => {
       body: payload.body || "",
       icon: "/vite.svg",
       data: payload.data || {},
-    })
+    }),
   );
 });
 
@@ -45,6 +45,6 @@ self.addEventListener("notificationclick", (event) => {
         if (self.clients.openWindow) {
           return self.clients.openWindow(url);
         }
-      })
+      }),
   );
 });

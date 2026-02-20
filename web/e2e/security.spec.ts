@@ -61,9 +61,8 @@ test.describe("Security: stable device identity", () => {
     // Verify via the public helpers: getDeviceIdentity → null, but key
     // material still present (ensureDeviceKeyMaterial returns without generating).
     const postLogoutState = await page.evaluate(async () => {
-      const { getDeviceIdentity, getPrivateKey, getPublicJwk } = await import(
-        "/src/auth/deviceKey.ts"
-      );
+      const { getDeviceIdentity, getPrivateKey, getPublicJwk } =
+        await import("/src/auth/deviceKey.ts");
       const identity = await getDeviceIdentity();
       const pk = await getPrivateKey();
       const pub = await getPublicJwk();
@@ -101,9 +100,7 @@ test.describe("Security: unauthenticated access", () => {
   // -----------------------------------------------------------------------
   // S2) Protected endpoints reject unauthenticated requests
   // -----------------------------------------------------------------------
-  test("GET /auth/passkeys returns 401/403 without token", async ({
-    page,
-  }) => {
+  test("GET /auth/passkeys returns 401/403 without token", async ({ page }) => {
     const res = await page.request.get("http://localhost:8000/auth/passkeys");
     expect([401, 403]).toContain(res.status());
   });
@@ -294,8 +291,7 @@ test.describe("Security: tampered and malformed JWTs", () => {
       const parts = token.split(".");
       const sig = parts[2]!;
       // Flip a character in the signature
-      const tampered =
-        sig[0] === "A" ? "B" + sig.slice(1) : "A" + sig.slice(1);
+      const tampered = sig[0] === "A" ? "B" + sig.slice(1) : "A" + sig.slice(1);
       const badToken = `${parts[0]}.${parts[1]}.${tampered}`;
 
       const res = await fetch("/api/auth/passkeys", {
@@ -395,9 +391,8 @@ test.describe("Security: tampered and malformed JWTs", () => {
     await registerUser(page, "No Aud Test");
 
     const status = await page.evaluate(async () => {
-      const { getPrivateKey, getDeviceIdentity } = await import(
-        "/src/auth/deviceKey.ts"
-      );
+      const { getPrivateKey, getDeviceIdentity } =
+        await import("/src/auth/deviceKey.ts");
       const privateKey = await getPrivateKey();
       const identity = await getDeviceIdentity();
 

@@ -34,9 +34,7 @@ test.describe("Passkey auth flows", () => {
   // -----------------------------------------------------------------------
   test("register with passkey and reach dashboard", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByTestId("landing-register"),
-    ).toBeVisible();
+    await expect(page.getByTestId("landing-register")).toBeVisible();
 
     // Navigate to register page
     await page.getByTestId("landing-register").click();
@@ -48,9 +46,7 @@ test.describe("Passkey auth flows", () => {
 
     // Should redirect to dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
-    await expect(
-      page.getByTestId("dashboard-heading"),
-    ).toBeVisible();
+    await expect(page.getByTestId("dashboard-heading")).toBeVisible();
 
     // Verify backend auth works – hit /api/health (library-provided)
     const healthRes = await page.request.get("http://localhost:8000/health");
@@ -65,7 +61,6 @@ test.describe("Passkey auth flows", () => {
     await expect(page.getByTestId("passkey-item")).toHaveCount(1, {
       timeout: 10_000,
     });
-
   });
 
   // -----------------------------------------------------------------------
@@ -108,9 +103,7 @@ test.describe("Passkey auth flows", () => {
 
     // Should redirect to dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
-    await expect(
-      page.getByTestId("dashboard-heading"),
-    ).toBeVisible();
+    await expect(page.getByTestId("dashboard-heading")).toBeVisible();
   });
 
   // -----------------------------------------------------------------------
@@ -148,7 +141,9 @@ test.describe("Passkey auth flows", () => {
     await page.getByTestId("passkey-edit-btn").first().click();
     await page.getByTestId("passkey-name-input").fill("Laptop key");
     await page.getByTestId("passkey-name-save").click();
-    await expect(page.getByTestId("passkey-name").first()).toContainText("Laptop key");
+    await expect(page.getByTestId("passkey-name").first()).toContainText(
+      "Laptop key",
+    );
   });
 
   // -----------------------------------------------------------------------

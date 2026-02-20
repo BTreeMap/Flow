@@ -10,12 +10,15 @@ export function Admin() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text">Admin Panel</h1>
-        <p className="text-text-muted">Server-side RBAC enforces all admin operations</p>
+        <p className="text-text-muted">
+          Server-side RBAC enforces all admin operations
+        </p>
       </div>
 
       <Alert variant="info">
-        This page is role-gated in the frontend. However, all admin operations are enforced
-        server-side. The server derives roles from the database, never from JWT claims.
+        This page is role-gated in the frontend. However, all admin operations
+        are enforced server-side. The server derives roles from the database,
+        never from JWT claims.
       </Alert>
 
       <Card>

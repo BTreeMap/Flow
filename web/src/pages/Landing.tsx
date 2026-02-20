@@ -19,7 +19,9 @@ export function Landing() {
       </h1>
 
       <p className="text-lg text-text-muted mb-8 max-w-xl mx-auto">
-        Flow is an HCI research platform for project-based coaching chats with passkey login, real-time conversation updates, and optional notifications.
+        Flow is an HCI research platform for project-based coaching chats with
+        passkey login, real-time conversation updates, and optional
+        notifications.
       </p>
 
       <div className="flex justify-center gap-4 mb-16">
@@ -30,7 +32,9 @@ export function Landing() {
         ) : (
           <>
             <Link to="/register">
-              <Button size="lg" data-testid="landing-register">Register</Button>
+              <Button size="lg" data-testid="landing-register">
+                Register
+              </Button>
             </Link>
             <Link to="/login">
               <Button variant="secondary" size="lg" data-testid="landing-login">
