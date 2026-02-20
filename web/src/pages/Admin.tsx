@@ -23,7 +23,7 @@ export function Admin() {
   const [displayName, setDisplayName] = useState("");
   const [inviteProjectId, setInviteProjectId] = useState("");
   const [inviteCount, setInviteCount] = useState("1");
-  const [inviteMaxUses, setInviteMaxUses] = useState("1");
+  const [inviteMaxUses, setInviteMaxUses] = useState("");
   const [inviteCodes, setInviteCodes] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState(
     new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
@@ -165,9 +165,13 @@ export function Admin() {
               label="Max uses per invite"
               type="number"
               min={1}
+              placeholder="Unlimited"
               value={inviteMaxUses}
               onChange={(e) => setInviteMaxUses(e.target.value)}
             />
+            <p className="text-xs text-text-muted -mt-2">
+              Leave empty for unlimited uses (recommended for WhatsApp groups).
+            </p>
             <Input
               label="Expires at"
               type="datetime-local"

@@ -4,10 +4,12 @@ import asyncio
 import json
 import logging
 import os
+import socket
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from pywebpush import WebPushException, webpush
-from sqlalchemy import Select, delete, select
+from sqlalchemy import Select, delete, or_, select, update
 
 from app.db import async_session_factory
 from app.id_utils import generate_server_msg_id
@@ -26,22 +28,59 @@ logger = logging.getLogger(__name__)
 SCHEDULED_PROMPT_TEXT = "Daily check-in: how did it go today?"
 MAX_ATTEMPTS = 5
 FAILED_EVENT_POSTPONE_DAYS = 3650
+LOCK_DURATION_SECONDS = 60
 
 
-async def _claim_due_events(limit: int = 20) -> list[OutboxEvent]:
+def _make_worker_id() -> str:
+    base = os.environ.get("FLOW_WORKER_ID") or socket.gethostname()
+    return f"{base}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+
+
+async def _claim_due_events(worker_id: str, limit: int = 20) -> list[OutboxEvent]:
     async with async_session_factory() as db:
         now = datetime.now(UTC)
-        stmt: Select[tuple[OutboxEvent]] = (
-            select(OutboxEvent)
-            .where(OutboxEvent.available_at <= now)
+        locked_until = now + timedelta(seconds=LOCK_DURATION_SECONDS)
+        id_query: Select[tuple[int]] = (
+            select(OutboxEvent.id)
+            .where(
+                OutboxEvent.available_at <= now,
+                or_(
+                    OutboxEvent.locked_until.is_(None),
+                    OutboxEvent.locked_until < now,
+                ),
+            )
             .order_by(OutboxEvent.available_at.asc(), OutboxEvent.id.asc())
             .limit(limit)
         )
         if db.bind and db.bind.dialect.name == "postgresql":
-            stmt = stmt.with_for_update(skip_locked=True)
-        result = await db.execute(stmt)
-        events = list(result.scalars().all())
-        return events
+            id_query = id_query.with_for_update(skip_locked=True)
+
+        result = await db.execute(id_query)
+        ids = [event_id for (event_id,) in result.all()]
+        if not ids:
+            return []
+
+        await db.execute(
+            update(OutboxEvent)
+            .where(
+                OutboxEvent.id.in_(ids),
+                or_(
+                    OutboxEvent.locked_until.is_(None),
+                    OutboxEvent.locked_until < now,
+                ),
+            )
+            .values(locked_by=worker_id, claimed_at=now, locked_until=locked_until)
+        )
+        await db.commit()
+
+        claimed_result = await db.execute(
+            select(OutboxEvent).where(
+                OutboxEvent.id.in_(ids),
+                OutboxEvent.locked_by == worker_id,
+                OutboxEvent.claimed_at == now,
+            )
+        )
+        return list(claimed_result.scalars().all())
 
 
 def _push_enabled() -> bool:
@@ -122,10 +161,13 @@ async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
     )
 
 
-async def _process_event(event: OutboxEvent) -> None:
+async def _process_event(event: OutboxEvent, worker_id: str) -> None:
     async with async_session_factory() as db:
         row_result = await db.execute(
-            select(OutboxEvent).where(OutboxEvent.id == event.id)
+            select(OutboxEvent).where(
+                OutboxEvent.id == event.id,
+                OutboxEvent.locked_by == worker_id,
+            )
         )
         row = row_result.scalar_one_or_none()
         if row is None:
@@ -135,11 +177,19 @@ async def _process_event(event: OutboxEvent) -> None:
                 await _handle_scheduled_prompt(db, row)
             else:
                 raise ValueError(f"Unsupported event type: {row.type}")
-            await db.execute(delete(OutboxEvent).where(OutboxEvent.id == row.id))
+            await db.execute(
+                delete(OutboxEvent).where(
+                    OutboxEvent.id == row.id,
+                    OutboxEvent.locked_by == worker_id,
+                )
+            )
             await db.commit()
         except Exception as exc:  # noqa: BLE001
             row.attempts += 1
             row.last_error = str(exc)
+            row.locked_by = None
+            row.claimed_at = None
+            row.locked_until = None
             if row.attempts >= MAX_ATTEMPTS:
                 row.available_at = datetime.now(UTC) + timedelta(
                     days=FAILED_EVENT_POSTPONE_DAYS
@@ -152,13 +202,14 @@ async def _process_event(event: OutboxEvent) -> None:
 
 
 async def run_worker_loop(poll_seconds: int = 5) -> None:
+    worker_id = _make_worker_id()
     while True:
-        events = await _claim_due_events()
+        events = await _claim_due_events(worker_id=worker_id)
         if not events:
             await asyncio.sleep(poll_seconds)
             continue
         for event in events:
-            await _process_event(event)
+            await _process_event(event, worker_id=worker_id)
 
 
 def main() -> None:

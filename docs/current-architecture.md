@@ -183,7 +183,9 @@ All proposals are logged in the `patch_audit_log` table:
 - Deterministic onboarding endpoint (`GET/PUT /p/{project_id}/profile`) writes `UserProfileData` directly from explicit participant input.
 - Runtime protocol state is persisted in `conversation_runtime_state` after INTAKE/FEEDBACK tool mutations.
 - Outbox worker (`app.worker.outbox_worker`) processes due `outbox_events`, handles `scheduled_prompt`, inserts assistant messages, and best-effort push delivery.
-- Invites are multi-use by default with `max_uses`/`uses` and optional `revoked_at`; `consumed_at` is no longer used for invite availability checks.
+- Outbox worker claims events with lease fields (`locked_until`, `locked_by`, `claimed_at`) before processing, retries with exponential backoff, and dead-letters after max attempts.
+- Invites are multi-use by default with `max_uses`/`uses` and optional `revoked_at`; claim uses are consumed atomically only when a new membership is created.
+- Push subscriptions are membership-scoped (`membership_id` + `endpoint`) so the same device endpoint can be registered across multiple projects without overwrite.
 
 > Note: schema changes rely on `create_all` (no Alembic yet), so existing deployed databases require reset to pick up new columns.
 

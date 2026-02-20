@@ -14,8 +14,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -35,7 +36,7 @@ from app.models import (
     UserProfileStore,
 )
 from app.schemas.patches import UserProfileData
-from app.services.outbox_service import enqueue_next_scheduled_prompt
+from app.services.outbox_service import replace_next_scheduled_prompt
 from app.services.profile_service import load_user_profile, save_user_profile
 from h4ckath0n.auth import require_user
 from h4ckath0n.auth.dependencies import require_admin
@@ -225,6 +226,11 @@ class AdminParticipantsResponse(BaseModel):
     participants: list[AdminParticipantItem]
 
 
+class AuthMeResponse(BaseModel):
+    user_id: str
+    role: str
+
+
 # ---------------------------------------------------------------------------
 # 1. Dashboard
 # ---------------------------------------------------------------------------
@@ -267,6 +273,11 @@ async def dashboard(
     return DashboardResponse(memberships=items)
 
 
+@router.get("/auth/me", tags=["auth"])
+async def auth_me(user: User = require_user()) -> AuthMeResponse:
+    return AuthMeResponse(user_id=user.id, role=user.role)
+
+
 # ---------------------------------------------------------------------------
 # 2. Activate / Claim invite
 # ---------------------------------------------------------------------------
@@ -288,7 +299,7 @@ async def claim_invite(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
-    # Hash the invite code and look up a matching, unexpired, unconsumed invite
+    # Hash the invite code and look up a matching, unexpired, non-revoked invite
     code_hash = hashlib.sha256(body.invite_code.encode()).hexdigest()
     now = datetime.now(UTC)
 
@@ -298,10 +309,6 @@ async def claim_invite(
             ProjectInvite.invite_code_hash == code_hash,
             ProjectInvite.expires_at > now,
             ProjectInvite.revoked_at.is_(None),
-            or_(
-                ProjectInvite.max_uses.is_(None),
-                ProjectInvite.uses < ProjectInvite.max_uses,
-            ),
         )
     )
     invite = invite_result.scalar_one_or_none()
@@ -320,18 +327,48 @@ async def claim_invite(
     )
     membership = existing_result.scalar_one_or_none()
 
+    created_membership = False
     if membership is None:
         membership = ProjectMembership(
-            project_id=project_id,
-            user_id=user.id,
-            status="active",
+            project_id=project_id, user_id=user.id, status="active"
         )
         db.add(membership)
-        await db.flush()
+        try:
+            await db.flush()
+            created_membership = True
+        except IntegrityError:
+            await db.rollback()
+            existing_retry = await db.execute(
+                select(ProjectMembership).where(
+                    ProjectMembership.project_id == project_id,
+                    ProjectMembership.user_id == user.id,
+                )
+            )
+            membership = existing_retry.scalar_one_or_none()
+            if membership is None:
+                raise
 
-        # Consume one invite use for new memberships only
-        invite.uses += 1
-        await db.flush()
+        if created_membership:
+            consume_result = await db.execute(
+                update(ProjectInvite)
+                .where(
+                    ProjectInvite.id == invite.id,
+                    ProjectInvite.expires_at > now,
+                    ProjectInvite.revoked_at.is_(None),
+                    or_(
+                        ProjectInvite.max_uses.is_(None),
+                        ProjectInvite.uses < ProjectInvite.max_uses,
+                    ),
+                )
+                .values(uses=ProjectInvite.uses + 1)
+                .execution_options(synchronize_session=False)
+            )
+            if consume_result.rowcount != 1:
+                await db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid or expired invite code",
+                )
 
     # Store email contact metadata
     contact = ParticipantContact(
@@ -422,7 +459,7 @@ async def put_profile(
     merged.update(body.model_dump())
     profile = UserProfileData.model_validate(merged)
     await save_user_profile(db, membership.id, profile)
-    await enqueue_next_scheduled_prompt(
+    await replace_next_scheduled_prompt(
         db,
         membership=membership,
         preferred_time=profile.preferred_time,
@@ -624,8 +661,11 @@ async def push_subscribe(
     membership = await _get_membership(db, project_id, user.id)
 
     # Check for existing subscription with same endpoint
+    # membership_id scoping intentionally allows the same endpoint to be
+    # registered for multiple project memberships by the same device.
     existing_result = await db.execute(
         select(PushSubscription).where(
+            PushSubscription.membership_id == membership.id,
             PushSubscription.endpoint == body.endpoint,
             PushSubscription.revoked_at.is_(None),
         )
@@ -698,7 +738,13 @@ async def admin_create_project(
 ) -> dict[str, str]:
     from app.id_utils import generate_project_id
 
-    project = Project(id=generate_project_id(), display_name=body.display_name)
+    project = Project(
+        id=generate_project_id(),
+        display_name=body.display_name,
+        study_settings_json=json.dumps(body.study_settings)
+        if body.study_settings is not None
+        else None,
+    )
     db.add(project)
     await db.commit()
     return {"project_id": project.id}
@@ -750,6 +796,7 @@ async def admin_create_invites(
                 expires_at=body.expires_at,
                 max_uses=body.max_uses,
                 uses=0,
+                label=body.label,
             )
         )
         invite_codes.append(code)
@@ -852,11 +899,19 @@ async def admin_project_export(
             OutboxEvent.membership_id.in_(membership_ids),
         )
     )
+    push_result = await db.execute(
+        select(PushSubscription).where(
+            PushSubscription.membership_id.in_(membership_ids)
+        )
+    )
 
     return {
+        "project_id": project_id,
         "memberships": [
             {
+                # Keep both keys for backward compatibility with existing exports.
                 "id": m.id,
+                "membership_id": m.id,
                 "project_id": m.project_id,
                 "user_id": m.user_id,
                 "status": m.status,
@@ -864,6 +919,14 @@ async def admin_project_export(
                 "ended_at": m.ended_at.isoformat() if m.ended_at else None,
             }
             for m in memberships
+        ],
+        "conversations": [
+            {
+                "conversation_id": c.id,
+                "membership_id": c.membership_id,
+                "created_at": c.created_at.isoformat(),
+            }
+            for c in conversations
         ],
         "contacts": [
             {
@@ -875,9 +938,13 @@ async def admin_project_export(
         ],
         "messages": [
             {
+                "message_id": m.id,
+                "project_id": project_id,
                 "conversation_id": m.conversation_id,
                 "role": m.role,
                 "content": m.content,
+                "server_msg_id": m.server_msg_id,
+                "client_msg_id": m.client_msg_id,
                 "created_at": m.created_at.isoformat(),
             }
             for m in messages_result.scalars().all()
@@ -908,6 +975,7 @@ async def admin_project_export(
         ],
         "outbox_events": [
             {
+                "project_id": e.project_id,
                 "membership_id": e.membership_id,
                 "type": e.type,
                 "payload_json": e.payload_json,
@@ -916,5 +984,21 @@ async def admin_project_export(
                 "last_error": e.last_error,
             }
             for e in outbox_result.scalars().all()
+        ],
+        "push_subscriptions": [
+            {
+                "subscription_id": s.id,
+                "membership_id": s.membership_id,
+                "endpoint": s.endpoint,
+                "created_at": s.created_at.isoformat(),
+                "revoked_at": s.revoked_at.isoformat() if s.revoked_at else None,
+                "last_success_at": s.last_success_at.isoformat()
+                if s.last_success_at
+                else None,
+                "last_failure_at": s.last_failure_at.isoformat()
+                if s.last_failure_at
+                else None,
+            }
+            for s in push_result.scalars().all()
         ],
     }

@@ -4,7 +4,7 @@ import json
 import re
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import OutboxEvent, ProjectMembership
@@ -84,4 +84,27 @@ async def enqueue_next_scheduled_prompt(
         payload={"project_id": membership.project_id},
         dedupe_key=dedupe_key,
         available_at=run_at,
+    )
+
+
+async def replace_next_scheduled_prompt(
+    db: AsyncSession,
+    *,
+    membership: ProjectMembership,
+    preferred_time: str,
+    now: datetime | None = None,
+) -> OutboxEvent:
+    run_now = now or datetime.now(UTC)
+    await db.execute(
+        delete(OutboxEvent).where(
+            OutboxEvent.membership_id == membership.id,
+            OutboxEvent.type == "scheduled_prompt",
+            OutboxEvent.available_at > run_now,
+        )
+    )
+    return await enqueue_next_scheduled_prompt(
+        db,
+        membership=membership,
+        preferred_time=preferred_time,
+        now=run_now,
     )

@@ -19,7 +19,7 @@ from app.models import (
 from app.services.outbox_service import enqueue_outbox_event
 from app.services.profile_service import save_user_profile
 from app.schemas.patches import UserProfileData
-from app.worker.outbox_worker import _process_event
+from app.worker.outbox_worker import _claim_due_events, _process_event
 
 _engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
@@ -101,6 +101,9 @@ async def test_worker_processes_scheduled_prompt_and_push_mock(
         payload_json='{"project_id":"%s"}' % project_id,
         dedupe_key=f"scheduled_prompt:{membership_id}:2099-01-01",
         available_at=datetime.now(UTC),
+        locked_by="worker-1",
+        claimed_at=datetime.now(UTC),
+        locked_until=datetime.now(UTC) + timedelta(minutes=1),
     )
     db.add(event)
     await db.commit()
@@ -113,7 +116,7 @@ async def test_worker_processes_scheduled_prompt_and_push_mock(
     monkeypatch.setattr(
         "app.worker.outbox_worker.async_session_factory", _session_factory
     )
-    await _process_event(event)
+    await _process_event(event, worker_id="worker-1")
 
     async with _session_factory() as verify_db:
         message_result = await verify_db.execute(
@@ -126,3 +129,31 @@ async def test_worker_processes_scheduled_prompt_and_push_mock(
         outbox_result = await verify_db.execute(select(OutboxEvent))
         remaining = outbox_result.scalars().all()
         assert any(item.dedupe_key != event.dedupe_key for item in remaining)
+
+
+@pytest.mark.asyncio
+async def test_claim_due_events_prevents_double_claim(
+    db: AsyncSession, seeded: dict[str, int | str], monkeypatch
+) -> None:
+    project_id = str(seeded["project_id"])
+    membership_id = int(seeded["membership_id"])
+    db.add(
+        OutboxEvent(
+            project_id=project_id,
+            membership_id=membership_id,
+            type="scheduled_prompt",
+            payload_json='{"project_id":"%s"}' % project_id,
+            dedupe_key=f"scheduled_prompt:{membership_id}:2099-01-02",
+            available_at=datetime.now(UTC),
+        )
+    )
+    await db.commit()
+
+    monkeypatch.setattr(
+        "app.worker.outbox_worker.async_session_factory", _session_factory
+    )
+    claimed_by_worker_1 = await _claim_due_events(worker_id="worker-1")
+    claimed_by_worker_2 = await _claim_due_events(worker_id="worker-2")
+
+    assert len(claimed_by_worker_1) == 1
+    assert claimed_by_worker_2 == []

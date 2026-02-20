@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Any, AsyncGenerator
@@ -10,15 +11,17 @@ from unittest.mock import MagicMock
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.id_utils import generate_project_id
 from app.models import (
     Base,
     OutboxEvent,
+    PushSubscription,
     Project,
     ProjectInvite,
+    ProjectMembership,
 )
 
 # ---------------------------------------------------------------------------
@@ -127,6 +130,13 @@ async def test_healthz(client: AsyncClient) -> None:
     data = resp.json()
     assert data["status"] == "ok"
     assert data["llm_mode"] in {"stub", "openai"}
+
+
+@pytest.mark.asyncio
+async def test_auth_me(client: AsyncClient) -> None:
+    resp = await client.get("/auth/me")
+    assert resp.status_code == 200
+    assert resp.json()["user_id"] == "u_testuser_000000000000000000"
 
 
 # ---------------------------------------------------------------------------
@@ -324,6 +334,57 @@ async def test_push_subscribe_duplicate_updates(seeded_client: dict[str, Any]) -
 
 
 @pytest.mark.asyncio
+async def test_push_subscribe_same_endpoint_across_projects(
+    seeded_client: dict[str, Any],
+) -> None:
+    client = seeded_client["client"]
+    first_project_id = seeded_client["project_id"]
+    first_invite_code = seeded_client["invite_code"]
+
+    second_project_id = generate_project_id()
+    second_invite_code = "test-invite-code-456"
+    code_hash = hashlib.sha256(second_invite_code.encode()).hexdigest()
+    expires = datetime.now(UTC) + timedelta(days=7)
+    async with _test_session_factory() as db:
+        db.add(Project(id=second_project_id, display_name="Second Project"))
+        db.add(
+            ProjectInvite(
+                project_id=second_project_id,
+                invite_code_hash=code_hash,
+                expires_at=expires,
+            )
+        )
+        await db.commit()
+
+    await client.post(
+        f"/p/{first_project_id}/activate/claim",
+        json={"invite_code": first_invite_code, "email": "same-endpoint@test.com"},
+    )
+    await client.post(
+        f"/p/{second_project_id}/activate/claim",
+        json={"invite_code": second_invite_code, "email": "same-endpoint@test.com"},
+    )
+
+    endpoint = "https://push.example.com/sub/shared-endpoint"
+    resp1 = await client.post(
+        f"/p/{first_project_id}/push/subscribe",
+        json={"endpoint": endpoint, "keys": {"p256dh": "key1", "auth": "auth1"}},
+    )
+    resp2 = await client.post(
+        f"/p/{second_project_id}/push/subscribe",
+        json={"endpoint": endpoint, "keys": {"p256dh": "key2", "auth": "auth2"}},
+    )
+    assert resp1.status_code == 200
+    assert resp2.status_code == 200
+    assert resp1.json()["subscription_id"] != resp2.json()["subscription_id"]
+
+    async with _test_session_factory() as db:
+        result = await db.execute(select(PushSubscription))
+        rows = result.scalars().all()
+        assert len(rows) == 2
+
+
+@pytest.mark.asyncio
 async def test_push_unsubscribe(seeded_client: dict[str, Any]) -> None:
     client = seeded_client["client"]
     project_id = seeded_client["project_id"]
@@ -442,7 +503,23 @@ async def test_profile_put_enables_non_intake_route(
         outbox_result = await db.execute(
             select(OutboxEvent).where(OutboxEvent.project_id == project_id)
         )
-        assert len(outbox_result.scalars().all()) == 1
+        events = outbox_result.scalars().all()
+        assert len(events) == 1
+        first_available_at = events[0].available_at
+
+    second_put_resp = await client.put(
+        f"/p/{project_id}/profile",
+        json={"prompt_anchor": "after dinner", "preferred_time": "19:30"},
+    )
+    assert second_put_resp.status_code == 200
+
+    async with _test_session_factory() as db:
+        outbox_result = await db.execute(
+            select(OutboxEvent).where(OutboxEvent.project_id == project_id)
+        )
+        events = outbox_result.scalars().all()
+        assert len(events) == 1
+        assert events[0].available_at != first_available_at
 
 
 @pytest.mark.asyncio
@@ -483,16 +560,37 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
     export_resp = await client.get(f"/admin/projects/{project_id}/export")
     assert export_resp.status_code == 200
     export_data = export_resp.json()
+    assert export_data["project_id"] == project_id
     assert "memberships" in export_data
+    assert "conversations" in export_data
     assert "messages" in export_data
+    assert "push_subscriptions" in export_data
+    assert "invite_codes" not in export_data
 
     await client.post(
         f"/p/{project_id}/activate/claim",
         json={"invite_code": invite_code, "email": "admin-flow@test.com"},
     )
+    await client.post(
+        f"/p/{project_id}/push/subscribe",
+        json={
+            "endpoint": "https://push.example.com/sub/admin-export",
+            "keys": {"p256dh": "pk", "auth": "ak"},
+        },
+    )
+    await client.post(
+        f"/p/{project_id}/messages",
+        json={"text": "hello export"},
+    )
     participants_after = await client.get(f"/admin/projects/{project_id}/participants")
     assert participants_after.status_code == 200
     assert len(participants_after.json()["participants"]) == 1
+    export_after = await client.get(f"/admin/projects/{project_id}/export")
+    payload = export_after.json()
+    assert isinstance(payload["messages"][0]["server_msg_id"], str)
+    assert payload["messages"][0]["server_msg_id"] != ""
+    assert "client_msg_id" in payload["messages"][0]
+    assert payload["push_subscriptions"][0]["membership_id"] is not None
 
 
 @pytest.mark.asyncio
@@ -544,3 +642,71 @@ async def test_multi_use_invite_limit_enforced(client: AsyncClient) -> None:
         json={"invite_code": invite_code, "email": "three@test.com"},
     )
     assert third.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_repeat_claim_same_user_does_not_increment_invite_use(
+    seeded_client: dict[str, Any],
+) -> None:
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    first = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code, "email": "repeat@test.com"},
+    )
+    assert first.status_code == 200
+    second = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code, "email": "repeat@test.com"},
+    )
+    assert second.status_code == 200
+
+    async with _test_session_factory() as db:
+        invite_result = await db.execute(
+            select(ProjectInvite).where(ProjectInvite.project_id == project_id)
+        )
+        invite = invite_result.scalar_one()
+        memberships_result = await db.execute(
+            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+        )
+        memberships = memberships_result.scalars().all()
+        assert invite.uses == 1
+        assert len(memberships) == 1
+
+
+@pytest.mark.asyncio
+async def test_invite_use_atomic_update_allows_single_consumer(
+    seeded_client: dict[str, Any],
+) -> None:
+    project_id = seeded_client["project_id"]
+
+    async with _test_session_factory() as db:
+        result = await db.execute(
+            select(ProjectInvite).where(ProjectInvite.project_id == project_id)
+        )
+        invite = result.scalar_one()
+        invite.max_uses = 1
+        invite.uses = 0
+        await db.commit()
+
+    async def _consume_once() -> int:
+        async with _test_session_factory() as db:
+            result = await db.execute(
+                update(ProjectInvite)
+                .where(
+                    ProjectInvite.project_id == project_id,
+                    or_(
+                        ProjectInvite.max_uses.is_(None),
+                        ProjectInvite.uses < ProjectInvite.max_uses,
+                    ),
+                )
+                .values(uses=ProjectInvite.uses + 1)
+                .execution_options(synchronize_session=False)
+            )
+            await db.commit()
+            return int(result.rowcount or 0)
+
+    first, second = await asyncio.gather(_consume_once(), _consume_once())
+    assert first + second == 1
