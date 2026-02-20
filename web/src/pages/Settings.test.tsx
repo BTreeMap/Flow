@@ -218,7 +218,7 @@ describe("Settings – sessions", () => {
     expect(await screen.findByText("My Laptop")).toBeInTheDocument();
     expect(screen.getByText("Current")).toBeInTheDocument();
     expect(screen.getByText("Phone")).toBeInTheDocument();
-    expect(screen.getAllByText("Revoke").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Revoke")).toHaveLength(1);
   });
 });
 

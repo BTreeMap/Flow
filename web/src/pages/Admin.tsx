@@ -201,7 +201,11 @@ export function Admin() {
               </p>
             ))}
             <div className="pt-2">
-              <Button onClick={() => void runLlmConnectivityTest()} disabled={runningLlmTest}>
+              <Button
+                onClick={() => void runLlmConnectivityTest()}
+                disabled={runningLlmTest}
+                aria-busy={runningLlmTest}
+              >
                 {runningLlmTest ? "Testing..." : "Run LLM connectivity test"}
               </Button>
             </div>
