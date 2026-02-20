@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "API for flow-app"
 requires-python = ">=3.11"
 dependencies = [
-    "h4ckath0n>=0.1.7",
+    "h4ckath0n>=0.1.8.dev20260220000653",
     "cryptography>=44.0",
     "langgraph>=1.0.8",
     "sqlalchemy>=2.0.46",
