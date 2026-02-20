@@ -585,7 +585,7 @@ requires-dist = [
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cryptography", specifier = ">=44.0" },
-    { name = "h4ckath0n", specifier = ">=0.1.8.dev20260220164612" },
+    { name = "h4ckath0n", specifier = ">=0.1.8.dev20260220171602" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "langchain", specifier = ">=1.2.10" },
     { name = "langchain-core", specifier = ">=1.2.12" },
@@ -767,7 +767,7 @@ wheels = [
 
 [[package]]
 name = "h4ckath0n"
-version = "0.1.8.dev20260220164612"
+version = "0.1.8.dev20260220171602"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosqlite" },
@@ -791,9 +791,9 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
     { name = "webauthn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/70/fb/b17ee3eb11aafdaac97a01f3e1d2e6c3f0488502a38ed513de1e9754d6e7/h4ckath0n-0.1.8.dev20260220164612.tar.gz", hash = "sha256:710b55639a8690eb690b07c6f741ec5e05311f86fb8f53938c741afd15b85fd1", size = 363618, upload-time = "2026-02-20T16:47:04.857Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/c8/e32dabbb435211ac16383b480aab1d55c46885016750de924c6e893281f6/h4ckath0n-0.1.8.dev20260220171602.tar.gz", hash = "sha256:89c88393acb00d68e5384175c06bfd23052c96b9663bdeedb4a2c3efd233cfab", size = 363662, upload-time = "2026-02-20T17:16:50.702Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/35/03e285ad3c7459a5c3033186525e753f5f85e6b9e64365b2d2a297f58e4e/h4ckath0n-0.1.8.dev20260220164612-py3-none-any.whl", hash = "sha256:76c2a063b562c70fee042afb9bcf28e899f1790bdffefc33541424c204426f66", size = 49705, upload-time = "2026-02-20T16:47:03.652Z" },
+    { url = "https://files.pythonhosted.org/packages/37/2e/107475f33f11d7bd327002ba8f11740006c8a7d6dccb00b26bcee6b8b81c/h4ckath0n-0.1.8.dev20260220171602-py3-none-any.whl", hash = "sha256:157cd452aab4c961299caa2357921950df49dd1d9cb6a259509eb543deb2e85a", size = 49836, upload-time = "2026-02-20T17:16:49.017Z" },
 ]
 
 [[package]]
