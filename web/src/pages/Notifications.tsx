@@ -3,10 +3,8 @@ import { useParams } from "react-router";
 import { Card, CardContent, CardHeader } from "../components/Card";
 import { Button } from "../components/Button";
 import { Alert } from "../components/Alert";
-import { getOrMintToken } from "../auth/token";
-import { Bell, BellOff, Smartphone } from "lucide-react";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+import { Bell, BellOff, Smartphone, AlertTriangle } from "lucide-react";
+import api from "../api/client";
 
 function isIOS(): boolean {
   return (
@@ -23,6 +21,18 @@ function isStandalone(): boolean {
   );
 }
 
+function extractErrorDetail(error: unknown, fallback: string): string {
+  if (
+    error &&
+    typeof error === "object" &&
+    "detail" in error &&
+    typeof (error as { detail?: unknown }).detail === "string"
+  ) {
+    return (error as { detail: string }).detail;
+  }
+  return fallback;
+}
+
 export function Notifications() {
   const { projectId } = useParams<{ projectId: string }>();
   const [permission, setPermission] = useState<NotificationPermission>(
@@ -32,10 +42,10 @@ export function Notifications() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [pushNotConfigured, setPushNotConfigured] = useState(false);
 
   const showsIOSGuide = isIOS() && !isStandalone();
 
-  // Check existing subscription on mount
   useEffect(() => {
     (async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
@@ -49,13 +59,27 @@ export function Notifications() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      const { error: apiError } = await api.GET("/p/{project_id}/push/vapid-public-key", {
+        params: { path: { project_id: projectId } },
+      });
+      if (!apiError) return;
+      const detail = extractErrorDetail(apiError, "");
+      if (detail.toLowerCase().includes("vapid") && detail.includes("not configured")) {
+        setPushNotConfigured(true);
+      }
+    })();
+  }, [projectId]);
+
   const subscribe = useCallback(async () => {
+    if (!projectId) return;
     setError(null);
     setSuccess(null);
     setLoading(true);
 
     try {
-      // Request notification permission
       const perm = await Notification.requestPermission();
       setPermission(perm);
       if (perm !== "granted") {
@@ -63,49 +87,47 @@ export function Notifications() {
         return;
       }
 
-      // Get VAPID public key from backend
-      const token = await getOrMintToken("http");
-      const vapidRes = await fetch(
-        `${API_BASE}/p/${projectId}/push/vapid-public-key`,
+      const { data: vapidData, error: vapidError } = await api.GET(
+        "/p/{project_id}/push/vapid-public-key",
         {
-          headers: { Authorization: `Bearer ${token}` },
+          params: { path: { project_id: projectId } },
         },
       );
-      if (!vapidRes.ok) throw new Error("Failed to fetch VAPID key");
-      const { public_key } = await vapidRes.json();
+      if (vapidError) {
+        const detail = extractErrorDetail(vapidError, "Failed to fetch VAPID key");
+        if (detail.toLowerCase().includes("vapid") && detail.includes("not configured")) {
+          setPushNotConfigured(true);
+        }
+        throw new Error(detail);
+      }
+      const { public_key } = vapidData;
 
-      // Convert VAPID key to Uint8Array
       const padding = "=".repeat((4 - (public_key.length % 4)) % 4);
-      const base64 = (public_key + padding)
-        .replace(/-/g, "+")
-        .replace(/_/g, "/");
+      const base64 = (public_key + padding).replace(/-/g, "+").replace(/_/g, "/");
       const rawData = atob(base64);
       const applicationServerKey = new Uint8Array(rawData.length);
       for (let i = 0; i < rawData.length; i++) {
         applicationServerKey[i] = rawData.charCodeAt(i);
       }
 
-      // Subscribe via Push API
       const reg = await navigator.serviceWorker.ready;
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey,
       });
 
-      // Send subscription to backend
-      const subRes = await fetch(`${API_BASE}/p/${projectId}/push/subscribe`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const { error: subscribeError } = await api.POST(
+        "/p/{project_id}/push/subscribe",
+        {
+          params: { path: { project_id: projectId } },
+          body: {
+            endpoint: subscription.endpoint,
+            keys: subscription.toJSON().keys ?? {},
+            user_agent: navigator.userAgent,
+          },
         },
-        body: JSON.stringify({
-          endpoint: subscription.endpoint,
-          keys: subscription.toJSON().keys,
-          user_agent: navigator.userAgent,
-        }),
-      });
-      if (!subRes.ok) throw new Error("Failed to register subscription");
+      );
+      if (subscribeError) throw new Error("Failed to register subscription");
 
       setSubscribed(true);
       setSuccess("Notifications enabled!");
@@ -119,6 +141,7 @@ export function Notifications() {
   }, [projectId]);
 
   const unsubscribe = useCallback(async () => {
+    if (!projectId) return;
     setError(null);
     setSuccess(null);
     setLoading(true);
@@ -128,15 +151,9 @@ export function Notifications() {
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
         await sub.unsubscribe();
-
-        const token = await getOrMintToken("http");
-        await fetch(`${API_BASE}/p/${projectId}/push/unsubscribe`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ endpoint: sub.endpoint }),
+        await api.POST("/p/{project_id}/push/unsubscribe", {
+          params: { path: { project_id: projectId } },
+          body: { endpoint: sub.endpoint },
         });
       }
       setSubscribed(false);
@@ -159,15 +176,12 @@ export function Notifications() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Smartphone className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-text">
-                Add to Home Screen
-              </h2>
+              <h2 className="text-lg font-semibold text-text">Add to Home Screen</h2>
             </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-text-muted">
             <p>
-              To receive push notifications on iOS, you need to install this app
-              first:
+              To receive push notifications on iOS, you need to install this app first:
             </p>
             <ol className="list-decimal list-inside space-y-1">
               <li>
@@ -183,13 +197,37 @@ export function Notifications() {
         </Card>
       )}
 
+      {pushNotConfigured && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+              <h2 className="text-lg font-semibold text-text">Push not configured</h2>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-text-muted">
+              VAPID keys are missing on the server, so push notifications are disabled.
+              See{" "}
+              <a
+                href="https://github.com/BTreeMap/Flow#vapid-web-push-configuration"
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline"
+              >
+                README VAPID configuration
+              </a>
+              .
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-text">
-              Push Notifications
-            </h2>
+            <h2 className="text-lg font-semibold text-text">Push Notifications</h2>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -199,18 +237,16 @@ export function Notifications() {
           <div className="text-sm text-text-muted">
             {permission === "denied" ? (
               <p>
-                Notifications are blocked. Please enable them in your browser
-                settings.
+                Notifications are blocked. Please enable them in your browser settings.
               </p>
             ) : subscribed ? (
               <p>
-                You are currently subscribed to push notifications for this
-                project.
+                You are currently subscribed to push notifications for this project.
               </p>
             ) : (
               <p>
-                Enable push notifications to receive reminders and updates even
-                when the app is closed.
+                Enable push notifications to receive reminders and updates even when the
+                app is closed.
               </p>
             )}
           </div>

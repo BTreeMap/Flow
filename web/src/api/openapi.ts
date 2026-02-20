@@ -677,21 +677,41 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
-        /** AdminDebugCheck */
-        AdminDebugCheck: {
-            /** Detail */
-            detail: string;
-            /** Key */
-            key: string;
-            /** Ok */
-            ok: boolean;
-        };
         /** AdminDebugStatusResponse */
         AdminDebugStatusResponse: {
-            /** Checks */
-            checks: components["schemas"]["AdminDebugCheck"][];
             /** Llm Mode */
             llm_mode: string;
+            /** Openai Api Key Configured */
+            openai_api_key_configured: boolean;
+            /** Vapid Private Key Configured */
+            vapid_private_key_configured: boolean;
+            /** Vapid Public Key Configured */
+            vapid_public_key_configured: boolean;
+            /** Warnings */
+            warnings: string[];
+        };
+        /** AdminLLMConnectivityRequest */
+        AdminLLMConnectivityRequest: {
+            /**
+             * Max Tokens
+             * @default 128
+             */
+            max_tokens: number;
+            /**
+             * Model
+             * @default gpt-4o-mini
+             */
+            model: string;
+            /**
+             * Prompt
+             * @default Reply with exactly: OK
+             */
+            prompt: string;
+            /**
+             * Temperature
+             * @default 0
+             */
+            temperature: number;
         };
         /** AdminLLMConnectivityResponse */
         AdminLLMConnectivityResponse: {
@@ -703,8 +723,8 @@ export interface components {
             model: string;
             /** Ok */
             ok: boolean;
-            /** Output */
-            output?: string | null;
+            /** Response Text */
+            response_text?: string | null;
         };
         /** AdminParticipantItem */
         AdminParticipantItem: {
@@ -1286,7 +1306,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminLLMConnectivityRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1295,6 +1319,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminLLMConnectivityResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

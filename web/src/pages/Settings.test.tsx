@@ -5,8 +5,12 @@ import { Settings } from "./Settings";
 
 // ── mock api client (typed openapi-fetch) ─────────────────────────
 const mockGet = vi.fn();
+const mockPost = vi.fn();
 vi.mock("../api/client", () => ({
-  default: { GET: (...args: unknown[]) => mockGet(...args) },
+  default: {
+    GET: (...args: unknown[]) => mockGet(...args),
+    POST: (...args: unknown[]) => mockPost(...args),
+  },
 }));
 
 // ── mock apiFetch (raw fetch wrapper used for mutations) ──────────
@@ -60,32 +64,60 @@ const samplePasskeys = [
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGet.mockResolvedValue({ data: { passkeys: [] } });
-  mockApiFetch.mockImplementation((path: unknown) => {
-    if (path === "/auth/sessions") {
-      return Promise.resolve({ ok: true, data: { sessions: [] } });
+  mockGet.mockImplementation((path: unknown) => {
+    if (path === "/auth/passkeys") {
+      return Promise.resolve({ data: { passkeys: [] } });
     }
-    return Promise.resolve({ ok: true, data: {} });
+    if (path === "/auth/sessions") {
+      return Promise.resolve({ data: { sessions: [] } });
+    }
+    return Promise.resolve({ data: {} });
   });
+  mockPost.mockResolvedValue({ data: { ok: true } });
+  mockApiFetch.mockResolvedValue({ ok: true, data: {} });
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
 });
 
 describe("Settings – passkey name display", () => {
   it("renders passkey name when present", async () => {
-    mockGet.mockResolvedValue({ data: { passkeys: samplePasskeys } });
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: samplePasskeys } });
+      }
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ data: { sessions: [] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
     render(<Settings />, { wrapper });
     expect(await screen.findByText("My Laptop")).toBeInTheDocument();
   });
 
   it("renders fallback for null name", async () => {
-    mockGet.mockResolvedValue({ data: { passkeys: samplePasskeys } });
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: samplePasskeys } });
+      }
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ data: { sessions: [] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
     render(<Settings />, { wrapper });
     expect(await screen.findByText("Unnamed passkey")).toBeInTheDocument();
   });
 
   it("shows edit button only on non-revoked passkeys", async () => {
-    mockGet.mockResolvedValue({ data: { passkeys: samplePasskeys } });
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: samplePasskeys } });
+      }
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ data: { sessions: [] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
     render(<Settings />, { wrapper });
     await screen.findByText("My Laptop");
     const editButtons = screen.getAllByTestId("passkey-edit-btn");
@@ -96,8 +128,14 @@ describe("Settings – passkey name display", () => {
 
 describe("Settings – passkey rename", () => {
   it("opens inline edit form when edit button is clicked", async () => {
-    mockGet.mockResolvedValue({
-      data: { passkeys: [samplePasskeys[0]] },
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: [samplePasskeys[0]] } });
+      }
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ data: { sessions: [] } });
+      }
+      return Promise.resolve({ data: {} });
     });
     render(<Settings />, { wrapper });
     await screen.findByText("My Laptop");
@@ -108,8 +146,14 @@ describe("Settings – passkey rename", () => {
   });
 
   it("cancels edit on cancel button click", async () => {
-    mockGet.mockResolvedValue({
-      data: { passkeys: [samplePasskeys[0]] },
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: [samplePasskeys[0]] } });
+      }
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ data: { sessions: [] } });
+      }
+      return Promise.resolve({ data: {} });
     });
     render(<Settings />, { wrapper });
     await screen.findByText("My Laptop");
@@ -119,17 +163,18 @@ describe("Settings – passkey rename", () => {
   });
 
   it("saves name on save button click", async () => {
-    mockGet.mockResolvedValue({
-      data: { passkeys: [samplePasskeys[0]] },
-    });
-    mockApiFetch.mockImplementation((path: unknown) => {
-      if (path === "/auth/sessions") {
-        return Promise.resolve({ ok: true, data: { sessions: [] } });
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: [samplePasskeys[0]] } });
       }
-      return Promise.resolve({
-        ok: true,
-        data: { id: samplePasskeys[0]!.id, name: "Work Key" },
-      });
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ data: { sessions: [] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    mockApiFetch.mockResolvedValue({
+      ok: true,
+      data: { id: samplePasskeys[0]!.id, name: "Work Key" },
     });
     render(<Settings />, { wrapper });
     await screen.findByText("My Laptop");
@@ -149,8 +194,14 @@ describe("Settings – passkey rename", () => {
   });
 
   it("shows validation error for too-long name", async () => {
-    mockGet.mockResolvedValue({
-      data: { passkeys: [samplePasskeys[0]] },
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: [samplePasskeys[0]] } });
+      }
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ data: { sessions: [] } });
+      }
+      return Promise.resolve({ data: {} });
     });
     render(<Settings />, { wrapper });
     await screen.findByText("My Laptop");
@@ -164,17 +215,18 @@ describe("Settings – passkey rename", () => {
   });
 
   it("shows API error on failed rename", async () => {
-    mockGet.mockResolvedValue({
-      data: { passkeys: [samplePasskeys[0]] },
-    });
-    mockApiFetch.mockImplementation((path: unknown) => {
-      if (path === "/auth/sessions") {
-        return Promise.resolve({ ok: true, data: { sessions: [] } });
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: [samplePasskeys[0]] } });
       }
-      return Promise.resolve({
-        ok: false,
-        data: { detail: "Something went wrong" },
-      });
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ data: { sessions: [] } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    mockApiFetch.mockResolvedValue({
+      ok: false,
+      data: { detail: "Something went wrong" },
     });
     render(<Settings />, { wrapper });
     await screen.findByText("My Laptop");
@@ -188,10 +240,12 @@ describe("Settings – passkey rename", () => {
 
 describe("Settings – sessions", () => {
   it("renders current and revocable sessions", async () => {
-    mockApiFetch.mockImplementation((path: unknown) => {
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: [] } });
+      }
       if (path === "/auth/sessions") {
         return Promise.resolve({
-          ok: true,
           data: {
             sessions: [
               {
@@ -212,13 +266,28 @@ describe("Settings – sessions", () => {
           },
         });
       }
-      return Promise.resolve({ ok: true, data: {} });
+      return Promise.resolve({ data: {} });
     });
     render(<Settings />, { wrapper });
     expect(await screen.findByText("My Laptop")).toBeInTheDocument();
     expect(screen.getByText("Current")).toBeInTheDocument();
     expect(screen.getByText("Phone")).toBeInTheDocument();
     expect(screen.getAllByText("Revoke")).toHaveLength(1);
+  });
+
+  it("shows sessions error and avoids empty-state on request failure", async () => {
+    mockGet.mockImplementation((path: unknown) => {
+      if (path === "/auth/passkeys") {
+        return Promise.resolve({ data: { passkeys: [] } });
+      }
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ error: { detail: "boom" } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    render(<Settings />, { wrapper });
+    expect(await screen.findByText("Failed to load sessions")).toBeInTheDocument();
+    expect(screen.queryByText("No sessions found.")).not.toBeInTheDocument();
   });
 });
 

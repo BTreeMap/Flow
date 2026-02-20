@@ -1,21 +1,25 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  Brush,
   Fingerprint,
+  MonitorCog,
   Plus,
   Trash2,
   AlertCircle,
   Pencil,
   Check,
   X,
+  LogOut,
 } from "lucide-react";
 import { apiFetch } from "../auth";
 import { toCreateOptions, serializeCreateResponse } from "../auth/webauthn";
 import { Card, CardContent, CardHeader } from "../components/Card";
 import { Button } from "../components/Button";
 import { Alert } from "../components/Alert";
+import { SectionHeader } from "../components/SectionHeader";
 import api from "../api/client";
-import type { PasskeyInfo } from "../api/types";
+import type { AuthSessionItem, AuthSessionsResponse, PasskeyInfo } from "../api/types";
 import {
   applyThemePreference,
   readThemePreference,
@@ -23,14 +27,6 @@ import {
 } from "../theme";
 
 const MAX_NAME_LENGTH = 64;
-
-interface SessionInfo {
-  device_id: string;
-  label: string | null;
-  created_at: string;
-  revoked_at: string | null;
-  is_current: boolean;
-}
 
 function PasskeyName({
   passkey,
@@ -164,12 +160,17 @@ export function Settings() {
       return data.passkeys;
     },
   });
-  const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionInfo[]>({
+  const {
+    data: sessions,
+    isLoading: sessionsLoading,
+    isError: sessionsIsError,
+    error: sessionsError,
+  } = useQuery<AuthSessionItem[], Error>({
     queryKey: ["sessions"],
     queryFn: async () => {
-      const res = await apiFetch<{ sessions: SessionInfo[] }>("/auth/sessions");
-      if (!res.ok) throw new Error("Failed to load sessions");
-      return res.data.sessions ?? [];
+      const { data, error } = await api.GET("/auth/sessions");
+      if (error) throw new Error("Failed to load sessions");
+      return (data as AuthSessionsResponse).sessions ?? [];
     },
   });
 
@@ -214,10 +215,10 @@ export function Settings() {
   });
   const revokeSessionMutation = useMutation({
     mutationFn: async (deviceId: string) => {
-      const res = await apiFetch(`/auth/sessions/${deviceId}/revoke`, {
-        method: "POST",
+      const { error } = await api.POST("/auth/sessions/{device_id}/revoke", {
+        params: { path: { device_id: deviceId } },
       });
-      if (!res.ok) throw new Error("Failed to revoke session");
+      if (error) throw new Error("Failed to revoke session");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
@@ -291,7 +292,7 @@ export function Settings() {
 
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-semibold text-text">Theme</h2>
+          <SectionHeader icon={<Brush className="w-5 h-5" />} title="Theme" />
         </CardHeader>
         <CardContent>
           <fieldset className="space-y-2">
@@ -324,11 +325,19 @@ export function Settings() {
 
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-semibold text-text">Sessions</h2>
+          <SectionHeader
+            icon={<MonitorCog className="w-5 h-5" />}
+            title="Sessions"
+            subtitle="Manage signed-in devices"
+          />
         </CardHeader>
         <CardContent>
           {sessionsLoading ? (
             <p className="text-sm text-text-muted">Loading…</p>
+          ) : sessionsIsError ? (
+            <Alert variant="error">
+              {sessionsError?.message || "Failed to load sessions"}
+            </Alert>
           ) : sessions && sessions.length > 0 ? (
             <div className="divide-y divide-border">
               {sessions.map((session) => (
@@ -356,6 +365,7 @@ export function Settings() {
                       size="sm"
                       onClick={() => revokeSessionMutation.mutate(session.device_id)}
                     >
+                      <LogOut className="w-3 h-3" />
                       Revoke
                     </Button>
                   )}
@@ -372,22 +382,22 @@ export function Settings() {
 
       <Card>
         <CardHeader className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Fingerprint className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-text">Passkeys</h2>
-            <span className="text-sm text-text-muted">
-              ({activePasskeys.length} active)
-            </span>
-          </div>
-          <Button
-            size="sm"
-            onClick={handleAddPasskey}
-            disabled={addLoading}
-            data-testid="add-passkey-btn"
-          >
-            <Plus className="w-4 h-4" />
-            {addLoading ? "Adding..." : "Add Passkey"}
-          </Button>
+          <SectionHeader
+            icon={<Fingerprint className="w-5 h-5" />}
+            title="Passkeys"
+            subtitle={`${activePasskeys.length} active`}
+            action={
+              <Button
+                size="sm"
+                onClick={handleAddPasskey}
+                disabled={addLoading}
+                data-testid="add-passkey-btn"
+              >
+                <Plus className="w-4 h-4" />
+                {addLoading ? "Adding..." : "Add Passkey"}
+              </Button>
+            }
+          />
         </CardHeader>
         <CardContent>
           {isLoading ? (

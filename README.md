@@ -86,6 +86,29 @@ The frontend dev server runs at `http://localhost:5173` and proxies API requests
 
 To run real LLM responses instead of stub mode, set `OPENAI_API_KEY` (or `H4CKATH0N_OPENAI_API_KEY`) in your root `.env` before starting the backend. Keep this value secret and never commit it.
 
+### Runtime configuration warnings
+
+- Missing `OPENAI_API_KEY` / `H4CKATH0N_OPENAI_API_KEY` → chat runs in **stub mode**.
+- Missing `VAPID_PUBLIC_KEY` or `VAPID_PRIVATE_KEY` → **push notifications are disabled**.
+
+### VAPID Web Push configuration
+
+Flow uses standard Web Push VAPID keys for push subscription and delivery.
+
+Required environment variables:
+
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+
+Generate keys (example using Python `py_vapid`):
+
+```bash
+python -m pip install py-vapid
+python -m py_vapid --gen
+```
+
+Copy the generated public/private keys into `.env`.
+
 ## Project Structure
 
 ```
