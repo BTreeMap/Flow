@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Brush,
   Fingerprint,
-  MonitorCog,
   Plus,
   Trash2,
   AlertCircle,
@@ -11,6 +10,7 @@ import {
   Check,
   X,
   LogOut,
+  Smartphone,
 } from "lucide-react";
 import { apiFetch } from "../auth";
 import { toCreateOptions, serializeCreateResponse } from "../auth/webauthn";
@@ -326,8 +326,8 @@ export function Settings() {
       <Card>
         <CardHeader>
           <SectionHeader
-            icon={<MonitorCog className="w-5 h-5" />}
-            title="Sessions"
+            icon={<Smartphone className="w-5 h-5" />}
+            title="Devices"
             subtitle="Manage signed-in devices"
           />
         </CardHeader>
@@ -336,7 +336,7 @@ export function Settings() {
             <p className="text-sm text-text-muted">Loading…</p>
           ) : sessionsIsError ? (
             <Alert variant="error">
-              {sessionsError?.message || "Failed to load sessions"}
+              {sessionsError?.message || "Failed to load devices"}
             </Alert>
           ) : sessions && sessions.length > 0 ? (
             <div className="divide-y divide-border">
@@ -374,7 +374,7 @@ export function Settings() {
             </div>
           ) : (
             <p className="text-sm text-text-muted py-4 text-center">
-              No sessions found.
+              No devices found.
             </p>
           )}
         </CardContent>
