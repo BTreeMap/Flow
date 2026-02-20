@@ -186,14 +186,19 @@ All project-scoped endpoints require passkey authentication.
 | Method | Path | Tag | Description |
 |--------|------|-----|-------------|
 | `GET` | `/healthz` | infra | Readiness probe |
+| `GET` | `/me` | user | Current user profile (email, display_name, is_admin) |
+| `PATCH` | `/me` | user | Update email and/or display name |
 | `GET` | `/dashboard` | dashboard | List user's project memberships |
 | `POST` | `/p/{project_id}/activate/claim` | activation | Claim invite code, create membership + conversation |
-| `GET` | `/p/{project_id}/me` | activation | Get membership status, conversation ID, stored email |
+| `GET` | `/p/{project_id}/me` | activation | Get membership status, conversation ID |
 | `POST` | `/p/{project_id}/messages` | messaging | Send message, get assistant reply |
 | `GET` | `/p/{project_id}/events` | streaming | SSE event stream for real-time updates |
 | `GET` | `/p/{project_id}/push/vapid-public-key` | push | Get VAPID public key for push subscription |
 | `POST` | `/p/{project_id}/push/subscribe` | push | Store a push subscription |
 | `POST` | `/p/{project_id}/push/unsubscribe` | push | Revoke a push subscription |
+| `PATCH` | `/admin/projects/{project_id}` | admin | Update project name or status |
+| `GET` | `/admin/projects/{project_id}/push/channels` | admin | List push subscriptions for a project |
+| `POST` | `/admin/push/test` | admin | Send test push notification to selected subscriptions |
 | `GET` | `/demo/ping` | demo | Liveness ping |
 | `POST` | `/demo/echo` | demo | Echo with reverse |
 | `GET` | `/demo/sse` | demo | Authenticated SSE demo stream |
@@ -206,7 +211,8 @@ All project-scoped endpoints require passkey authentication.
 | `projects` | `p...` (custom, 32 chars) | User-visible research projects |
 | `project_invites` | auto-increment int | Hashed invite codes with expiry |
 | `project_memberships` | auto-increment int | Links (project, user) with status; unique constraint |
-| `participant_contacts` | auto-increment int | Optional email contact metadata (not used for identity) |
+| `participant_contacts` | auto-increment int | Legacy email contact metadata (per-membership) |
+| `flow_user_profiles` | user_id (string PK) | User-level display_name (not per-project) |
 | `conversations` | auto-increment int | 1:1 with membership |
 | `messages` | auto-increment int | Chat history with `server_msg_id` (36-char string: `m` + 35 lowercase base32 chars; UUID-length for DB schema compatibility) |
 | `conversation_runtime_state` | FK to conversation | JSON blob for engine state |
@@ -259,13 +265,14 @@ The legacy conversation flow engine (`api/app/engine/`) is retained for backward
 | Route | Page | Description |
 |-------|------|-------------|
 | `/` | Landing | Public landing page |
-| `/register` | Register | Passkey registration |
-| `/login` | Login | Passkey login |
+| `/register` | Register | Passkey registration stepper: email → passkey → display name |
+| `/login` | Login | Passkey login with return_to support |
 | `/dashboard` | Dashboard | List project threads (active/ended) |
-| `/p/:projectId/activate` | Activation | Join project via invite link, collect optional email |
+| `/p/:projectId/activate` | Activation | Join project via invite link; requests email only if missing |
 | `/p/:projectId/chat` | ChatThread | Send messages via POST, receive via SSE |
 | `/p/:projectId/notifications` | Notifications | PWA install guidance, enable push notifications |
-| `/settings` | Settings | User settings |
+| `/settings` | Settings | User profile (email, display name), theme, devices, passkeys |
+| `/admin` | Admin | Project management, invite generation, push testing, debug tools |
 
 ## PWA & Push Notifications
 
