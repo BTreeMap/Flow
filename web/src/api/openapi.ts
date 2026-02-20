@@ -4,2722 +4,2724 @@
  */
 
 export interface paths {
-    "/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Welcome
-         * @description Default root route provided by h4ckath0n.
-         */
-        get: operations["root__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/admin/debug/llm-connectivity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Admin Debug Llm Connectivity */
-        post: operations["admin_debug_llm_connectivity_admin_debug_llm_connectivity_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Welcome
+     * @description Default root route provided by h4ckath0n.
+     */
+    get: operations["root__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/debug/llm-connectivity": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/admin/debug/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Admin Debug Status */
-        get: operations["admin_debug_status_admin_debug_status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Admin Debug Llm Connectivity */
+    post: operations["admin_debug_llm_connectivity_admin_debug_llm_connectivity_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/debug/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/admin/projects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Admin List Projects */
-        get: operations["admin_list_projects_admin_projects_get"];
-        put?: never;
-        /** Admin Create Project */
-        post: operations["admin_create_project_admin_projects_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Admin Debug Status */
+    get: operations["admin_debug_status_admin_debug_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/projects": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/admin/projects/{project_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Admin Update Project */
-        patch: operations["admin_update_project_admin_projects__project_id__patch"];
-        trace?: never;
+    /** Admin List Projects */
+    get: operations["admin_list_projects_admin_projects_get"];
+    put?: never;
+    /** Admin Create Project */
+    post: operations["admin_create_project_admin_projects_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/projects/{project_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/admin/projects/{project_id}/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Admin Project Export */
-        get: operations["admin_project_export_admin_projects__project_id__export_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Admin Update Project */
+    patch: operations["admin_update_project_admin_projects__project_id__patch"];
+    trace?: never;
+  };
+  "/admin/projects/{project_id}/export": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/admin/projects/{project_id}/invites": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Admin Create Invites */
-        post: operations["admin_create_invites_admin_projects__project_id__invites_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Admin Project Export */
+    get: operations["admin_project_export_admin_projects__project_id__export_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/projects/{project_id}/invites": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/admin/projects/{project_id}/participants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Admin Project Participants */
-        get: operations["admin_project_participants_admin_projects__project_id__participants_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Admin Create Invites */
+    post: operations["admin_create_invites_admin_projects__project_id__invites_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/projects/{project_id}/participants": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/admin/projects/{project_id}/push/channels": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Admin Push Channels */
-        get: operations["admin_push_channels_admin_projects__project_id__push_channels_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Admin Project Participants */
+    get: operations["admin_project_participants_admin_projects__project_id__participants_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/projects/{project_id}/push/channels": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/admin/push/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Admin Push Test */
-        post: operations["admin_push_test_admin_push_test_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Admin Push Channels */
+    get: operations["admin_push_channels_admin_projects__project_id__push_channels_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/push/test": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Auth Me */
-        get: operations["auth_me_auth_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Admin Push Test */
+    post: operations["admin_push_test_admin_push_test_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/passkey/add/finish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Finish adding a passkey
-         * @description Verify the WebAuthn attestation and attach the new passkey to the user.
-         */
-        post: operations["add_finish_auth_passkey_add_finish_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Auth Me */
+    get: operations["auth_me_auth_me_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/passkey/add/finish": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/passkey/add/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start adding a passkey
-         * @description Begin adding a new passkey for the authenticated user and return registration options.
-         */
-        post: operations["add_start_auth_passkey_add_start_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Finish adding a passkey
+     * @description Verify the WebAuthn attestation and attach the new passkey to the user.
+     */
+    post: operations["add_finish_auth_passkey_add_finish_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/passkey/add/start": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/passkey/login/finish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Finish passkey login
-         * @description Finish passkey login by verifying the WebAuthn assertion for the flow and binding an optional device key.
-         */
-        post: operations["login_finish_auth_passkey_login_finish_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Start adding a passkey
+     * @description Begin adding a new passkey for the authenticated user and return registration options.
+     */
+    post: operations["add_start_auth_passkey_add_start_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/passkey/login/finish": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/passkey/login/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start passkey login
-         * @description Begin a username-less passkey login ceremony and return WebAuthn authentication options.
-         */
-        post: operations["login_start_auth_passkey_login_start_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Finish passkey login
+     * @description Finish passkey login by verifying the WebAuthn assertion for the flow and binding an optional device key.
+     */
+    post: operations["login_finish_auth_passkey_login_finish_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/passkey/login/start": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/passkey/register/finish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Finish passkey registration
-         * @description Finish passkey registration by verifying the WebAuthn attestation for the flow and binding an optional device key.
-         */
-        post: operations["register_finish_auth_passkey_register_finish_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Start passkey login
+     * @description Begin a username-less passkey login ceremony and return WebAuthn authentication options.
+     */
+    post: operations["login_start_auth_passkey_login_start_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/passkey/register/finish": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/passkey/register/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start passkey registration
-         * @description Begin a passkey registration ceremony. Creates a new user and a single-use challenge flow, then returns WebAuthn registration options.
-         */
-        post: operations["register_start_auth_passkey_register_start_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Finish passkey registration
+     * @description Finish passkey registration by verifying the WebAuthn attestation for the flow and binding an optional device key.
+     */
+    post: operations["register_finish_auth_passkey_register_finish_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/passkey/register/start": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/passkeys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List passkeys
-         * @description List all passkeys, including revoked entries, for the current user.
-         */
-        get: operations["passkeys_list_auth_passkeys_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Start passkey registration
+     * @description Begin a passkey registration ceremony. Creates a new user and a single-use challenge flow, then returns WebAuthn registration options.
+     */
+    post: operations["register_start_auth_passkey_register_start_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/passkeys": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/passkeys/{key_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Rename a passkey
-         * @description Update the user-facing name of a passkey.
-         */
-        patch: operations["passkey_rename_auth_passkeys__key_id__patch"];
-        trace?: never;
+    /**
+     * List passkeys
+     * @description List all passkeys, including revoked entries, for the current user.
+     */
+    get: operations["passkeys_list_auth_passkeys_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/passkeys/{key_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/passkeys/{key_id}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Revoke a passkey
-         * @description Revoke a passkey by its internal key ID. The last active passkey cannot be revoked and returns the LAST_PASSKEY error.
-         */
-        post: operations["passkey_revoke_auth_passkeys__key_id__revoke_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Rename a passkey
+     * @description Update the user-facing name of a passkey.
+     */
+    patch: operations["passkey_rename_auth_passkeys__key_id__patch"];
+    trace?: never;
+  };
+  "/auth/passkeys/{key_id}/revoke": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Auth Sessions */
-        get: operations["auth_sessions_auth_sessions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Revoke a passkey
+     * @description Revoke a passkey by its internal key ID. The last active passkey cannot be revoked and returns the LAST_PASSKEY error.
+     */
+    post: operations["passkey_revoke_auth_passkeys__key_id__revoke_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/sessions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/auth/sessions/{device_id}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Revoke Auth Session */
-        post: operations["revoke_auth_session_auth_sessions__device_id__revoke_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Auth Sessions */
+    get: operations["auth_sessions_auth_sessions_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/sessions/{device_id}/revoke": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/dashboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Dashboard
-         * @description Return all memberships with project info for the current user.
-         */
-        get: operations["dashboard_dashboard_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Revoke Auth Session */
+    post: operations["revoke_auth_session_auth_sessions__device_id__revoke_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/dashboard": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/demo/echo": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Demo Echo
-         * @description Echo back the message along with its reverse.
-         */
-        post: operations["demo_echo_demo_echo_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Dashboard
+     * @description Return all memberships with project info for the current user.
+     */
+    get: operations["dashboard_dashboard_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/demo/echo": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/demo/ping": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Demo Ping
-         * @description Simple liveness ping for the demo namespace.
-         */
-        get: operations["demo_ping_demo_ping_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Demo Echo
+     * @description Echo back the message along with its reverse.
+     */
+    post: operations["demo_echo_demo_echo_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/demo/ping": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/demo/sse": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Demo Sse
-         * @description Authenticated SSE stream that simulates LLM-style output chunks.
-         *
-         *     Auth: ``Authorization: Bearer <device_jwt>`` with ``aud = h4ckath0n:sse``.
-         */
-        get: operations["demo_sse_demo_sse_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Demo Ping
+     * @description Simple liveness ping for the demo namespace.
+     */
+    get: operations["demo_ping_demo_ping_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/demo/sse": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Health
-         * @description Basic health check for the app.
-         */
-        get: operations["health_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Demo Sse
+     * @description Authenticated SSE stream that simulates LLM-style output chunks.
+     *
+     *     Auth: ``Authorization: Bearer <device_jwt>`` with ``aud = h4ckath0n:sse``.
+     */
+    get: operations["demo_sse_demo_sse_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/health": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/healthz": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Healthz
-         * @description Readiness check for E2E and deployment probes.
-         */
-        get: operations["healthz_healthz_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Health
+     * @description Basic health check for the app.
+     */
+    get: operations["health_health_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/healthz": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Me
-         * @description Return current user profile including email and display name.
-         */
-        get: operations["get_me_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Me
-         * @description Update current user's email and/or display name.
-         */
-        patch: operations["update_me_me_patch"];
-        trace?: never;
+    /**
+     * Healthz
+     * @description Readiness check for E2E and deployment probes.
+     */
+    get: operations["healthz_healthz_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/p/{project_id}/activate/claim": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Claim Invite
-         * @description Validate invite code, create membership and conversation.
-         */
-        post: operations["claim_invite_p__project_id__activate_claim_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Get Me
+     * @description Return current user profile including email and display name.
+     */
+    get: operations["get_me_me_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update Me
+     * @description Update current user's email and/or display name.
+     */
+    patch: operations["update_me_me_patch"];
+    trace?: never;
+  };
+  "/p/{project_id}/activate/claim": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/p/{project_id}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Event Stream
-         * @description SSE stream for real-time events on a project conversation.
-         */
-        get: operations["event_stream_p__project_id__events_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Claim Invite
+     * @description Validate invite code, create membership and conversation.
+     */
+    post: operations["claim_invite_p__project_id__activate_claim_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/p/{project_id}/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/p/{project_id}/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Project Me
-         * @description Return membership status, conversation id, and stored email.
-         */
-        get: operations["project_me_p__project_id__me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Event Stream
+     * @description SSE stream for real-time events on a project conversation.
+     */
+    get: operations["event_stream_p__project_id__events_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/p/{project_id}/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/p/{project_id}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Messages
-         * @description Return persisted messages for a project conversation.
-         */
-        get: operations["list_messages_p__project_id__messages_get"];
-        put?: never;
-        /**
-         * Send Message
-         * @description Persist user message, run engine turn, persist assistant reply.
-         */
-        post: operations["send_message_p__project_id__messages_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Project Me
+     * @description Return membership status, conversation id, and stored email.
+     */
+    get: operations["project_me_p__project_id__me_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/p/{project_id}/messages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/p/{project_id}/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Profile */
-        get: operations["get_profile_p__project_id__profile_get"];
-        /** Put Profile */
-        put: operations["put_profile_p__project_id__profile_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * List Messages
+     * @description Return persisted messages for a project conversation.
+     */
+    get: operations["list_messages_p__project_id__messages_get"];
+    put?: never;
+    /**
+     * Send Message
+     * @description Persist user message, run engine turn, persist assistant reply.
+     */
+    post: operations["send_message_p__project_id__messages_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/p/{project_id}/profile": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/p/{project_id}/push/subscribe": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Push Subscribe
-         * @description Store a push subscription for the current membership.
-         */
-        post: operations["push_subscribe_p__project_id__push_subscribe_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Profile */
+    get: operations["get_profile_p__project_id__profile_get"];
+    /** Put Profile */
+    put: operations["put_profile_p__project_id__profile_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/p/{project_id}/push/subscribe": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/p/{project_id}/push/unsubscribe": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Push Unsubscribe
-         * @description Revoke a push subscription by endpoint.
-         */
-        post: operations["push_unsubscribe_p__project_id__push_unsubscribe_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Push Subscribe
+     * @description Store a push subscription for the current membership.
+     */
+    post: operations["push_subscribe_p__project_id__push_subscribe_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/p/{project_id}/push/unsubscribe": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/p/{project_id}/push/vapid-public-key": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Vapid Public Key
-         * @description Return the VAPID public key from environment.
-         */
-        get: operations["vapid_public_key_p__project_id__push_vapid_public_key_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Push Unsubscribe
+     * @description Revoke a push subscription by endpoint.
+     */
+    post: operations["push_unsubscribe_p__project_id__push_unsubscribe_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/p/{project_id}/push/vapid-public-key": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /**
+     * Vapid Public Key
+     * @description Return the VAPID public key from environment.
+     */
+    get: operations["vapid_public_key_p__project_id__push_vapid_public_key_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** AdminCreateInviteRequest */
-        AdminCreateInviteRequest: {
-            /**
-             * Count
-             * @default 1
-             */
-            count: number;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /** Label */
-            label?: string | null;
-            /** Max Uses */
-            max_uses?: number | null;
-        };
-        /** AdminCreateInvitesResponse */
-        AdminCreateInvitesResponse: {
-            /** Invite Codes */
-            invite_codes: string[];
-        };
-        /** AdminCreateProjectRequest */
-        AdminCreateProjectRequest: {
-            /** Display Name */
-            display_name: string;
-            /** Study Settings */
-            study_settings?: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /** AdminDebugStatusResponse */
-        AdminDebugStatusResponse: {
-            /** Llm Mode */
-            llm_mode: string;
-            /** Openai Api Key Configured */
-            openai_api_key_configured: boolean;
-            /** Vapid Private Key Configured */
-            vapid_private_key_configured: boolean;
-            /** Vapid Public Key Configured */
-            vapid_public_key_configured: boolean;
-            /** Warnings */
-            warnings: string[];
-        };
-        /** AdminLLMConnectivityRequest */
-        AdminLLMConnectivityRequest: {
-            /**
-             * Max Tokens
-             * @default 128
-             */
-            max_tokens: number;
-            /**
-             * Model
-             * @default gpt-4o-mini
-             */
-            model: string;
-            /**
-             * Prompt
-             * @default Reply with exactly: OK
-             */
-            prompt: string;
-            /**
-             * Temperature
-             * @default 0
-             */
-            temperature: number;
-        };
-        /** AdminLLMConnectivityResponse */
-        AdminLLMConnectivityResponse: {
-            /** Error */
-            error?: string | null;
-            /** Latency Ms */
-            latency_ms: number;
-            /** Model */
-            model: string;
-            /** Ok */
-            ok: boolean;
-            /** Response Text */
-            response_text?: string | null;
-        };
-        /** AdminParticipantItem */
-        AdminParticipantItem: {
-            /** Created At */
-            created_at: string;
-            /** Email */
-            email?: string | null;
-            /** Ended At */
-            ended_at?: string | null;
-            /** Last Push Failure At */
-            last_push_failure_at?: string | null;
-            /** Last Push Success At */
-            last_push_success_at?: string | null;
-            /** Push Subscription Count */
-            push_subscription_count: number;
-            /** Status */
-            status: string;
-            /** User Id */
-            user_id: string;
-        };
-        /** AdminParticipantsResponse */
-        AdminParticipantsResponse: {
-            /** Participants */
-            participants: components["schemas"]["AdminParticipantItem"][];
-        };
-        /** AdminProjectItem */
-        AdminProjectItem: {
-            /** Created At */
-            created_at: string;
-            /** Display Name */
-            display_name?: string | null;
-            /** Member Count */
-            member_count: number;
-            /** Project Id */
-            project_id: string;
-            /**
-             * Status
-             * @default active
-             */
-            status: string;
-        };
-        /** AdminProjectUpdateRequest */
-        AdminProjectUpdateRequest: {
-            /** Display Name */
-            display_name?: string | null;
-            /** Status */
-            status?: string | null;
-        };
-        /** AdminProjectsResponse */
-        AdminProjectsResponse: {
-            /** Projects */
-            projects: components["schemas"]["AdminProjectItem"][];
-        };
-        /** AdminPushChannelItem */
-        AdminPushChannelItem: {
-            /** Created At */
-            created_at: string;
-            /** Display Name */
-            display_name?: string | null;
-            /** Endpoint Hint */
-            endpoint_hint: string;
-            /** Last Failure At */
-            last_failure_at?: string | null;
-            /** Last Success At */
-            last_success_at?: string | null;
-            /** Membership Id */
-            membership_id: number;
-            /** Subscription Id */
-            subscription_id: number;
-            /** User Email */
-            user_email?: string | null;
-            /** User Id */
-            user_id: string;
-        };
-        /** AdminPushChannelsResponse */
-        AdminPushChannelsResponse: {
-            /** Channels */
-            channels: components["schemas"]["AdminPushChannelItem"][];
-        };
-        /** AdminPushTestRequest */
-        AdminPushTestRequest: {
-            /** Body */
-            body: string;
-            /** Project Id */
-            project_id: string;
-            /** Subscription Ids */
-            subscription_ids: number[];
-            /** Title */
-            title: string;
-            /** Url */
-            url?: string | null;
-        };
-        /** AdminPushTestResponse */
-        AdminPushTestResponse: {
-            /** Results */
-            results: components["schemas"]["AdminPushTestResultItem"][];
-        };
-        /** AdminPushTestResultItem */
-        AdminPushTestResultItem: {
-            /** Error */
-            error?: string | null;
-            /** Ok */
-            ok: boolean;
-            /** Subscription Id */
-            subscription_id: number;
-        };
-        /** AuthMeResponse */
-        AuthMeResponse: {
-            /** Role */
-            role: string;
-            /** User Id */
-            user_id: string;
-        };
-        /** AuthSessionItem */
-        AuthSessionItem: {
-            /** Created At */
-            created_at: string;
-            /** Device Id */
-            device_id: string;
-            /** Is Current */
-            is_current: boolean;
-            /** Label */
-            label?: string | null;
-            /** Revoked At */
-            revoked_at?: string | null;
-        };
-        /** AuthSessionRevokeResponse */
-        AuthSessionRevokeResponse: {
-            /** Ok */
-            ok: boolean;
-        };
-        /** AuthSessionsResponse */
-        AuthSessionsResponse: {
-            /** Sessions */
-            sessions: components["schemas"]["AuthSessionItem"][];
-        };
-        /** ClaimRequest */
-        ClaimRequest: {
-            /** Invite Code */
-            invite_code: string;
-        };
-        /** ClaimResponse */
-        ClaimResponse: {
-            /** Conversation Id */
-            conversation_id: number;
-            /** Membership Status */
-            membership_status: string;
-            /** Project Id */
-            project_id: string;
-        };
-        /** DashboardResponse */
-        DashboardResponse: {
-            /** Memberships */
-            memberships: components["schemas"]["MembershipInfo"][];
-        };
-        /** EchoRequest */
-        EchoRequest: {
-            /** Message */
-            message: string;
-        };
-        /** EchoResponse */
-        EchoResponse: {
-            /** Message */
-            message: string;
-            /** Reversed */
-            reversed: string;
-        };
-        /**
-         * ErrorResponse
-         * @description Standard error envelope for auth routes.
-         */
-        ErrorResponse: {
-            /**
-             * Detail
-             * @description Error detail message or structured error payload.
-             */
-            detail: string | {
-                [key: string]: string;
-            };
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** HealthResponse */
-        HealthResponse: {
-            /**
-             * Status
-             * @description Health status string.
-             */
-            status: string;
-        };
-        /** MeResponse */
-        MeResponse: {
-            /** Conversation Id */
-            conversation_id?: number | null;
-            /** Email */
-            email?: string | null;
-            /** Membership Status */
-            membership_status: string;
-        };
-        /** MembershipInfo */
-        MembershipInfo: {
-            /** Conversation Id */
-            conversation_id?: number | null;
-            /** Display Name */
-            display_name?: string | null;
-            /** Project Id */
-            project_id: string;
-            /** Status */
-            status: string;
-        };
-        /** MessageItem */
-        MessageItem: {
-            /** Content */
-            content: string;
-            /** Created At */
-            created_at: string;
-            /** Message Id */
-            message_id: number;
-            /** Role */
-            role: string;
-            /** Server Msg Id */
-            server_msg_id: string;
-        };
-        /** MessageListResponse */
-        MessageListResponse: {
-            /** Messages */
-            messages: components["schemas"]["MessageItem"][];
-        };
-        /** PasskeyAddFinishRequest */
-        PasskeyAddFinishRequest: {
-            /**
-             * Credential
-             * @description Browser PublicKeyCredential response as JSON.
-             */
-            credential: {
-                [key: string]: unknown;
-            };
-            /**
-             * Device Label
-             * @description Optional label for the device.
-             */
-            device_label?: string | null;
-            /**
-             * Device Public Key Jwk
-             * @description Optional device public key in JWK format to bind a device identity.
-             */
-            device_public_key_jwk?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Flow Id
-             * @description Flow ID returned by add/start.
-             */
-            flow_id: string;
-        };
-        /** PasskeyAddStartResponse */
-        PasskeyAddStartResponse: {
-            /**
-             * Flow Id
-             * @description Server-generated flow ID for add passkey.
-             */
-            flow_id: string;
-            /**
-             * Options
-             * @description PublicKeyCredentialCreationOptions payload as a JSON-safe dict.
-             */
-            options: {
-                [key: string]: unknown;
-            };
-        };
-        /** PasskeyFinishResponse */
-        PasskeyFinishResponse: {
-            /**
-             * Device Id
-             * @description Device ID that starts with the d prefix, empty when no device key is bound.
-             */
-            device_id: string;
-            /**
-             * Display Name
-             * @description Optional display name for the user, not set by default.
-             */
-            display_name?: string | null;
-            /**
-             * Role
-             * @description Server-side role for the user.
-             */
-            role: string;
-            /**
-             * User Id
-             * @description User ID that starts with the u prefix.
-             */
-            user_id: string;
-        };
-        /** PasskeyInfo */
-        PasskeyInfo: {
-            /**
-             * Created At
-             * Format: date-time
-             * @description Creation timestamp in UTC.
-             */
-            created_at: string;
-            /**
-             * Id
-             * @description Internal passkey ID that starts with the k prefix.
-             */
-            id: string;
-            /**
-             * Last Used At
-             * @description Last successful use timestamp.
-             */
-            last_used_at?: string | null;
-            /**
-             * Name
-             * @description User-provided passkey name.
-             */
-            name?: string | null;
-            /**
-             * Revoked At
-             * @description Revocation timestamp, if revoked.
-             */
-            revoked_at?: string | null;
-        };
-        /** PasskeyListResponse */
-        PasskeyListResponse: {
-            /**
-             * Passkeys
-             * @description Passkeys for the current user.
-             */
-            passkeys: components["schemas"]["PasskeyInfo"][];
-        };
-        /** PasskeyLoginFinishRequest */
-        PasskeyLoginFinishRequest: {
-            /**
-             * Credential
-             * @description Browser PublicKeyCredential response as JSON.
-             */
-            credential: {
-                [key: string]: unknown;
-            };
-            /**
-             * Device Label
-             * @description Optional label for the device.
-             */
-            device_label?: string | null;
-            /**
-             * Device Public Key Jwk
-             * @description Optional device public key in JWK format to bind a device identity.
-             */
-            device_public_key_jwk?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Flow Id
-             * @description Flow ID returned by login/start.
-             */
-            flow_id: string;
-        };
-        /** PasskeyLoginStartResponse */
-        PasskeyLoginStartResponse: {
-            /**
-             * Flow Id
-             * @description Server-generated flow ID for login.
-             */
-            flow_id: string;
-            /**
-             * Options
-             * @description PublicKeyCredentialRequestOptions payload as a JSON-safe dict.
-             */
-            options: {
-                [key: string]: unknown;
-            };
-        };
-        /** PasskeyRegisterFinishRequest */
-        PasskeyRegisterFinishRequest: {
-            /**
-             * Credential
-             * @description Browser PublicKeyCredential response as JSON.
-             */
-            credential: {
-                [key: string]: unknown;
-            };
-            /**
-             * Device Label
-             * @description Optional label for the device.
-             */
-            device_label?: string | null;
-            /**
-             * Device Public Key Jwk
-             * @description Optional device public key in JWK format to bind a device identity.
-             */
-            device_public_key_jwk?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Flow Id
-             * @description Flow ID returned by register/start.
-             */
-            flow_id: string;
-        };
-        /** PasskeyRegisterStartResponse */
-        PasskeyRegisterStartResponse: {
-            /**
-             * Flow Id
-             * @description Server-generated flow ID for registration.
-             */
-            flow_id: string;
-            /**
-             * Options
-             * @description PublicKeyCredentialCreationOptions payload as a JSON-safe dict.
-             */
-            options: {
-                [key: string]: unknown;
-            };
-        };
-        /** PasskeyRenameRequest */
-        PasskeyRenameRequest: {
-            /**
-             * Name
-             * @description New passkey name. Null or empty to clear.
-             */
-            name?: string | null;
-        };
-        /** PasskeyRenameResponse */
-        PasskeyRenameResponse: {
-            /**
-             * Id
-             * @description Internal passkey ID.
-             */
-            id: string;
-            /**
-             * Name
-             * @description Updated passkey name.
-             */
-            name?: string | null;
-        };
-        /** PasskeyRevokeResponse */
-        PasskeyRevokeResponse: {
-            /**
-             * Message
-             * @description Status message for the revocation action.
-             */
-            message: string;
-        };
-        /** PingResponse */
-        PingResponse: {
-            /** Ok */
-            ok: boolean;
-        };
-        /** ProfileUpdateRequest */
-        ProfileUpdateRequest: {
-            /**
-             * Habit Domain
-             * @default
-             */
-            habit_domain: string;
-            /**
-             * Motivational Frame
-             * @default
-             */
-            motivational_frame: string;
-            /** Preferred Time */
-            preferred_time: string;
-            /** Prompt Anchor */
-            prompt_anchor: string;
-        };
-        /** PushSubscribeRequest */
-        PushSubscribeRequest: {
-            /** Endpoint */
-            endpoint: string;
-            /** Keys */
-            keys: {
-                [key: string]: string;
-            };
-            /** User Agent */
-            user_agent?: string | null;
-        };
-        /** PushSubscribeResponse */
-        PushSubscribeResponse: {
-            /** Subscription Id */
-            subscription_id: number;
-        };
-        /** PushUnsubscribeRequest */
-        PushUnsubscribeRequest: {
-            /** Endpoint */
-            endpoint: string;
-        };
-        /** PushUnsubscribeResponse */
-        PushUnsubscribeResponse: {
-            /** Ok */
-            ok: boolean;
-        };
-        /** RootResponse */
-        RootResponse: {
-            /**
-             * Message
-             * @description Welcome message.
-             */
-            message: string;
-        };
-        /** SendMessageRequest */
-        SendMessageRequest: {
-            /** Client Msg Id */
-            client_msg_id?: string | null;
-            /** Text */
-            text: string;
-        };
-        /** SendMessageResponse */
-        SendMessageResponse: {
-            /** Content */
-            content: string;
-            /** Message Id */
-            message_id: number;
-            /** Role */
-            role: string;
-            /** Server Msg Id */
-            server_msg_id: string;
-        };
-        /** UserMeResponse */
-        UserMeResponse: {
-            /** Display Name */
-            display_name?: string | null;
-            /** Email */
-            email?: string | null;
-            /**
-             * Is Admin
-             * @default false
-             */
-            is_admin: boolean;
-            /** User Id */
-            user_id: string;
-        };
-        /** UserMeUpdateRequest */
-        UserMeUpdateRequest: {
-            /** Display Name */
-            display_name?: string | null;
-            /** Email */
-            email?: string | null;
-        };
-        /**
-         * UserProfileData
-         * @description Structured user profile fields (Store A). Pydantic validated.
-         */
-        UserProfileData: {
-            /**
-             * Habit Domain
-             * @default
-             */
-            habit_domain: string;
-            /**
-             * Intensity
-             * @default normal
-             */
-            intensity: string;
-            /**
-             * Last Barrier
-             * @default
-             */
-            last_barrier: string;
-            /**
-             * Last Motivator
-             * @default
-             */
-            last_motivator: string;
-            /**
-             * Last Successful Prompt
-             * @default
-             */
-            last_successful_prompt: string;
-            /**
-             * Last Tweak
-             * @default
-             */
-            last_tweak: string;
-            /**
-             * Motivational Frame
-             * @default
-             */
-            motivational_frame: string;
-            /**
-             * Preferred Time
-             * @default
-             */
-            preferred_time: string;
-            /**
-             * Prompt Anchor
-             * @default
-             */
-            prompt_anchor: string;
-            /**
-             * Success Count
-             * @default 0
-             */
-            success_count: number;
-            /** Tone Scores */
-            tone_scores?: {
-                [key: string]: number;
-            };
-            /** Tone Tags */
-            tone_tags?: string[];
-            /**
-             * Total Prompts
-             * @default 0
-             */
-            total_prompts: number;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
-        /** VapidPublicKeyResponse */
-        VapidPublicKeyResponse: {
-            /** Public Key */
-            public_key: string;
-        };
+  schemas: {
+    /** AdminCreateInviteRequest */
+    AdminCreateInviteRequest: {
+      /**
+       * Count
+       * @default 1
+       */
+      count: number;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /** Label */
+      label?: string | null;
+      /** Max Uses */
+      max_uses?: number | null;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** AdminCreateInvitesResponse */
+    AdminCreateInvitesResponse: {
+      /** Invite Codes */
+      invite_codes: string[];
+    };
+    /** AdminCreateProjectRequest */
+    AdminCreateProjectRequest: {
+      /** Display Name */
+      display_name: string;
+      /** Study Settings */
+      study_settings?: {
+        [key: string]: unknown;
+      } | null;
+    };
+    /** AdminDebugStatusResponse */
+    AdminDebugStatusResponse: {
+      /** Llm Mode */
+      llm_mode: string;
+      /** Openai Api Key Configured */
+      openai_api_key_configured: boolean;
+      /** Vapid Private Key Configured */
+      vapid_private_key_configured: boolean;
+      /** Vapid Public Key Configured */
+      vapid_public_key_configured: boolean;
+      /** Warnings */
+      warnings: string[];
+    };
+    /** AdminLLMConnectivityRequest */
+    AdminLLMConnectivityRequest: {
+      /**
+       * Max Tokens
+       * @default 128
+       */
+      max_tokens: number;
+      /**
+       * Model
+       * @default gpt-4o-mini
+       */
+      model: string;
+      /**
+       * Prompt
+       * @default Reply with exactly: OK
+       */
+      prompt: string;
+      /**
+       * Temperature
+       * @default 0
+       */
+      temperature: number;
+    };
+    /** AdminLLMConnectivityResponse */
+    AdminLLMConnectivityResponse: {
+      /** Error */
+      error?: string | null;
+      /** Latency Ms */
+      latency_ms: number;
+      /** Model */
+      model: string;
+      /** Ok */
+      ok: boolean;
+      /** Response Text */
+      response_text?: string | null;
+    };
+    /** AdminParticipantItem */
+    AdminParticipantItem: {
+      /** Created At */
+      created_at: string;
+      /** Email */
+      email?: string | null;
+      /** Ended At */
+      ended_at?: string | null;
+      /** Last Push Failure At */
+      last_push_failure_at?: string | null;
+      /** Last Push Success At */
+      last_push_success_at?: string | null;
+      /** Push Subscription Count */
+      push_subscription_count: number;
+      /** Status */
+      status: string;
+      /** User Id */
+      user_id: string;
+    };
+    /** AdminParticipantsResponse */
+    AdminParticipantsResponse: {
+      /** Participants */
+      participants: components["schemas"]["AdminParticipantItem"][];
+    };
+    /** AdminProjectItem */
+    AdminProjectItem: {
+      /** Created At */
+      created_at: string;
+      /** Display Name */
+      display_name?: string | null;
+      /** Member Count */
+      member_count: number;
+      /** Project Id */
+      project_id: string;
+      /**
+       * Status
+       * @default active
+       */
+      status: string;
+    };
+    /** AdminProjectUpdateRequest */
+    AdminProjectUpdateRequest: {
+      /** Display Name */
+      display_name?: string | null;
+      /** Status */
+      status?: string | null;
+    };
+    /** AdminProjectsResponse */
+    AdminProjectsResponse: {
+      /** Projects */
+      projects: components["schemas"]["AdminProjectItem"][];
+    };
+    /** AdminPushChannelItem */
+    AdminPushChannelItem: {
+      /** Created At */
+      created_at: string;
+      /** Display Name */
+      display_name?: string | null;
+      /** Endpoint Hint */
+      endpoint_hint: string;
+      /** Last Failure At */
+      last_failure_at?: string | null;
+      /** Last Success At */
+      last_success_at?: string | null;
+      /** Membership Id */
+      membership_id: number;
+      /** Subscription Id */
+      subscription_id: number;
+      /** User Email */
+      user_email?: string | null;
+      /** User Id */
+      user_id: string;
+    };
+    /** AdminPushChannelsResponse */
+    AdminPushChannelsResponse: {
+      /** Channels */
+      channels: components["schemas"]["AdminPushChannelItem"][];
+    };
+    /** AdminPushTestRequest */
+    AdminPushTestRequest: {
+      /** Body */
+      body: string;
+      /** Project Id */
+      project_id: string;
+      /** Subscription Ids */
+      subscription_ids: number[];
+      /** Title */
+      title: string;
+      /** Url */
+      url?: string | null;
+    };
+    /** AdminPushTestResponse */
+    AdminPushTestResponse: {
+      /** Results */
+      results: components["schemas"]["AdminPushTestResultItem"][];
+    };
+    /** AdminPushTestResultItem */
+    AdminPushTestResultItem: {
+      /** Error */
+      error?: string | null;
+      /** Ok */
+      ok: boolean;
+      /** Subscription Id */
+      subscription_id: number;
+    };
+    /** AuthMeResponse */
+    AuthMeResponse: {
+      /** Role */
+      role: string;
+      /** User Id */
+      user_id: string;
+    };
+    /** AuthSessionItem */
+    AuthSessionItem: {
+      /** Created At */
+      created_at: string;
+      /** Device Id */
+      device_id: string;
+      /** Is Current */
+      is_current: boolean;
+      /** Label */
+      label?: string | null;
+      /** Revoked At */
+      revoked_at?: string | null;
+    };
+    /** AuthSessionRevokeResponse */
+    AuthSessionRevokeResponse: {
+      /** Ok */
+      ok: boolean;
+    };
+    /** AuthSessionsResponse */
+    AuthSessionsResponse: {
+      /** Sessions */
+      sessions: components["schemas"]["AuthSessionItem"][];
+    };
+    /** ClaimRequest */
+    ClaimRequest: {
+      /** Invite Code */
+      invite_code: string;
+    };
+    /** ClaimResponse */
+    ClaimResponse: {
+      /** Conversation Id */
+      conversation_id: number;
+      /** Membership Status */
+      membership_status: string;
+      /** Project Id */
+      project_id: string;
+    };
+    /** DashboardResponse */
+    DashboardResponse: {
+      /** Memberships */
+      memberships: components["schemas"]["MembershipInfo"][];
+    };
+    /** EchoRequest */
+    EchoRequest: {
+      /** Message */
+      message: string;
+    };
+    /** EchoResponse */
+    EchoResponse: {
+      /** Message */
+      message: string;
+      /** Reversed */
+      reversed: string;
+    };
+    /**
+     * ErrorResponse
+     * @description Standard error envelope for auth routes.
+     */
+    ErrorResponse: {
+      /**
+       * Detail
+       * @description Error detail message or structured error payload.
+       */
+      detail:
+        | string
+        | {
+            [key: string]: string;
+          };
+    };
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components["schemas"]["ValidationError"][];
+    };
+    /** HealthResponse */
+    HealthResponse: {
+      /**
+       * Status
+       * @description Health status string.
+       */
+      status: string;
+    };
+    /** MeResponse */
+    MeResponse: {
+      /** Conversation Id */
+      conversation_id?: number | null;
+      /** Email */
+      email?: string | null;
+      /** Membership Status */
+      membership_status: string;
+    };
+    /** MembershipInfo */
+    MembershipInfo: {
+      /** Conversation Id */
+      conversation_id?: number | null;
+      /** Display Name */
+      display_name?: string | null;
+      /** Project Id */
+      project_id: string;
+      /** Status */
+      status: string;
+    };
+    /** MessageItem */
+    MessageItem: {
+      /** Content */
+      content: string;
+      /** Created At */
+      created_at: string;
+      /** Message Id */
+      message_id: number;
+      /** Role */
+      role: string;
+      /** Server Msg Id */
+      server_msg_id: string;
+    };
+    /** MessageListResponse */
+    MessageListResponse: {
+      /** Messages */
+      messages: components["schemas"]["MessageItem"][];
+    };
+    /** PasskeyAddFinishRequest */
+    PasskeyAddFinishRequest: {
+      /**
+       * Credential
+       * @description Browser PublicKeyCredential response as JSON.
+       */
+      credential: {
+        [key: string]: unknown;
+      };
+      /**
+       * Device Label
+       * @description Optional label for the device.
+       */
+      device_label?: string | null;
+      /**
+       * Device Public Key Jwk
+       * @description Optional device public key in JWK format to bind a device identity.
+       */
+      device_public_key_jwk?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Flow Id
+       * @description Flow ID returned by add/start.
+       */
+      flow_id: string;
+    };
+    /** PasskeyAddStartResponse */
+    PasskeyAddStartResponse: {
+      /**
+       * Flow Id
+       * @description Server-generated flow ID for add passkey.
+       */
+      flow_id: string;
+      /**
+       * Options
+       * @description PublicKeyCredentialCreationOptions payload as a JSON-safe dict.
+       */
+      options: {
+        [key: string]: unknown;
+      };
+    };
+    /** PasskeyFinishResponse */
+    PasskeyFinishResponse: {
+      /**
+       * Device Id
+       * @description Device ID that starts with the d prefix, empty when no device key is bound.
+       */
+      device_id: string;
+      /**
+       * Display Name
+       * @description Optional display name for the user, not set by default.
+       */
+      display_name?: string | null;
+      /**
+       * Role
+       * @description Server-side role for the user.
+       */
+      role: string;
+      /**
+       * User Id
+       * @description User ID that starts with the u prefix.
+       */
+      user_id: string;
+    };
+    /** PasskeyInfo */
+    PasskeyInfo: {
+      /**
+       * Created At
+       * Format: date-time
+       * @description Creation timestamp in UTC.
+       */
+      created_at: string;
+      /**
+       * Id
+       * @description Internal passkey ID that starts with the k prefix.
+       */
+      id: string;
+      /**
+       * Last Used At
+       * @description Last successful use timestamp.
+       */
+      last_used_at?: string | null;
+      /**
+       * Name
+       * @description User-provided passkey name.
+       */
+      name?: string | null;
+      /**
+       * Revoked At
+       * @description Revocation timestamp, if revoked.
+       */
+      revoked_at?: string | null;
+    };
+    /** PasskeyListResponse */
+    PasskeyListResponse: {
+      /**
+       * Passkeys
+       * @description Passkeys for the current user.
+       */
+      passkeys: components["schemas"]["PasskeyInfo"][];
+    };
+    /** PasskeyLoginFinishRequest */
+    PasskeyLoginFinishRequest: {
+      /**
+       * Credential
+       * @description Browser PublicKeyCredential response as JSON.
+       */
+      credential: {
+        [key: string]: unknown;
+      };
+      /**
+       * Device Label
+       * @description Optional label for the device.
+       */
+      device_label?: string | null;
+      /**
+       * Device Public Key Jwk
+       * @description Optional device public key in JWK format to bind a device identity.
+       */
+      device_public_key_jwk?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Flow Id
+       * @description Flow ID returned by login/start.
+       */
+      flow_id: string;
+    };
+    /** PasskeyLoginStartResponse */
+    PasskeyLoginStartResponse: {
+      /**
+       * Flow Id
+       * @description Server-generated flow ID for login.
+       */
+      flow_id: string;
+      /**
+       * Options
+       * @description PublicKeyCredentialRequestOptions payload as a JSON-safe dict.
+       */
+      options: {
+        [key: string]: unknown;
+      };
+    };
+    /** PasskeyRegisterFinishRequest */
+    PasskeyRegisterFinishRequest: {
+      /**
+       * Credential
+       * @description Browser PublicKeyCredential response as JSON.
+       */
+      credential: {
+        [key: string]: unknown;
+      };
+      /**
+       * Device Label
+       * @description Optional label for the device.
+       */
+      device_label?: string | null;
+      /**
+       * Device Public Key Jwk
+       * @description Optional device public key in JWK format to bind a device identity.
+       */
+      device_public_key_jwk?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Flow Id
+       * @description Flow ID returned by register/start.
+       */
+      flow_id: string;
+    };
+    /** PasskeyRegisterStartResponse */
+    PasskeyRegisterStartResponse: {
+      /**
+       * Flow Id
+       * @description Server-generated flow ID for registration.
+       */
+      flow_id: string;
+      /**
+       * Options
+       * @description PublicKeyCredentialCreationOptions payload as a JSON-safe dict.
+       */
+      options: {
+        [key: string]: unknown;
+      };
+    };
+    /** PasskeyRenameRequest */
+    PasskeyRenameRequest: {
+      /**
+       * Name
+       * @description New passkey name. Null or empty to clear.
+       */
+      name?: string | null;
+    };
+    /** PasskeyRenameResponse */
+    PasskeyRenameResponse: {
+      /**
+       * Id
+       * @description Internal passkey ID.
+       */
+      id: string;
+      /**
+       * Name
+       * @description Updated passkey name.
+       */
+      name?: string | null;
+    };
+    /** PasskeyRevokeResponse */
+    PasskeyRevokeResponse: {
+      /**
+       * Message
+       * @description Status message for the revocation action.
+       */
+      message: string;
+    };
+    /** PingResponse */
+    PingResponse: {
+      /** Ok */
+      ok: boolean;
+    };
+    /** ProfileUpdateRequest */
+    ProfileUpdateRequest: {
+      /**
+       * Habit Domain
+       * @default
+       */
+      habit_domain: string;
+      /**
+       * Motivational Frame
+       * @default
+       */
+      motivational_frame: string;
+      /** Preferred Time */
+      preferred_time: string;
+      /** Prompt Anchor */
+      prompt_anchor: string;
+    };
+    /** PushSubscribeRequest */
+    PushSubscribeRequest: {
+      /** Endpoint */
+      endpoint: string;
+      /** Keys */
+      keys: {
+        [key: string]: string;
+      };
+      /** User Agent */
+      user_agent?: string | null;
+    };
+    /** PushSubscribeResponse */
+    PushSubscribeResponse: {
+      /** Subscription Id */
+      subscription_id: number;
+    };
+    /** PushUnsubscribeRequest */
+    PushUnsubscribeRequest: {
+      /** Endpoint */
+      endpoint: string;
+    };
+    /** PushUnsubscribeResponse */
+    PushUnsubscribeResponse: {
+      /** Ok */
+      ok: boolean;
+    };
+    /** RootResponse */
+    RootResponse: {
+      /**
+       * Message
+       * @description Welcome message.
+       */
+      message: string;
+    };
+    /** SendMessageRequest */
+    SendMessageRequest: {
+      /** Client Msg Id */
+      client_msg_id?: string | null;
+      /** Text */
+      text: string;
+    };
+    /** SendMessageResponse */
+    SendMessageResponse: {
+      /** Content */
+      content: string;
+      /** Message Id */
+      message_id: number;
+      /** Role */
+      role: string;
+      /** Server Msg Id */
+      server_msg_id: string;
+    };
+    /** UserMeResponse */
+    UserMeResponse: {
+      /** Display Name */
+      display_name?: string | null;
+      /** Email */
+      email?: string | null;
+      /**
+       * Is Admin
+       * @default false
+       */
+      is_admin: boolean;
+      /** User Id */
+      user_id: string;
+    };
+    /** UserMeUpdateRequest */
+    UserMeUpdateRequest: {
+      /** Display Name */
+      display_name?: string | null;
+      /** Email */
+      email?: string | null;
+    };
+    /**
+     * UserProfileData
+     * @description Structured user profile fields (Store A). Pydantic validated.
+     */
+    UserProfileData: {
+      /**
+       * Habit Domain
+       * @default
+       */
+      habit_domain: string;
+      /**
+       * Intensity
+       * @default normal
+       */
+      intensity: string;
+      /**
+       * Last Barrier
+       * @default
+       */
+      last_barrier: string;
+      /**
+       * Last Motivator
+       * @default
+       */
+      last_motivator: string;
+      /**
+       * Last Successful Prompt
+       * @default
+       */
+      last_successful_prompt: string;
+      /**
+       * Last Tweak
+       * @default
+       */
+      last_tweak: string;
+      /**
+       * Motivational Frame
+       * @default
+       */
+      motivational_frame: string;
+      /**
+       * Preferred Time
+       * @default
+       */
+      preferred_time: string;
+      /**
+       * Prompt Anchor
+       * @default
+       */
+      prompt_anchor: string;
+      /**
+       * Success Count
+       * @default 0
+       */
+      success_count: number;
+      /** Tone Scores */
+      tone_scores?: {
+        [key: string]: number;
+      };
+      /** Tone Tags */
+      tone_tags?: string[];
+      /**
+       * Total Prompts
+       * @default 0
+       */
+      total_prompts: number;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Context */
+      ctx?: Record<string, never>;
+      /** Input */
+      input?: unknown;
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+    };
+    /** VapidPublicKeyResponse */
+    VapidPublicKeyResponse: {
+      /** Public Key */
+      public_key: string;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    root__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RootResponse"];
-                };
-            };
-        };
+  root__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    admin_debug_llm_connectivity_admin_debug_llm_connectivity_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminLLMConnectivityRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["RootResponse"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminLLMConnectivityResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    admin_debug_status_admin_debug_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminDebugStatusResponse"];
-                };
-            };
-        };
+  };
+  admin_debug_llm_connectivity_admin_debug_llm_connectivity_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    admin_list_projects_admin_projects_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminProjectsResponse"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdminLLMConnectivityRequest"];
+      };
     };
-    admin_create_project_admin_projects_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminCreateProjectRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["AdminLLMConnectivityResponse"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    admin_update_project_admin_projects__project_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminProjectUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  admin_debug_status_admin_debug_status_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    admin_project_export_admin_projects__project_id__export_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["AdminDebugStatusResponse"];
         };
+      };
     };
-    admin_create_invites_admin_projects__project_id__invites_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminCreateInviteRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminCreateInvitesResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  admin_list_projects_admin_projects_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    admin_project_participants_admin_projects__project_id__participants_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminParticipantsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["AdminProjectsResponse"];
         };
+      };
     };
-    admin_push_channels_admin_projects__project_id__push_channels_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminPushChannelsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  admin_create_project_admin_projects_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    admin_push_test_admin_push_test_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminPushTestRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminPushTestResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdminCreateProjectRequest"];
+      };
     };
-    auth_me_auth_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthMeResponse"];
-                };
-            };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    add_finish_auth_passkey_add_finish_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasskeyAddFinishRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasskeyFinishResponse"];
-                };
-            };
-            /** @description Invalid or expired flow, or WebAuthn verification error. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Missing or invalid token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  admin_update_project_admin_projects__project_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
     };
-    add_start_auth_passkey_add_start_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasskeyAddStartResponse"];
-                };
-            };
-            /** @description Missing or invalid token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdminProjectUpdateRequest"];
+      };
     };
-    login_finish_auth_passkey_login_finish_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasskeyLoginFinishRequest"];
-            };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasskeyFinishResponse"];
-                };
-            };
-            /** @description Invalid credentials, revoked passkey, or expired flow. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    login_start_auth_passkey_login_start_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasskeyLoginStartResponse"];
-                };
-            };
-        };
+  };
+  admin_project_export_admin_projects__project_id__export_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
     };
-    register_finish_auth_passkey_register_finish_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasskeyRegisterFinishRequest"];
-            };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
         };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasskeyFinishResponse"];
-                };
-            };
-            /** @description Invalid or expired flow, or invalid WebAuthn payload. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    register_start_auth_passkey_register_start_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasskeyRegisterStartResponse"];
-                };
-            };
-            /** @description Invalid request or WebAuthn configuration error. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
+  };
+  admin_create_invites_admin_projects__project_id__invites_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
     };
-    passkeys_list_auth_passkeys_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasskeyListResponse"];
-                };
-            };
-            /** @description Missing or invalid token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdminCreateInviteRequest"];
+      };
     };
-    passkey_rename_auth_passkeys__key_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                key_id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasskeyRenameRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["AdminCreateInvitesResponse"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasskeyRenameResponse"];
-                };
-            };
-            /** @description Missing or invalid token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Passkey not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Cannot rename a revoked passkey. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation error. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    passkey_revoke_auth_passkeys__key_id__revoke_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                key_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasskeyRevokeResponse"];
-                };
-            };
-            /** @description Missing or invalid token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Passkey not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Cannot revoke the last active passkey. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "detail": {
-                     *         "code": "LAST_PASSKEY",
-                     *         "message": "Cannot revoke the last active passkey."
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  admin_project_participants_admin_projects__project_id__participants_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
     };
-    auth_sessions_auth_sessions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthSessionsResponse"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["AdminParticipantsResponse"];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    revoke_auth_session_auth_sessions__device_id__revoke_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                device_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthSessionRevokeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  admin_push_channels_admin_projects__project_id__push_channels_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
     };
-    dashboard_dashboard_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DashboardResponse"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["AdminPushChannelsResponse"];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    demo_echo_demo_echo_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EchoRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EchoResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  admin_push_test_admin_push_test_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    demo_ping_demo_ping_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PingResponse"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdminPushTestRequest"];
+      };
     };
-    demo_sse_demo_sse_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["AdminPushTestResponse"];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    health_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthResponse"];
-                };
-            };
-        };
+  };
+  auth_me_auth_me_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    healthz_healthz_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["AuthMeResponse"];
         };
+      };
     };
-    get_me_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserMeResponse"];
-                };
-            };
-        };
+  };
+  add_finish_auth_passkey_add_finish_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    update_me_me_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserMeUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserMeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasskeyAddFinishRequest"];
+      };
     };
-    claim_invite_p__project_id__activate_claim_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClaimRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["PasskeyFinishResponse"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClaimResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Invalid or expired flow, or WebAuthn verification error. */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Missing or invalid token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    event_stream_p__project_id__events_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  add_start_auth_passkey_add_start_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    project_me_p__project_id__me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["PasskeyAddStartResponse"];
         };
+      };
+      /** @description Missing or invalid token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
     };
-    list_messages_p__project_id__messages_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  login_finish_auth_passkey_login_finish_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    send_message_p__project_id__messages_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SendMessageRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SendMessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasskeyLoginFinishRequest"];
+      };
     };
-    get_profile_p__project_id__profile_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserProfileData"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["PasskeyFinishResponse"];
         };
+      };
+      /** @description Invalid credentials, revoked passkey, or expired flow. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
-    put_profile_p__project_id__profile_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProfileUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserProfileData"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  login_start_auth_passkey_login_start_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    push_subscribe_p__project_id__push_subscribe_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PushSubscribeRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["PasskeyLoginStartResponse"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PushSubscribeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    push_unsubscribe_p__project_id__push_unsubscribe_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PushUnsubscribeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PushUnsubscribeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  register_finish_auth_passkey_register_finish_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    vapid_public_key_p__project_id__push_vapid_public_key_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VapidPublicKeyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasskeyRegisterFinishRequest"];
+      };
     };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PasskeyFinishResponse"];
+        };
+      };
+      /** @description Invalid or expired flow, or invalid WebAuthn payload. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  register_start_auth_passkey_register_start_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PasskeyRegisterStartResponse"];
+        };
+      };
+      /** @description Invalid request or WebAuthn configuration error. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  passkeys_list_auth_passkeys_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PasskeyListResponse"];
+        };
+      };
+      /** @description Missing or invalid token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  passkey_rename_auth_passkeys__key_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasskeyRenameRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PasskeyRenameResponse"];
+        };
+      };
+      /** @description Missing or invalid token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Passkey not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Cannot rename a revoked passkey. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation error. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  passkey_revoke_auth_passkeys__key_id__revoke_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PasskeyRevokeResponse"];
+        };
+      };
+      /** @description Missing or invalid token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Passkey not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Cannot revoke the last active passkey. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "detail": {
+           *         "code": "LAST_PASSKEY",
+           *         "message": "Cannot revoke the last active passkey."
+           *       }
+           *     }
+           */
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  auth_sessions_auth_sessions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthSessionsResponse"];
+        };
+      };
+    };
+  };
+  revoke_auth_session_auth_sessions__device_id__revoke_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        device_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthSessionRevokeResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  dashboard_dashboard_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DashboardResponse"];
+        };
+      };
+    };
+  };
+  demo_echo_demo_echo_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EchoRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EchoResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  demo_ping_demo_ping_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PingResponse"];
+        };
+      };
+    };
+  };
+  demo_sse_demo_sse_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  health_health_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HealthResponse"];
+        };
+      };
+    };
+  };
+  healthz_healthz_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+    };
+  };
+  get_me_me_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserMeResponse"];
+        };
+      };
+    };
+  };
+  update_me_me_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UserMeUpdateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserMeResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  claim_invite_p__project_id__activate_claim_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ClaimRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClaimResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  event_stream_p__project_id__events_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  project_me_p__project_id__me_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_messages_p__project_id__messages_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MessageListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  send_message_p__project_id__messages_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SendMessageRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SendMessageResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_profile_p__project_id__profile_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserProfileData"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  put_profile_p__project_id__profile_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProfileUpdateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserProfileData"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  push_subscribe_p__project_id__push_subscribe_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PushSubscribeRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PushSubscribeResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  push_unsubscribe_p__project_id__push_unsubscribe_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PushUnsubscribeRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PushUnsubscribeResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  vapid_public_key_p__project_id__push_vapid_public_key_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VapidPublicKeyResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
 }

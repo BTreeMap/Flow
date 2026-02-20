@@ -22,7 +22,12 @@ import { Input } from "../components/Input";
 import { Alert } from "../components/Alert";
 import { SectionHeader } from "../components/SectionHeader";
 import api from "../api/client";
-import type { AuthSessionItem, AuthSessionsResponse, PasskeyInfo, UserMeResponse } from "../api/types";
+import type {
+  AuthSessionItem,
+  AuthSessionsResponse,
+  PasskeyInfo,
+  UserMeResponse,
+} from "../api/types";
 import {
   applyThemePreference,
   readThemePreference,
@@ -159,15 +164,17 @@ export function Settings() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
 
-  const { data: profile, isLoading: profileLoading } = useQuery<UserMeResponse>({
-    queryKey: ["me"],
-    queryFn: async () => {
-      const { data, error } = await api.GET("/me");
-      if (error) throw new Error("Failed to load profile");
-      return data as UserMeResponse;
+  const { data: profile, isLoading: profileLoading } = useQuery<UserMeResponse>(
+    {
+      queryKey: ["me"],
+      queryFn: async () => {
+        const { data, error } = await api.GET("/me");
+        if (error) throw new Error("Failed to load profile");
+        return data as UserMeResponse;
+      },
+      // Initialize form fields when data loads
     },
-    // Initialize form fields when data loads
-  });
+  );
 
   // Sync form fields when profile data loads/changes
   const [profileInitialized, setProfileInitialized] = useState(false);
@@ -184,7 +191,8 @@ export function Settings() {
     try {
       const body: Record<string, string> = {};
       if (profileEmail.trim()) body.email = profileEmail.trim();
-      if (profileDisplayName.trim()) body.display_name = profileDisplayName.trim();
+      if (profileDisplayName.trim())
+        body.display_name = profileDisplayName.trim();
       const { error: apiError } = await api.PATCH("/me", { body });
       if (apiError) throw new Error("Failed to save profile");
       queryClient.invalidateQueries({ queryKey: ["me"] });
@@ -337,7 +345,11 @@ export function Settings() {
 
       <Card>
         <CardHeader>
-          <SectionHeader icon={<User className="w-5 h-5" />} title="Profile" subtitle="Your email and display name" />
+          <SectionHeader
+            icon={<User className="w-5 h-5" />}
+            title="Profile"
+            subtitle="Your email and display name"
+          />
         </CardHeader>
         <CardContent className="space-y-3">
           {profileLoading ? (
@@ -437,10 +449,14 @@ export function Settings() {
                     <p className="text-sm font-medium text-text">
                       {session.label || "Unnamed device"}
                       {session.is_current && (
-                        <span className="ml-2 text-xs text-primary">Current</span>
+                        <span className="ml-2 text-xs text-primary">
+                          Current
+                        </span>
                       )}
                       {session.revoked_at && (
-                        <span className="ml-2 text-xs text-danger">(revoked)</span>
+                        <span className="ml-2 text-xs text-danger">
+                          (revoked)
+                        </span>
                       )}
                     </p>
                     <p className="text-xs text-text-muted font-mono">
@@ -451,7 +467,9 @@ export function Settings() {
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => revokeSessionMutation.mutate(session.device_id)}
+                      onClick={() =>
+                        revokeSessionMutation.mutate(session.device_id)
+                      }
                     >
                       <LogOut className="w-3 h-3" />
                       Revoke

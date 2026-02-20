@@ -122,57 +122,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, [apiBase]);
 
-  const register = useCallback(
-    async (displayName: string) => {
-      const keyMaterial = await ensureDeviceKeyMaterial();
+  const register = useCallback(async (displayName: string) => {
+    const keyMaterial = await ensureDeviceKeyMaterial();
 
-      const startRes = await publicFetch<{
-        options: Record<string, unknown>;
-        flow_id: string;
-      }>("/auth/passkey/register/start", {
+    const startRes = await publicFetch<{
+      options: Record<string, unknown>;
+      flow_id: string;
+    }>("/auth/passkey/register/start", {
+      method: "POST",
+      body: JSON.stringify({ display_name: displayName }),
+    });
+    if (!startRes.ok) throw new Error("Registration start failed");
+
+    const createOptions = toCreateOptions(
+      startRes.data.options as unknown as Parameters<typeof toCreateOptions>[0],
+    );
+    const credential = (await navigator.credentials.create(
+      createOptions,
+    )) as PublicKeyCredential | null;
+    if (!credential) throw new Error("Credential creation cancelled");
+
+    const finishRes = await publicFetch<FinishResponse>(
+      "/auth/passkey/register/finish",
+      {
         method: "POST",
-        body: JSON.stringify({ display_name: displayName }),
-      });
-      if (!startRes.ok) throw new Error("Registration start failed");
-
-      const createOptions = toCreateOptions(
-        startRes.data.options as unknown as Parameters<
-          typeof toCreateOptions
-        >[0],
-      );
-      const credential = (await navigator.credentials.create(
-        createOptions,
-      )) as PublicKeyCredential | null;
-      if (!credential) throw new Error("Credential creation cancelled");
-
-      const finishRes = await publicFetch<FinishResponse>(
-        "/auth/passkey/register/finish",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            flow_id: startRes.data.flow_id,
-            credential: serializeCreateResponse(credential),
-            device_public_key_jwk: keyMaterial.publicJwk,
-            device_label: navigator.userAgent.slice(0, 64),
-          }),
-        },
-      );
-      if (!finishRes.ok) throw new Error("Registration finish failed");
-
-      await setDeviceIdentity(finishRes.data.device_id, finishRes.data.user_id);
-      setState(
-        buildState({
-          isAuthenticated: true,
-          isLoading: false,
-          userId: finishRes.data.user_id,
-          deviceId: finishRes.data.device_id,
-          role: finishRes.data.role ?? "user",
-          displayName: finishRes.data.display_name ?? displayName,
+        body: JSON.stringify({
+          flow_id: startRes.data.flow_id,
+          credential: serializeCreateResponse(credential),
+          device_public_key_jwk: keyMaterial.publicJwk,
+          device_label: navigator.userAgent.slice(0, 64),
         }),
-      );
-    },
-    [],
-  );
+      },
+    );
+    if (!finishRes.ok) throw new Error("Registration finish failed");
+
+    await setDeviceIdentity(finishRes.data.device_id, finishRes.data.user_id);
+    setState(
+      buildState({
+        isAuthenticated: true,
+        isLoading: false,
+        userId: finishRes.data.user_id,
+        deviceId: finishRes.data.device_id,
+        role: finishRes.data.role ?? "user",
+        displayName: finishRes.data.display_name ?? displayName,
+      }),
+    );
+  }, []);
 
   const login = useCallback(async () => {
     const keyMaterial = await ensureDeviceKeyMaterial();

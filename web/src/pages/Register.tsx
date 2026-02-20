@@ -17,6 +17,13 @@ function safeReturnTo(value: string | null): string {
   return "/dashboard";
 }
 
+function emailLocalPart(raw: string): string {
+  const s = raw.trim();
+  const at = s.indexOf("@");
+  if (at <= 0) return "";
+  return s.slice(0, at);
+}
+
 export function Register() {
   const { register, isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
@@ -43,8 +50,14 @@ export function Register() {
       setError("Please enter a valid email address");
       return;
     }
+
+    const localPart = emailLocalPart(trimmed);
+    if (!localPart) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
     setError(null);
-    const localPart = trimmed.split("@")[0];
     setDisplayName(localPart);
     setStep("passkey");
   };
@@ -53,7 +66,8 @@ export function Register() {
     setLoading(true);
     setError(null);
     try {
-      const localPart = email.trim().split("@")[0];
+      const localPart = emailLocalPart(email);
+      if (!localPart) throw new Error("Please enter a valid email address");
       await register(localPart);
       setStep("display_name");
     } catch (err) {
@@ -67,10 +81,13 @@ export function Register() {
     setLoading(true);
     setError(null);
     try {
+      const emailNorm = email.trim().toLowerCase();
+      const fallbackName = emailLocalPart(emailNorm);
+
       const { error: apiError } = await api.PATCH("/me", {
         body: {
-          email: email.trim().toLowerCase(),
-          display_name: displayName.trim() || email.trim().split("@")[0],
+          email: emailNorm,
+          display_name: displayName.trim() || fallbackName,
         },
       });
       if (apiError) throw new Error("Failed to save profile");
@@ -92,9 +109,7 @@ export function Register() {
           <div
             key={i}
             className={`h-2 rounded-full transition-all ${
-              i <= stepIndex
-                ? "w-8 bg-primary"
-                : "w-8 bg-border"
+              i <= stepIndex ? "w-8 bg-primary" : "w-8 bg-border"
             }`}
           />
         ))}
@@ -164,8 +179,8 @@ export function Register() {
           {step === "passkey" && (
             <>
               <p className="text-sm text-text-muted">
-                You'll be prompted to create a passkey for secure,
-                passwordless login.
+                You'll be prompted to create a passkey for secure, passwordless
+                login.
               </p>
               <Button
                 onClick={handlePasskeyEnroll}

@@ -52,7 +52,9 @@ export function Activation() {
 
       if (apiError) {
         const detail =
-          typeof apiError === "object" && apiError !== null && "detail" in apiError
+          typeof apiError === "object" &&
+          apiError !== null &&
+          "detail" in apiError
             ? (apiError as { detail?: string }).detail
             : undefined;
         throw new Error(detail || `Activation failed (${response.status})`);

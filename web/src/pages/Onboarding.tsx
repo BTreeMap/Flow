@@ -89,7 +89,9 @@ export function Onboarding() {
             <Button
               type="submit"
               className="w-full"
-              disabled={submitting || !promptAnchor.trim() || !preferredTime.trim()}
+              disabled={
+                submitting || !promptAnchor.trim() || !preferredTime.trim()
+              }
             >
               {submitting ? "Saving…" : "Continue to chat"}
             </Button>

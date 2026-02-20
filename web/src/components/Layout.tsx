@@ -163,7 +163,11 @@ export function Layout() {
               className="sm:hidden p-2 rounded-xl hover:bg-surface-alt transition-colors"
               aria-label="Toggle menu"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
             </button>
           </div>
 
