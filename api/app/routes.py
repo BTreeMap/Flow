@@ -405,6 +405,7 @@ async def update_me(
         user.email = str(body.email).strip().lower()
 
     if body.display_name is not None:
+        # None = don't update; empty string = invalid
         trimmed = body.display_name.strip()
         if len(trimmed) > 255:
             raise HTTPException(
@@ -1413,7 +1414,7 @@ async def admin_push_test(
     _admin_user: User = require_admin(),
     db: AsyncSession = Depends(get_db),
 ) -> AdminPushTestResponse:
-    from pywebpush import webpush, WebPushException  # noqa: F401
+    from pywebpush import webpush
 
     vapid_private_key = os.environ.get("VAPID_PRIVATE_KEY") or os.environ.get(
         "FLOW_VAPID_PRIVATE_KEY", ""

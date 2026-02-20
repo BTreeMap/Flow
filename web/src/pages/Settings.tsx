@@ -169,17 +169,13 @@ export function Settings() {
     // Initialize form fields when data loads
   });
 
-  // Sync form fields when profile data changes
-  useState(() => {
-    if (profile) {
-      setProfileEmail(profile.email ?? "");
-      setProfileDisplayName(profile.display_name ?? "");
-    }
-  });
-
-  // Use effect-like pattern for syncing profile data to form
-  const emailValue = profileEmail || profile?.email || "";
-  const displayNameValue = profileDisplayName || profile?.display_name || "";
+  // Sync form fields when profile data loads/changes
+  const [profileInitialized, setProfileInitialized] = useState(false);
+  if (profile && !profileInitialized) {
+    setProfileEmail(profile.email ?? "");
+    setProfileDisplayName(profile.display_name ?? "");
+    setProfileInitialized(true);
+  }
 
   const saveProfile = async () => {
     setProfileSaving(true);
@@ -187,8 +183,8 @@ export function Settings() {
     setError(null);
     try {
       const body: Record<string, string> = {};
-      if (emailValue.trim()) body.email = emailValue.trim();
-      if (displayNameValue.trim()) body.display_name = displayNameValue.trim();
+      if (profileEmail.trim()) body.email = profileEmail.trim();
+      if (profileDisplayName.trim()) body.display_name = profileDisplayName.trim();
       const { error: apiError } = await api.PATCH("/me", { body });
       if (apiError) throw new Error("Failed to save profile");
       queryClient.invalidateQueries({ queryKey: ["me"] });
@@ -352,14 +348,14 @@ export function Settings() {
                 label="Email"
                 type="email"
                 placeholder="you@example.com"
-                value={emailValue}
+                value={profileEmail}
                 onChange={(e) => setProfileEmail(e.target.value)}
                 data-testid="profile-email"
               />
               <Input
                 label="Display Name"
                 placeholder="Your name"
-                value={displayNameValue}
+                value={profileDisplayName}
                 onChange={(e) => setProfileDisplayName(e.target.value)}
                 data-testid="profile-display-name"
               />

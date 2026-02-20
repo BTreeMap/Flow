@@ -475,9 +475,11 @@ function ProjectRow({ project, onUpdated }: { project: AdminProjectItem; onUpdat
   const [status, setStatus] = useState(project.status ?? "active");
   const [saving, setSaving] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [rowError, setRowError] = useState<string | null>(null);
 
   const save = async (newStatus?: string) => {
     setSaving(true);
+    setRowError(null);
     try {
       const body: Record<string, string> = {};
       if (name !== (project.display_name || "")) body.display_name = name;
@@ -494,8 +496,8 @@ function ProjectRow({ project, onUpdated }: { project: AdminProjectItem; onUpdat
       setEditing(false);
       setShowConfirm(false);
       onUpdated();
-    } catch {
-      // Error is handled silently
+    } catch (err) {
+      setRowError(err instanceof Error ? err.message : "Update failed");
     } finally {
       setSaving(false);
     }
@@ -586,6 +588,7 @@ function ProjectRow({ project, onUpdated }: { project: AdminProjectItem; onUpdat
           </div>
         )}
       </div>
+      {rowError && <p className="text-xs text-danger mt-1">{rowError}</p>}
     </div>
   );
 }
@@ -615,8 +618,8 @@ function PushTestPanel({ projects }: { projects: AdminProjectItem[] }) {
       );
       if (apiError) throw new Error("Failed to load channels");
       setChannels(data.channels ?? []);
-    } catch {
-      setError("Failed to load push channels");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load push channels");
     }
   };
 
