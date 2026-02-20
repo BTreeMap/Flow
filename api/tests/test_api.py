@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, AsyncGenerator
 from unittest.mock import MagicMock
@@ -24,6 +25,8 @@ from app.models import (
     ProjectInvite,
     ProjectMembership,
 )
+from h4ckath0n.auth.models import Base as H4ckath0nBase, Device
+from h4ckath0n.realtime import AuthContext
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -61,21 +64,34 @@ def _override_require_user(
     return _dep
 
 
+def _override_auth_context(
+    user_id: str = "u_testuser_000000000000000000",
+    device_id: str = "d_testdevice_0000000000000000",
+) -> Any:
+    async def _dep() -> AuthContext:
+        return AuthContext(user_id=user_id, device_id=device_id)
+
+    return _dep
+
+
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
     """Provide an httpx AsyncClient with overridden DB and auth."""
     # Import here to avoid module-level side effects
     from app.main import app
     from app.db import get_db
+    from app.routes import _require_auth_context
     from h4ckath0n.auth.dependencies import _get_current_user, require_admin
 
     # Create tables
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(H4ckath0nBase.metadata.create_all)
 
     # Override dependencies
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[_get_current_user] = _override_require_user()
+    app.dependency_overrides[_require_auth_context] = _override_auth_context()
     app.dependency_overrides[require_admin] = _override_require_user(
         "u_admin_0000000000000000000000",
         role="admin",
@@ -89,6 +105,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides.clear()
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(H4ckath0nBase.metadata.drop_all)
 
 
 @pytest_asyncio.fixture
@@ -138,6 +155,11 @@ async def test_auth_me(client: AsyncClient) -> None:
     resp = await client.get("/auth/me")
     assert resp.status_code == 200
     assert resp.json()["user_id"] == "u_testuser_000000000000000000"
+
+
+def test_generate_project_id_is_lowercase_base32() -> None:
+    project_id = generate_project_id()
+    assert re.fullmatch(r"p[a-z2-7]{31}", project_id) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -685,6 +707,136 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
     assert "dedupe_key" in payload["outbox_events"][0]
     assert "locked_until" in payload["outbox_events"][0]
     assert invite_code not in json.dumps(payload)
+
+
+@pytest.mark.asyncio
+async def test_admin_debug_endpoints(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from h4ckath0n.auth.dependencies import _get_current_user
+
+    app.dependency_overrides[_get_current_user] = _override_require_user(
+        "u_admin_0000000000000000000000", role="admin"
+    )
+
+    monkeypatch.delenv("H4CKATH0N_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("VAPID_PUBLIC_KEY", "public")
+    monkeypatch.delenv("VAPID_PRIVATE_KEY", raising=False)
+
+    status_resp = await client.get("/admin/debug/status")
+    assert status_resp.status_code == 200
+    payload = status_resp.json()
+    assert payload["llm_mode"] == "stub"
+    assert payload["openai_api_key_configured"] is False
+    assert payload["vapid_public_key_configured"] is True
+    assert payload["vapid_private_key_configured"] is False
+    assert "OpenAI API key missing: chat runs in stub mode" in payload["warnings"]
+    assert "VAPID keys missing: push notifications disabled" in payload["warnings"]
+
+    llm_resp = await client.post(
+        "/admin/debug/llm-connectivity",
+        json={"model": "gpt-4o-mini", "prompt": "test"},
+    )
+    assert llm_resp.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_admin_llm_connectivity_uses_model_and_h4ckath0n_key(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app import routes as routes_module
+    from app.main import app
+    from h4ckath0n.auth.dependencies import _get_current_user
+
+    app.dependency_overrides[_get_current_user] = _override_require_user(
+        "u_admin_0000000000000000000000", role="admin"
+    )
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("H4CKATH0N_OPENAI_API_KEY", "h4-key")
+
+    captured: dict[str, Any] = {}
+
+    class _FakeResponse:
+        content = "OK"
+
+    class _FakeChatOpenAI:
+        def __init__(self, **kwargs: Any) -> None:
+            captured["kwargs"] = kwargs
+
+        async def ainvoke(self, prompt: str) -> _FakeResponse:
+            captured["prompt"] = prompt
+            return _FakeResponse()
+
+    monkeypatch.setattr(routes_module, "ChatOpenAI", _FakeChatOpenAI)
+
+    resp = await client.post(
+        "/admin/debug/llm-connectivity",
+        json={"model": "gpt-4.1-mini", "prompt": "say ok"},
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["ok"] is True
+    assert payload["model"] == "gpt-4.1-mini"
+    assert payload["response_text"] == "OK"
+    assert captured["kwargs"]["api_key"] == "h4-key"
+    assert captured["kwargs"]["model"] == "gpt-4.1-mini"
+    assert captured["prompt"] == "say ok"
+
+
+@pytest.mark.asyncio
+async def test_auth_sessions_list_revoke_and_scope(client: AsyncClient) -> None:
+    from app.main import app
+    from app.routes import _require_auth_context
+    from h4ckath0n.auth.dependencies import _get_current_user
+
+    app.dependency_overrides[_get_current_user] = _override_require_user(
+        "u_testuser_000000000000000000"
+    )
+    app.dependency_overrides[_require_auth_context] = _override_auth_context(
+        "u_testuser_000000000000000000", "d_current"
+    )
+
+    async with _test_session_factory() as db:
+        db.add(
+            Device(
+                id="d_current",
+                user_id="u_testuser_000000000000000000",
+                public_key_jwk="{}",
+                label="Current Device",
+            )
+        )
+        db.add(
+            Device(
+                id="d_other",
+                user_id="u_testuser_000000000000000000",
+                public_key_jwk="{}",
+                label="Other Device",
+            )
+        )
+        db.add(
+            Device(
+                id="d_foreign",
+                user_id="u_other_user_000000000000000000",
+                public_key_jwk="{}",
+                label="Foreign",
+            )
+        )
+        await db.commit()
+
+    list_resp = await client.get("/auth/sessions")
+    assert list_resp.status_code == 200
+    sessions = list_resp.json()["sessions"]
+    assert len(sessions) == 2
+    assert any(s["device_id"] == "d_current" and s["is_current"] for s in sessions)
+
+    revoke_own = await client.post("/auth/sessions/d_other/revoke")
+    assert revoke_own.status_code == 200
+    assert revoke_own.json()["ok"] is True
+
+    revoke_foreign = await client.post("/auth/sessions/d_foreign/revoke")
+    assert revoke_foreign.status_code == 404
 
 
 @pytest.mark.asyncio

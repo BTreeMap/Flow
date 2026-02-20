@@ -1,112 +1,191 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  Beaker,
+  Bug,
+  ClipboardCopy,
+  FolderPlus,
+  Send,
+  TicketPlus,
+} from "lucide-react";
 import { useAuth } from "../auth";
-import { getOrMintToken } from "../auth/token";
 import { Alert } from "../components/Alert";
 import { Button } from "../components/Button";
 import { Card, CardContent, CardHeader } from "../components/Card";
 import { Input } from "../components/Input";
+import { SectionHeader } from "../components/SectionHeader";
+import api from "../api/client";
+import type {
+  AdminCreateInvitesResponse,
+  AdminDebugStatusResponse,
+  AdminLLMConnectivityRequest,
+  AdminLLMConnectivityResponse,
+  AdminProjectsResponse,
+} from "../api/types";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+const MODEL_OPTIONS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
 
-interface ProjectItem {
-  project_id: string;
-  display_name: string | null;
-  created_at: string;
-  member_count: number;
+function readErrorMessage(error: unknown, fallback: string): string {
+  if (
+    error &&
+    typeof error === "object" &&
+    "detail" in error &&
+    typeof (error as { detail?: unknown }).detail === "string"
+  ) {
+    return (error as { detail: string }).detail;
+  }
+  return fallback;
 }
 
 export function Admin() {
+  const queryClient = useQueryClient();
   const { role } = useAuth();
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [inviteProjectId, setInviteProjectId] = useState("");
   const [inviteCount, setInviteCount] = useState("1");
   const [inviteMaxUses, setInviteMaxUses] = useState("");
   const [inviteCodes, setInviteCodes] = useState<string[]>([]);
-  const [expiresAt, setExpiresAt] = useState(
+  const [llmModel, setLlmModel] = useState("gpt-4o-mini");
+  const [llmPrompt, setLlmPrompt] = useState("Reply with exactly: OK");
+  const [llmMaxTokens, setLlmMaxTokens] = useState("128");
+  const [llmTemperature, setLlmTemperature] = useState("0");
+  const [llmResult, setLlmResult] = useState<AdminLLMConnectivityResponse | null>(
+    null,
+  );
+  const [runningLlmTest, setRunningLlmTest] = useState(false);
+  const [expiresAt, setExpiresAt] = useState(() =>
     new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
   );
 
-  const loadProjects = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = await getOrMintToken("http");
-      const res = await fetch(`${API_BASE}/admin/projects`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`Failed to load projects (${res.status})`);
-      const data = (await res.json()) as { projects: ProjectItem[] };
-      setProjects(data.projects || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load projects");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const projectsQuery = useQuery<AdminProjectsResponse["projects"], Error>({
+    queryKey: ["admin-projects"],
+    queryFn: async () => {
+      const { data, error: apiError } = await api.GET("/admin/projects");
+      if (apiError) {
+        throw new Error(readErrorMessage(apiError, "Failed to load projects"));
+      }
+      return data.projects ?? [];
+    },
+  });
+  const debugQuery = useQuery<AdminDebugStatusResponse, Error>({
+    queryKey: ["admin-debug-status"],
+    queryFn: async () => {
+      const { data, error: apiError } = await api.GET("/admin/debug/status");
+      if (apiError) {
+        throw new Error(readErrorMessage(apiError, "Failed to load debug status"));
+      }
+      return data;
+    },
+  });
 
-  useEffect(() => {
-    void loadProjects();
-  }, []);
+  const resolvedError =
+    error ?? projectsQuery.error?.message ?? debugQuery.error?.message ?? null;
 
   const createProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName.trim()) return;
     setError(null);
-    try {
-      const token = await getOrMintToken("http");
-      const res = await fetch(`${API_BASE}/admin/projects`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ display_name: displayName.trim() }),
-      });
-      if (!res.ok) throw new Error(`Failed to create project (${res.status})`);
-      setDisplayName("");
-      await loadProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create project");
-    }
+    await createProjectMutation.mutateAsync(displayName.trim());
+    setDisplayName("");
   };
 
   const createInvites = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteProjectId.trim()) return;
     setError(null);
+    const count = Number.parseInt(inviteCount, 10) || 1;
+    const maxUses = Number.parseInt(inviteMaxUses, 10);
+    const payload = await createInvitesMutation.mutateAsync({
+      projectId: inviteProjectId.trim(),
+      count,
+      expiresAt,
+      maxUses: Number.isFinite(maxUses) ? maxUses : null,
+    });
+    setInviteCodes(
+      (payload.invite_codes ?? []).map(
+        (code) =>
+          `${window.location.origin}/p/${inviteProjectId}/activate?invite=${code}`,
+      ),
+    );
+  };
+
+  const runLlmConnectivityTest = async () => {
+    setRunningLlmTest(true);
+    setError(null);
+    setLlmResult(null);
+    const requestBody: AdminLLMConnectivityRequest = {
+      model: llmModel.trim(),
+      prompt: llmPrompt,
+      max_tokens: Number.parseInt(llmMaxTokens, 10) || 128,
+      temperature: Number.parseFloat(llmTemperature) || 0,
+    };
     try {
-      const token = await getOrMintToken("http");
-      const count = Number.parseInt(inviteCount, 10) || 1;
-      const maxUses = Number.parseInt(inviteMaxUses, 10);
-      const res = await fetch(
-        `${API_BASE}/admin/projects/${inviteProjectId}/invites`,
+      const data = await llmProbeMutation.mutateAsync(requestBody);
+      setLlmResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to run LLM probe");
+    }
+    setRunningLlmTest(false);
+  };
+
+  const createProjectMutation = useMutation({
+    mutationFn: async (trimmedName: string) => {
+      const { error: apiError } = await api.POST("/admin/projects", {
+        body: { display_name: trimmedName },
+      });
+      if (apiError) {
+        throw new Error(readErrorMessage(apiError, "Failed to create project"));
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-projects"] });
+    },
+  });
+  const createInvitesMutation = useMutation({
+    mutationFn: async ({
+      projectId,
+      count,
+      expiresAt,
+      maxUses,
+    }: {
+      projectId: string;
+      count: number;
+      expiresAt: string;
+      maxUses: number | null;
+    }) => {
+      const { data, error: apiError } = await api.POST(
+        "/admin/projects/{project_id}/invites",
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
+          params: { path: { project_id: projectId } },
+          body: {
             count,
             expires_at: new Date(expiresAt).toISOString(),
-            max_uses: Number.isFinite(maxUses) ? maxUses : null,
-          }),
+            max_uses: maxUses,
+          },
         },
       );
-      if (!res.ok) throw new Error(`Failed to create invites (${res.status})`);
-      const data = (await res.json()) as { invite_codes: string[] };
-      setInviteCodes(
-        (data.invite_codes || []).map(
-          (code) => `${window.location.origin}/p/${inviteProjectId}/activate?invite=${code}`,
-        ),
+      if (apiError) {
+        throw new Error(readErrorMessage(apiError, "Failed to create invites"));
+      }
+      return data as AdminCreateInvitesResponse;
+    },
+  });
+  const llmProbeMutation = useMutation({
+    mutationFn: async (body: AdminLLMConnectivityRequest) => {
+      const { data, error: apiError } = await api.POST(
+        "/admin/debug/llm-connectivity",
+        {
+          body,
+        },
       );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create invites");
-    }
-  };
+      if (apiError) {
+        throw new Error(readErrorMessage(apiError, "Failed to run LLM probe"));
+      }
+      return data as AdminLLMConnectivityResponse;
+    },
+  });
 
   const copyAllInvites = async () => {
     if (!inviteCodes.length) return;
@@ -120,12 +199,158 @@ export function Admin() {
         <p className="text-text-muted">Server-side RBAC enforces all operations</p>
       </div>
 
-      {error && <Alert variant="error">{error}</Alert>}
+      {resolvedError && <Alert variant="error">{resolvedError}</Alert>}
       {role !== "admin" && <Alert variant="warning">Admin role required.</Alert>}
 
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-semibold text-text">Create project</h2>
+          <SectionHeader
+            icon={<Bug className="w-5 h-5" />}
+            title="Debug diagnostics"
+            subtitle="Configuration checks and LLM probing"
+          />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-text-muted">
+            LLM mode:{" "}
+            <span className="font-medium text-text">
+              {debugQuery.data?.llm_mode ?? "loading"}
+            </span>
+          </p>
+          {debugQuery.data && (
+            <div className="text-sm text-text-muted space-y-1">
+              <p>
+                OpenAI API key:{" "}
+                <span
+                  className={
+                    debugQuery.data.openai_api_key_configured
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                >
+                  {debugQuery.data.openai_api_key_configured
+                    ? "configured"
+                    : "missing"}
+                </span>
+              </p>
+              <p>
+                VAPID public key:{" "}
+                <span
+                  className={
+                    debugQuery.data.vapid_public_key_configured
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                >
+                  {debugQuery.data.vapid_public_key_configured
+                    ? "configured"
+                    : "missing"}
+                </span>
+              </p>
+              <p>
+                VAPID private key:{" "}
+                <span
+                  className={
+                    debugQuery.data.vapid_private_key_configured
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                >
+                  {debugQuery.data.vapid_private_key_configured
+                    ? "configured"
+                    : "missing"}
+                </span>
+              </p>
+            </div>
+          )}
+          {!!debugQuery.data?.warnings.length && (
+            <Alert variant="warning">
+              <div className="space-y-1">
+                {debugQuery.data.warnings.map((warning) => (
+                  <p key={warning} className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>{warning}</span>
+                  </p>
+                ))}
+              </div>
+            </Alert>
+          )}
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input
+              label="Model"
+              value={llmModel}
+              onChange={(e) => setLlmModel(e.target.value)}
+              list="admin-llm-model-options"
+            />
+            <datalist id="admin-llm-model-options">
+              {MODEL_OPTIONS.map((model) => (
+                <option value={model} key={model} />
+              ))}
+            </datalist>
+            <Input
+              label="Max tokens"
+              value={llmMaxTokens}
+              type="number"
+              min={1}
+              onChange={(e) => setLlmMaxTokens(e.target.value)}
+            />
+            <Input
+              label="Temperature"
+              value={llmTemperature}
+              type="number"
+              step="0.1"
+              min={0}
+              max={2}
+              onChange={(e) => setLlmTemperature(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-text" htmlFor="llm-prompt">
+              Prompt
+            </label>
+            <textarea
+              id="llm-prompt"
+              rows={3}
+              value={llmPrompt}
+              onChange={(e) => setLlmPrompt(e.target.value)}
+              placeholder="Prompt used for connectivity probe"
+              className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+            />
+          </div>
+          <Button
+            onClick={() => void runLlmConnectivityTest()}
+            disabled={runningLlmTest || !llmModel.trim() || !llmPrompt.trim()}
+            aria-busy={runningLlmTest}
+          >
+            <Beaker className="w-4 h-4" />
+            {runningLlmTest ? "Testing..." : "Run test"}
+          </Button>
+          {llmResult && (
+            <div className="text-sm space-y-1 bg-surface-alt rounded-xl p-3">
+              <p className="text-text">
+                {llmResult.ok ? "Probe succeeded" : "Probe failed"} ·{" "}
+                {llmResult.latency_ms}ms
+              </p>
+              {llmResult.response_text && (
+                <pre className="text-xs overflow-auto text-text-muted">
+                  {llmResult.response_text}
+                </pre>
+              )}
+              {llmResult.error && (
+                <p className="text-xs text-danger break-words">{llmResult.error}</p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <SectionHeader
+            icon={<FolderPlus className="w-5 h-5" />}
+            title="Create project"
+          />
         </CardHeader>
         <CardContent>
           <form onSubmit={createProject} className="space-y-3">
@@ -136,6 +361,7 @@ export function Admin() {
               required
             />
             <Button type="submit" disabled={!displayName.trim()}>
+              <Send className="w-4 h-4" />
               Create project
             </Button>
           </form>
@@ -144,7 +370,10 @@ export function Admin() {
 
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-semibold text-text">Generate invites</h2>
+          <SectionHeader
+            icon={<TicketPlus className="w-5 h-5" />}
+            title="Generate invites"
+          />
         </CardHeader>
         <CardContent>
           <form onSubmit={createInvites} className="space-y-3">
@@ -169,9 +398,6 @@ export function Admin() {
               value={inviteMaxUses}
               onChange={(e) => setInviteMaxUses(e.target.value)}
             />
-            <p className="text-xs text-text-muted -mt-2">
-              Leave empty for unlimited uses (recommended for WhatsApp groups).
-            </p>
             <Input
               label="Expires at"
               type="datetime-local"
@@ -179,13 +405,19 @@ export function Admin() {
               onChange={(e) => setExpiresAt(e.target.value)}
               required
             />
-            <Button type="submit">Generate invites</Button>
+            <Button type="submit">
+              <Send className="w-4 h-4" />
+              Generate invites
+            </Button>
           </form>
           {inviteCodes.length > 0 && (
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-text">Invite links</p>
-                <Button onClick={() => void copyAllInvites()}>Copy all</Button>
+                <Button onClick={() => void copyAllInvites()}>
+                  <ClipboardCopy className="w-4 h-4" />
+                  Copy all
+                </Button>
               </div>
               <pre className="text-xs bg-surface-alt p-3 rounded-xl overflow-auto">
                 {inviteCodes.join("\n")}
@@ -197,14 +429,14 @@ export function Admin() {
 
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-semibold text-text">Projects</h2>
+          <SectionHeader icon={<FolderPlus className="w-5 h-5" />} title="Projects" />
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {projectsQuery.isLoading ? (
             <p className="text-sm text-text-muted">Loading…</p>
           ) : (
             <div className="space-y-2">
-              {projects.map((project) => (
+              {(projectsQuery.data ?? []).map((project) => (
                 <div
                   key={project.project_id}
                   className="rounded-xl border border-border p-3 text-sm"

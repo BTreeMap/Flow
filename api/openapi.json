@@ -83,6 +83,113 @@
         "title": "AdminCreateProjectRequest",
         "type": "object"
       },
+      "AdminDebugStatusResponse": {
+        "properties": {
+          "llm_mode": {
+            "title": "Llm Mode",
+            "type": "string"
+          },
+          "openai_api_key_configured": {
+            "title": "Openai Api Key Configured",
+            "type": "boolean"
+          },
+          "vapid_private_key_configured": {
+            "title": "Vapid Private Key Configured",
+            "type": "boolean"
+          },
+          "vapid_public_key_configured": {
+            "title": "Vapid Public Key Configured",
+            "type": "boolean"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "llm_mode",
+          "openai_api_key_configured",
+          "vapid_public_key_configured",
+          "vapid_private_key_configured",
+          "warnings"
+        ],
+        "title": "AdminDebugStatusResponse",
+        "type": "object"
+      },
+      "AdminLLMConnectivityRequest": {
+        "properties": {
+          "max_tokens": {
+            "default": 128,
+            "title": "Max Tokens",
+            "type": "integer"
+          },
+          "model": {
+            "default": "gpt-4o-mini",
+            "title": "Model",
+            "type": "string"
+          },
+          "prompt": {
+            "default": "Reply with exactly: OK",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "temperature": {
+            "default": 0.0,
+            "title": "Temperature",
+            "type": "number"
+          }
+        },
+        "title": "AdminLLMConnectivityRequest",
+        "type": "object"
+      },
+      "AdminLLMConnectivityResponse": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "response_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Text"
+          }
+        },
+        "required": [
+          "ok",
+          "model",
+          "latency_ms"
+        ],
+        "title": "AdminLLMConnectivityResponse",
+        "type": "object"
+      },
       "AdminParticipantItem": {
         "properties": {
           "created_at": {
@@ -237,6 +344,80 @@
           "role"
         ],
         "title": "AuthMeResponse",
+        "type": "object"
+      },
+      "AuthSessionItem": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "device_id": {
+            "title": "Device Id",
+            "type": "string"
+          },
+          "is_current": {
+            "title": "Is Current",
+            "type": "boolean"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "required": [
+          "device_id",
+          "created_at",
+          "is_current"
+        ],
+        "title": "AuthSessionItem",
+        "type": "object"
+      },
+      "AuthSessionRevokeResponse": {
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "AuthSessionRevokeResponse",
+        "type": "object"
+      },
+      "AuthSessionsResponse": {
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/AuthSessionItem"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions"
+        ],
+        "title": "AuthSessionsResponse",
         "type": "object"
       },
       "ClaimRequest": {
@@ -1197,7 +1378,7 @@
   "info": {
     "description": "Hackathon app powered by h4ckath0n",
     "title": "h4ckath0n",
-    "version": "0.1.8.dev20260220000653"
+    "version": "0.1.8.dev20260220171602"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1218,6 +1399,78 @@
           }
         },
         "summary": "Welcome"
+      }
+    },
+    "/admin/debug/llm-connectivity": {
+      "post": {
+        "operationId": "admin_debug_llm_connectivity_admin_debug_llm_connectivity_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLLMConnectivityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminLLMConnectivityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin Debug Llm Connectivity",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/debug/status": {
+      "get": {
+        "operationId": "admin_debug_status_admin_debug_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDebugStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin Debug Status",
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/admin/projects": {
@@ -1941,6 +2194,69 @@
         "summary": "Revoke a passkey",
         "tags": [
           "passkey"
+        ]
+      }
+    },
+    "/auth/sessions": {
+      "get": {
+        "operationId": "auth_sessions_auth_sessions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSessionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Auth Sessions",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/sessions/{device_id}/revoke": {
+      "post": {
+        "operationId": "revoke_auth_session_auth_sessions__device_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSessionRevokeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Auth Session",
+        "tags": [
+          "auth"
         ]
       }
     },

@@ -86,6 +86,29 @@ The frontend dev server runs at `http://localhost:5173` and proxies API requests
 
 To run real LLM responses instead of stub mode, set `OPENAI_API_KEY` (or `H4CKATH0N_OPENAI_API_KEY`) in your root `.env` before starting the backend. Keep this value secret and never commit it.
 
+### Runtime configuration warnings
+
+- Missing `OPENAI_API_KEY` / `H4CKATH0N_OPENAI_API_KEY` → chat runs in **stub mode**.
+- Missing `VAPID_PUBLIC_KEY` or `VAPID_PRIVATE_KEY` → **push notifications are disabled**.
+
+### VAPID Web Push configuration
+
+Flow uses standard Web Push VAPID keys for push subscription and delivery.
+
+Required environment variables:
+
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+
+Generate keys (example using Python `py_vapid`):
+
+```bash
+python -m pip install py-vapid
+python -m py_vapid --gen
+```
+
+Copy the generated public/private keys into `.env`.
+
 ## Project Structure
 
 ```
@@ -185,7 +208,7 @@ All project-scoped endpoints require passkey authentication.
 | `project_memberships` | auto-increment int | Links (project, user) with status; unique constraint |
 | `participant_contacts` | auto-increment int | Optional email contact metadata (not used for identity) |
 | `conversations` | auto-increment int | 1:1 with membership |
-| `messages` | auto-increment int | Chat history with `server_msg_id` (UUID) |
+| `messages` | auto-increment int | Chat history with `server_msg_id` (36-char string: `msg_` + 32 lowercase base32 chars; UUID-length for DB schema compatibility) |
 | `conversation_runtime_state` | FK to conversation | JSON blob for engine state |
 | `user_profiles` | auto-increment int | **Store A** — structured profile JSON (1:1 with membership) |
 | `memory_items` | auto-increment int | **Store B** — semi-structured memory items per membership |

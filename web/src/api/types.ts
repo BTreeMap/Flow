@@ -26,6 +26,20 @@ export type PasskeyRenameResponse =
 export type PasskeyFinishResponse =
   components["schemas"]["PasskeyFinishResponse"];
 
+export type AuthSessionsResponse = components["schemas"]["AuthSessionsResponse"];
+export type AuthSessionItem = components["schemas"]["AuthSessionItem"];
+export type AdminDebugStatusResponse =
+  components["schemas"]["AdminDebugStatusResponse"];
+export type AdminLLMConnectivityRequest =
+  components["schemas"]["AdminLLMConnectivityRequest"];
+export type AdminLLMConnectivityResponse =
+  components["schemas"]["AdminLLMConnectivityResponse"];
+export type AdminProjectsResponse = components["schemas"]["AdminProjectsResponse"];
+export type AdminCreateProjectRequest =
+  components["schemas"]["AdminCreateProjectRequest"];
+export type AdminCreateInvitesResponse =
+  components["schemas"]["AdminCreateInvitesResponse"];
+
 // ── User-defined (demo) types ─────────────────────────────────────────────
 
 /** Response body for GET /demo/ping */
@@ -41,6 +55,11 @@ export type EchoResponse = components["schemas"]["EchoResponse"];
 
 type _AssertPasskeysGet = paths["/auth/passkeys"]["get"];
 type _AssertPasskeysPatch = paths["/auth/passkeys/{key_id}"]["patch"];
+type _AssertAuthSessionsGet = paths["/auth/sessions"]["get"];
+type _AssertAuthSessionRevokePost = paths["/auth/sessions/{device_id}/revoke"]["post"];
+type _AssertAdminDebugStatusGet = paths["/admin/debug/status"]["get"];
+type _AssertAdminDebugConnectivityPost =
+  paths["/admin/debug/llm-connectivity"]["post"];
 type _AssertDemoEchoPost = paths["/demo/echo"]["post"];
 type _AssertDemoPingGet = paths["/demo/ping"]["get"];
 type _AssertDemoSseGet = paths["/demo/sse"]["get"];
@@ -49,6 +68,10 @@ type _AssertDemoSseGet = paths["/demo/sse"]["get"];
 export type {
   _AssertPasskeysGet,
   _AssertPasskeysPatch,
+  _AssertAuthSessionsGet,
+  _AssertAuthSessionRevokePost,
+  _AssertAdminDebugStatusGet,
+  _AssertAdminDebugConnectivityPost,
   _AssertDemoEchoPost,
   _AssertDemoPingGet,
   _AssertDemoSseGet,
