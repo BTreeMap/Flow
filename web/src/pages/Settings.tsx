@@ -24,6 +24,14 @@ import {
 
 const MAX_NAME_LENGTH = 64;
 
+interface SessionInfo {
+  device_id: string;
+  label: string | null;
+  created_at: string;
+  revoked_at: string | null;
+  is_current: boolean;
+}
+
 function PasskeyName({
   passkey,
   onRenamed,
@@ -156,6 +164,14 @@ export function Settings() {
       return data.passkeys;
     },
   });
+  const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionInfo[]>({
+    queryKey: ["sessions"],
+    queryFn: async () => {
+      const res = await apiFetch<{ sessions: SessionInfo[] }>("/auth/sessions");
+      if (!res.ok) throw new Error("Failed to load sessions");
+      return res.data.sessions ?? [];
+    },
+  });
 
   const revokeMutation = useMutation({
     mutationFn: async (passkeyId: string) => {
@@ -194,6 +210,20 @@ export function Settings() {
       } else {
         setError(err.message);
       }
+    },
+  });
+  const revokeSessionMutation = useMutation({
+    mutationFn: async (deviceId: string) => {
+      const res = await apiFetch(`/auth/sessions/${deviceId}/revoke`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to revoke session");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+    },
+    onError: (err: Error) => {
+      setError(err.message);
     },
   });
 
@@ -289,6 +319,54 @@ export function Settings() {
               </label>
             ))}
           </fieldset>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold text-text">Sessions</h2>
+        </CardHeader>
+        <CardContent>
+          {sessionsLoading ? (
+            <p className="text-sm text-text-muted">Loading…</p>
+          ) : sessions && sessions.length > 0 ? (
+            <div className="divide-y divide-border">
+              {sessions.map((session) => (
+                <div
+                  key={session.device_id}
+                  className="flex items-center justify-between py-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-text">
+                      {session.label || "Unnamed device"}
+                      {session.is_current && (
+                        <span className="ml-2 text-xs text-primary">Current</span>
+                      )}
+                      {session.revoked_at && (
+                        <span className="ml-2 text-xs text-danger">(revoked)</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-text-muted font-mono">
+                      {session.device_id}
+                    </p>
+                  </div>
+                  {!session.revoked_at && !session.is_current && (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => revokeSessionMutation.mutate(session.device_id)}
+                    >
+                      Revoke
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-text-muted py-4 text-center">
+              No sessions found.
+            </p>
+          )}
         </CardContent>
       </Card>
 

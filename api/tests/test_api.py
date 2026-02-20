@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, AsyncGenerator
 from unittest.mock import MagicMock
@@ -138,6 +139,11 @@ async def test_auth_me(client: AsyncClient) -> None:
     resp = await client.get("/auth/me")
     assert resp.status_code == 200
     assert resp.json()["user_id"] == "u_testuser_000000000000000000"
+
+
+def test_generate_project_id_is_lowercase_base32() -> None:
+    project_id = generate_project_id()
+    assert re.fullmatch(r"p[a-z2-7]{31}", project_id) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -685,6 +691,36 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
     assert "dedupe_key" in payload["outbox_events"][0]
     assert "locked_until" in payload["outbox_events"][0]
     assert invite_code not in json.dumps(payload)
+
+
+@pytest.mark.asyncio
+async def test_admin_debug_endpoints(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.main import app
+    from h4ckath0n.auth.dependencies import _get_current_user
+
+    app.dependency_overrides[_get_current_user] = _override_require_user(
+        "u_admin_0000000000000000000000", role="admin"
+    )
+
+    monkeypatch.delenv("H4CKATH0N_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("FLOW_VAPID_PUBLIC_KEY", "public")
+    monkeypatch.delenv("FLOW_VAPID_PRIVATE_KEY", raising=False)
+
+    status_resp = await client.get("/admin/debug/status")
+    assert status_resp.status_code == 200
+    payload = status_resp.json()
+    assert payload["llm_mode"] == "stub"
+    checks = {item["key"]: item for item in payload["checks"]}
+    assert checks["llm_api_key"]["ok"] is False
+    assert checks["vapid_public_key"]["ok"] is True
+    assert checks["vapid_private_key"]["ok"] is False
+
+    llm_resp = await client.post("/admin/debug/llm-connectivity")
+    assert llm_resp.status_code == 200
+    assert llm_resp.json()["ok"] is False
 
 
 @pytest.mark.asyncio

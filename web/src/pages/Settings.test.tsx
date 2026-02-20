@@ -61,6 +61,12 @@ const samplePasskeys = [
 beforeEach(() => {
   vi.clearAllMocks();
   mockGet.mockResolvedValue({ data: { passkeys: [] } });
+  mockApiFetch.mockImplementation((path: unknown) => {
+    if (path === "/auth/sessions") {
+      return Promise.resolve({ ok: true, data: { sessions: [] } });
+    }
+    return Promise.resolve({ ok: true, data: {} });
+  });
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
 });
@@ -116,9 +122,14 @@ describe("Settings – passkey rename", () => {
     mockGet.mockResolvedValue({
       data: { passkeys: [samplePasskeys[0]] },
     });
-    mockApiFetch.mockResolvedValue({
-      ok: true,
-      data: { id: samplePasskeys[0]!.id, name: "Work Key" },
+    mockApiFetch.mockImplementation((path: unknown) => {
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ ok: true, data: { sessions: [] } });
+      }
+      return Promise.resolve({
+        ok: true,
+        data: { id: samplePasskeys[0]!.id, name: "Work Key" },
+      });
     });
     render(<Settings />, { wrapper });
     await screen.findByText("My Laptop");
@@ -156,9 +167,14 @@ describe("Settings – passkey rename", () => {
     mockGet.mockResolvedValue({
       data: { passkeys: [samplePasskeys[0]] },
     });
-    mockApiFetch.mockResolvedValue({
-      ok: false,
-      data: { detail: "Something went wrong" },
+    mockApiFetch.mockImplementation((path: unknown) => {
+      if (path === "/auth/sessions") {
+        return Promise.resolve({ ok: true, data: { sessions: [] } });
+      }
+      return Promise.resolve({
+        ok: false,
+        data: { detail: "Something went wrong" },
+      });
     });
     render(<Settings />, { wrapper });
     await screen.findByText("My Laptop");
@@ -167,6 +183,42 @@ describe("Settings – passkey rename", () => {
     expect(await screen.findByTestId("passkey-rename-error")).toHaveTextContent(
       "Something went wrong",
     );
+  });
+});
+
+describe("Settings – sessions", () => {
+  it("renders current and revocable sessions", async () => {
+    mockApiFetch.mockImplementation((path: unknown) => {
+      if (path === "/auth/sessions") {
+        return Promise.resolve({
+          ok: true,
+          data: {
+            sessions: [
+              {
+                device_id: "d_current",
+                label: "My Laptop",
+                created_at: "2025-01-01T00:00:00Z",
+                revoked_at: null,
+                is_current: true,
+              },
+              {
+                device_id: "d_other",
+                label: "Phone",
+                created_at: "2025-01-02T00:00:00Z",
+                revoked_at: null,
+                is_current: false,
+              },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ ok: true, data: {} });
+    });
+    render(<Settings />, { wrapper });
+    expect(await screen.findByText("My Laptop")).toBeInTheDocument();
+    expect(screen.getByText("Current")).toBeInTheDocument();
+    expect(screen.getByText("Phone")).toBeInTheDocument();
+    expect(screen.getAllByText("Revoke").length).toBeGreaterThan(0);
   });
 });
 

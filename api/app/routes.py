@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import os
+import time
 import secrets
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -39,8 +40,9 @@ from app.schemas.patches import UserProfileData
 from app.services.outbox_service import replace_next_scheduled_prompt
 from app.services.profile_service import load_user_profile, save_user_profile
 from h4ckath0n.auth import require_user
-from h4ckath0n.auth.dependencies import require_admin
-from h4ckath0n.auth.models import User
+from h4ckath0n.auth.dependencies import _get_auth_context, require_admin
+from h4ckath0n.auth.models import Device, User
+from h4ckath0n.realtime.auth import AuthContext
 from h4ckath0n.realtime import AuthError, authenticate_sse_request, sse_response
 from langchain_openai import ChatOpenAI
 
@@ -231,6 +233,41 @@ class AuthMeResponse(BaseModel):
     role: str
 
 
+class AuthSessionItem(BaseModel):
+    device_id: str
+    label: str | None = None
+    created_at: str
+    revoked_at: str | None = None
+    is_current: bool
+
+
+class AuthSessionsResponse(BaseModel):
+    sessions: list[AuthSessionItem]
+
+
+class AuthSessionRevokeResponse(BaseModel):
+    ok: bool
+
+
+class AdminDebugCheck(BaseModel):
+    key: str
+    ok: bool
+    detail: str
+
+
+class AdminDebugStatusResponse(BaseModel):
+    llm_mode: str
+    checks: list[AdminDebugCheck]
+
+
+class AdminLLMConnectivityResponse(BaseModel):
+    ok: bool
+    model: str
+    latency_ms: int
+    output: str | None = None
+    error: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # 1. Dashboard
 # ---------------------------------------------------------------------------
@@ -276,6 +313,122 @@ async def dashboard(
 @router.get("/auth/me", tags=["auth"])
 async def auth_me(user: User = require_user()) -> AuthMeResponse:
     return AuthMeResponse(user_id=user.id, role=user.role)
+
+
+@router.get("/auth/sessions", tags=["auth"])
+async def auth_sessions(
+    user: User = require_user(),
+    auth_ctx: AuthContext = Depends(_get_auth_context),
+    db: AsyncSession = Depends(get_db),
+) -> AuthSessionsResponse:
+    result = await db.execute(
+        select(Device)
+        .where(Device.user_id == user.id)
+        .order_by(Device.created_at.desc())
+    )
+    sessions = [
+        AuthSessionItem(
+            device_id=device.id,
+            label=device.label,
+            created_at=device.created_at.isoformat(),
+            revoked_at=device.revoked_at.isoformat() if device.revoked_at else None,
+            is_current=device.id == auth_ctx.device_id,
+        )
+        for device in result.scalars().all()
+    ]
+    return AuthSessionsResponse(sessions=sessions)
+
+
+@router.post("/auth/sessions/{device_id}/revoke", tags=["auth"])
+async def revoke_auth_session(
+    device_id: str,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> AuthSessionRevokeResponse:
+    result = await db.execute(
+        select(Device).where(Device.id == device_id, Device.user_id == user.id)
+    )
+    device = result.scalar_one_or_none()
+    if device is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if device.revoked_at is None:
+        device.revoked_at = datetime.now(UTC)
+        await db.commit()
+    return AuthSessionRevokeResponse(ok=True)
+
+
+@router.get("/admin/debug/status", tags=["admin"])
+async def admin_debug_status(
+    _admin_user: User = require_admin(),
+) -> AdminDebugStatusResponse:
+    llm_key_present = bool(
+        os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    )
+    vapid_public_present = bool(os.environ.get("FLOW_VAPID_PUBLIC_KEY"))
+    vapid_private_present = bool(os.environ.get("FLOW_VAPID_PRIVATE_KEY"))
+    checks = [
+        AdminDebugCheck(
+            key="llm_api_key",
+            ok=llm_key_present,
+            detail="Set H4CKATH0N_OPENAI_API_KEY or OPENAI_API_KEY",
+        ),
+        AdminDebugCheck(
+            key="vapid_public_key",
+            ok=vapid_public_present,
+            detail="Set FLOW_VAPID_PUBLIC_KEY",
+        ),
+        AdminDebugCheck(
+            key="vapid_private_key",
+            ok=vapid_private_present,
+            detail="Set FLOW_VAPID_PRIVATE_KEY",
+        ),
+    ]
+    return AdminDebugStatusResponse(
+        llm_mode="openai" if llm_key_present else "stub",
+        checks=checks,
+    )
+
+
+@router.post("/admin/debug/llm-connectivity", tags=["admin"])
+async def admin_debug_llm_connectivity(
+    _admin_user: User = require_admin(),
+) -> AdminLLMConnectivityResponse:
+    llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
+        "OPENAI_API_KEY"
+    )
+    if not llm_key:
+        return AdminLLMConnectivityResponse(
+            ok=False,
+            model="gpt-4o-mini",
+            latency_ms=0,
+            error="Missing OpenAI API key",
+        )
+
+    started = time.perf_counter()
+    try:
+        llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key)
+        response = await llm.ainvoke(
+            "Reply with exactly: OK",
+        )
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return AdminLLMConnectivityResponse(
+            ok=True,
+            model="gpt-4o-mini",
+            latency_ms=latency_ms,
+            output=(
+                response.content
+                if isinstance(response.content, str)
+                else str(response.content)
+            ),
+        )
+    except Exception as exc:  # pragma: no cover - depends on environment/network
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return AdminLLMConnectivityResponse(
+            ok=False,
+            model="gpt-4o-mini",
+            latency_ms=latency_ms,
+            error=str(exc),
+        )
 
 
 # ---------------------------------------------------------------------------

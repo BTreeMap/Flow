@@ -8,8 +8,8 @@ import uuid
 
 
 def generate_project_id() -> str:
-    """Return a 32-char project id: 'p' + 31 chars of base32-encoded random bytes."""
-    raw = base64.b32encode(os.urandom(20)).decode("ascii")
+    """Return a 32-char project id: 'p' + 31 lowercase base32 chars."""
+    raw = base64.b32encode(os.urandom(20)).decode("ascii").lower()
     return "p" + raw[1:]  # 1 + 31 = 32 chars
 
 
