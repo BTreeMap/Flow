@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from h4ckath0n.auth.passkeys import random_base32
 
 
