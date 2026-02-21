@@ -6,6 +6,7 @@ interface NavItem {
   to: string;
   icon: ReactNode;
   label: string;
+  testId: string;
   match?: string[];
 }
 
@@ -14,18 +15,21 @@ const navItems: NavItem[] = [
     to: "/dashboard",
     icon: <MessageCircle className="w-5 h-5" />,
     label: "Chats",
+    testId: "nav-chats",
     match: ["/dashboard", "/p/"],
   },
   {
     to: "/updates",
     icon: <Bell className="w-5 h-5" />,
     label: "Updates",
+    testId: "nav-updates",
     match: ["/updates"],
   },
   {
     to: "/settings",
     icon: <Settings className="w-5 h-5" />,
     label: "Settings",
+    testId: "nav-settings",
     match: ["/settings"],
   },
 ];
@@ -38,7 +42,7 @@ export function BottomNav() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-surface border-t border-divider md:hidden" style={{ height: "calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px))", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    <nav className="fixed bottom-0 inset-x-0 z-50 bg-surface border-t border-divider" style={{ height: "calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px))", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       <div className="flex items-center justify-around h-[var(--bottomnav-h)]">
         {navItems.map((item) => {
           const active = isActive(item, pathname);
@@ -46,6 +50,7 @@ export function BottomNav() {
             <Link
               key={item.to}
               to={item.to}
+              data-testid={item.testId}
               className={`flex flex-col items-center justify-center gap-0.5 min-w-[var(--tap)] h-[var(--tap)] text-[11px] transition-colors ${
                 active
                   ? "text-primary font-medium"

@@ -109,6 +109,7 @@ export function Dashboard() {
     <div className="flex flex-col min-h-screen bg-bg" data-testid="dashboard-page">
       <PageHeader
         title="Chats"
+        data-testid="dashboard-heading"
         actions={
           canPrompt ? (
             <button

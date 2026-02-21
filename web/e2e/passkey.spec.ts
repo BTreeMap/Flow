@@ -114,8 +114,10 @@ test.describe("Passkey auth flows", () => {
     await page.goto("/register");
     await registerViaPasskey(page, "e2e-login@example.com", "E2E Login User");
 
-    // Logout
-    await page.getByTestId("nav-logout").click();
+    // Logout via Settings page
+    await page.getByTestId("nav-settings").click();
+    await expect(page).toHaveURL(/\/settings/, { timeout: 10_000 });
+    await page.getByTestId("settings-logout").click();
     // After logout, app may navigate to "/" or ProtectedRoute may redirect to "/login"
     await expect(page).toHaveURL(/\/(login)?$/, { timeout: 10_000 });
 
