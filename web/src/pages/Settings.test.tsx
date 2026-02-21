@@ -17,6 +17,11 @@ vi.mock("../api/client", () => ({
 const mockApiFetch = vi.fn();
 vi.mock("../auth", () => ({
   apiFetch: (...args: unknown[]) => mockApiFetch(...args),
+  useAuth: () => ({
+    isAuthenticated: true,
+    role: "user",
+    logout: vi.fn(),
+  }),
 }));
 
 // ── mock webauthn helpers ─────────────────────────────────────────

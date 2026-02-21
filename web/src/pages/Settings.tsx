@@ -13,8 +13,10 @@ import {
   Smartphone,
   User,
   Save,
+  ShieldCheck,
 } from "lucide-react";
-import { apiFetch } from "../auth";
+import { Link } from "react-router";
+import { apiFetch, useAuth } from "../auth";
 import { toCreateOptions, serializeCreateResponse } from "../auth/webauthn";
 import { Card, CardContent, CardHeader } from "../components/Card";
 import { Button } from "../components/Button";
@@ -153,6 +155,7 @@ function PasskeyName({
 
 export function Settings() {
   const queryClient = useQueryClient();
+  const { role, logout } = useAuth();
   const [addLoading, setAddLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastPasskeyError, setLastPasskeyError] = useState<string | null>(null);
@@ -321,10 +324,10 @@ export function Settings() {
   const activePasskeys = passkeys?.filter((p) => !p.revoked_at) ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 py-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-text">Settings</h1>
-        <p className="text-text-muted">
+        <h1 className="text-[17px] font-semibold text-text">Settings</h1>
+        <p className="text-[13px] text-text-muted">
           Manage your passkeys and account security
         </p>
       </div>
@@ -571,6 +574,28 @@ export function Settings() {
           )}
         </CardContent>
       </Card>
+
+      {/* Admin entry for admins */}
+      {role === "admin" && (
+        <Link
+          to="/admin"
+          className="flex items-center gap-3 px-4 py-3 bg-surface border border-border rounded-2xl hover:bg-surface-2 transition-colors"
+          data-testid="settings-admin-link"
+        >
+          <ShieldCheck className="w-5 h-5 text-primary" />
+          <span className="text-[15px] font-medium text-text">Admin Panel</span>
+        </Link>
+      )}
+
+      {/* Logout */}
+      <button
+        onClick={() => void logout()}
+        className="flex items-center gap-3 w-full px-4 py-3 bg-surface border border-border rounded-2xl hover:bg-surface-2 transition-colors"
+        data-testid="settings-logout"
+      >
+        <LogOut className="w-5 h-5 text-danger" />
+        <span className="text-[15px] font-medium text-danger">Log Out</span>
+      </button>
     </div>
   );
 }
