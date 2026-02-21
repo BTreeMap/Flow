@@ -1,11 +1,14 @@
 import { Routes, Route } from "react-router";
 import { Layout } from "./components/Layout";
+import { MobileShell } from "./components/MobileShell";
+import { ChatShell } from "./components/ChatShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Landing } from "./pages/Landing";
 import { Register } from "./pages/Register";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
+import { Updates } from "./pages/Updates";
 import { DemoRealtime } from "./pages/DemoRealtime";
 import { Activation } from "./pages/Activation";
 import { Onboarding } from "./pages/Onboarding";
@@ -16,15 +19,24 @@ import { Admin } from "./pages/Admin";
 export function App() {
   return (
     <Routes>
+      {/* Auth / public pages keep top-nav Layout */}
       <Route element={<Layout />}>
         <Route path="/" element={<Landing />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route
-          path="/dashboard"
+          path="/admin"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Admin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/demo/realtime"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <DemoRealtime />
             </ProtectedRoute>
           }
         />
@@ -45,22 +57,6 @@ export function App() {
           }
         />
         <Route
-          path="/p/:projectId/chat"
-          element={
-            <ProtectedRoute>
-              <ChatThread />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <Admin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/p/:projectId/notifications"
           element={
             <ProtectedRoute>
@@ -68,11 +64,23 @@ export function App() {
             </ProtectedRoute>
           }
         />
+      </Route>
+
+      {/* App pages with bottom nav (mobile shell) */}
+      <Route element={<MobileShell />}>
         <Route
-          path="/demo/realtime"
+          path="/dashboard"
           element={
             <ProtectedRoute>
-              <DemoRealtime />
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/updates"
+          element={
+            <ProtectedRoute>
+              <Updates />
             </ProtectedRoute>
           }
         />
@@ -81,6 +89,18 @@ export function App() {
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+
+      {/* Immersive chat (no nav chrome) */}
+      <Route element={<ChatShell />}>
+        <Route
+          path="/p/:projectId/chat"
+          element={
+            <ProtectedRoute>
+              <ChatThread />
             </ProtectedRoute>
           }
         />
