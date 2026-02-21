@@ -305,6 +305,35 @@ async def test_dashboard_after_activation(seeded_client: dict[str, Any]) -> None
     assert len(data["memberships"]) == 1
     assert data["memberships"][0]["project_id"] == project_id
     assert data["memberships"][0]["status"] == "active"
+    # New fields present (no messages yet)
+    assert data["memberships"][0]["last_message_preview"] is None
+    assert data["memberships"][0]["last_message_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_dashboard_last_message(seeded_client: dict[str, Any]) -> None:
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    # Activate
+    await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+
+    # Send a message so last_message_preview is populated
+    await client.post(
+        f"/p/{project_id}/messages",
+        json={"text": "Hello preview!", "client_msg_id": "dash1"},
+    )
+
+    resp = await client.get("/dashboard")
+    assert resp.status_code == 200
+    data = resp.json()
+    mem = data["memberships"][0]
+    assert mem["last_message_preview"] is not None
+    assert mem["last_message_at"] is not None
 
 
 # ---------------------------------------------------------------------------

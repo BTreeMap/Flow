@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, Link, useNavigate } from "react-router";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useParams, useNavigate } from "react-router";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { Card } from "../components/Card";
-import { Button } from "../components/Button";
 import { Alert } from "../components/Alert";
 import { getOrMintToken } from "../auth/token";
 import { useAuth } from "../auth";
-import { Send, Bell } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { ChatHeader } from "../components/ui/ChatHeader";
+import { MessageBubble } from "../components/ui/MessageBubble";
+import { Composer } from "../components/ui/Composer";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -18,25 +19,70 @@ interface Message {
   created_at?: string;
 }
 
+function formatBubbleTime(iso?: string): string | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function shouldGroup(prev: Message | undefined, curr: Message): boolean {
+  if (!prev || prev.role !== curr.role) return false;
+  if (!prev.created_at || !curr.created_at) return false;
+  const diff =
+    new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime();
+  return diff < 2 * 60 * 1000; // 2 minutes
+}
+
 export function ChatThread() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  useAuth(); // ensure user is authenticated
+  useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<
+    "online" | "reconnecting" | "offline"
+  >("offline");
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<string | null>(null);
+  const [chatTitle, setChatTitle] = useState("Chat");
+
+  // Mark chat as opened for unread tracking
+  useEffect(() => {
+    if (projectId) {
+      localStorage.setItem(`chat-opened:${projectId}`, new Date().toISOString());
+    }
+  }, [projectId]);
+
+  const isNearBottom = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    if (isNearBottom()) {
+      scrollToBottom();
+    }
+  }, [messages, scrollToBottom, isNearBottom]);
+
+  // Track scroll position for jump-to-bottom
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      setShowJumpToBottom(!isNearBottom());
+    };
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [isNearBottom]);
 
   // Load existing messages
   useEffect(() => {
@@ -58,6 +104,21 @@ export function ChatThread() {
           navigate(`/p/${projectId}/onboarding`, { replace: true });
           return;
         }
+
+        // Fetch dashboard for chat title
+        const dashRes = await fetch(`${API_BASE}/dashboard`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (dashRes.ok) {
+          const dashData = await dashRes.json();
+          const membership = (dashData.memberships ?? []).find(
+            (m: { project_id: string }) => m.project_id === projectId,
+          );
+          if (membership?.display_name) {
+            setChatTitle(membership.display_name);
+          }
+        }
+
         const res = await fetch(`${API_BASE}/p/${projectId}/messages`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -82,6 +143,8 @@ export function ChatThread() {
             ),
           );
           setLoading(false);
+          // Scroll to bottom after initial load
+          setTimeout(() => bottomRef.current?.scrollIntoView(), 50);
         }
       } catch (err) {
         if (!cancelled) {
@@ -102,7 +165,7 @@ export function ChatThread() {
     const ctrl = new AbortController();
     let active = true;
 
-    const appendMessage = (payload: {
+    const appendSSEMessage = (payload: {
       message_id: number;
       server_msg_id: string;
       role: "user" | "assistant";
@@ -127,6 +190,7 @@ export function ChatThread() {
       while (active && !ctrl.signal.aborted) {
         try {
           const token = await getOrMintToken("sse");
+          setConnectionStatus("reconnecting");
           await fetchEventSource(`${API_BASE}/p/${projectId}/events`, {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -141,7 +205,7 @@ export function ChatThread() {
               }
               if (ev.event === "message.final") {
                 try {
-                  appendMessage(
+                  appendSSEMessage(
                     JSON.parse(ev.data) as {
                       message_id: number;
                       server_msg_id: string;
@@ -165,6 +229,7 @@ export function ChatThread() {
                 throw new Error(`SSE connection failed (${response.status})`);
               }
               retryCount = 0;
+              setConnectionStatus("online");
             },
             openWhenHidden: true,
           });
@@ -172,6 +237,7 @@ export function ChatThread() {
           if (!active || ctrl.signal.aborted) {
             return;
           }
+          setConnectionStatus("reconnecting");
           retryCount += 1;
           const backoffMs = Math.min(1000 * 2 ** (retryCount - 1), 10000);
           await new Promise((resolve) => setTimeout(resolve, backoffMs));
@@ -192,15 +258,12 @@ export function ChatThread() {
     });
   }, []);
 
-  const handleSend = async () => {
-    const text = input.trim();
+  const handleSend = async (text: string) => {
     if (!text || sending) return;
 
-    setInput("");
     setSending(true);
     setError(null);
 
-    // Optimistic local message
     const tempId = `temp-${Date.now()}`;
     const userMsg: Message = {
       id: tempId,
@@ -243,94 +306,93 @@ export function ChatThread() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
-      // Remove optimistic message on failure
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setSending(false);
+      // Update last opened
+      if (projectId) {
+        localStorage.setItem(
+          `chat-opened:${projectId}`,
+          new Date().toISOString(),
+        );
+      }
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
-  };
+  const groupedMessages = useMemo(() => {
+    return messages.map((msg, i) => ({
+      ...msg,
+      isGroupContinuation: shouldGroup(messages[i - 1], msg),
+    }));
+  }, [messages]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="flex items-center justify-center min-h-screen bg-chat-bg">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-text">Chat</h1>
-        <Link
-          to={`/p/${projectId}/notifications`}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl hover:bg-surface-alt transition-colors text-text-muted"
-        >
-          <Bell className="w-4 h-4" />
-          Notifications
-        </Link>
-      </div>
+    <div className="flex flex-col h-screen bg-chat-bg">
+      <ChatHeader
+        title={chatTitle}
+        avatar={
+          <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[13px] font-semibold">
+            {(chatTitle[0] ?? "C").toUpperCase()}
+          </div>
+        }
+        connectionStatus={connectionStatus}
+        menuItems={[
+          {
+            label: "Notifications",
+            onClick: () => navigate(`/p/${projectId}/notifications`),
+          },
+        ]}
+      />
 
       {error && (
-        <Alert variant="error" className="mb-4">
-          {error}
-        </Alert>
+        <div className="px-3 pt-2">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
-      {/* Messages */}
-      <Card className="flex-1 overflow-y-auto mb-4">
-        <div className="p-4 space-y-3">
-          {messages.length === 0 && (
-            <p className="text-center text-text-muted py-8">
-              No messages yet. Start the conversation!
-            </p>
-          )}
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
-                  msg.role === "user"
-                    ? "bg-primary text-white"
-                    : "bg-surface-alt text-text"
-                }`}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          <div ref={bottomRef} />
-        </div>
-      </Card>
-
-      {/* Input */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Type a message…"
-          className="flex-1 px-4 py-2.5 bg-surface border border-border rounded-2xl text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-          disabled={sending}
-        />
-        <Button
-          onClick={() => void handleSend()}
-          disabled={sending || !input.trim()}
-        >
-          <Send className="w-4 h-4" />
-        </Button>
+      {/* Message list */}
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto px-3 py-2"
+      >
+        {messages.length === 0 && (
+          <p className="text-center text-text-muted py-12 text-[14px]">
+            No messages yet. Start the conversation!
+          </p>
+        )}
+        {groupedMessages.map((msg) => (
+          <MessageBubble
+            key={msg.id}
+            role={msg.role}
+            content={msg.content}
+            timestamp={formatBubbleTime(msg.created_at)}
+            isGroupContinuation={msg.isGroupContinuation}
+          />
+        ))}
+        <div ref={bottomRef} />
       </div>
+
+      {/* Jump to bottom */}
+      {showJumpToBottom && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-[calc(var(--composer-h)+env(safe-area-inset-bottom,0px)+20px)] right-4 w-10 h-10 rounded-full bg-surface shadow-md flex items-center justify-center text-text-muted hover:bg-surface-2 transition-colors z-30"
+          aria-label="Jump to bottom"
+          data-testid="jump-to-bottom"
+        >
+          <ChevronDown className="w-5 h-5" />
+        </button>
+      )}
+
+      <Composer onSend={(text) => void handleSend(text)} disabled={sending} />
     </div>
   );
 }

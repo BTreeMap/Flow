@@ -382,7 +382,7 @@ you must:
 
 ## Quality gate
 
-All checks below must pass before merging any PR.
+All checks below must pass before merging any PR. Agents **must** run all three categories (backend, frontend unit/integration, and E2E) and fix any failures before completing a task.
 
 ### Backend
 ```bash
@@ -392,7 +392,7 @@ uv run ruff format --check .
 uv run pytest tests/ -v --tb=short
 ```
 
-### Frontend
+### Frontend (unit / integration)
 ```bash
 cd web
 npm ci
@@ -407,6 +407,8 @@ cd web
 npx playwright install --with-deps chromium
 npx playwright test
 ```
+
+**Important:** E2E tests exercise the full user journey (registration, navigation, settings, auth flows). When making frontend UI changes (new pages, renamed test IDs, changed navigation), always update the E2E tests in `web/e2e/` to match. Run E2E tests as the final validation step.
 
 ### End-to-end (compose-based)
 ```bash

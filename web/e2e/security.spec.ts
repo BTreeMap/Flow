@@ -67,8 +67,10 @@ test.describe("Security: stable device identity", () => {
     expect(deviceId1).toBeTruthy();
     expect(deviceId1!.startsWith("d")).toBe(true);
 
-    // Logout
-    await page.getByTestId("nav-logout").click();
+    // Logout via Settings page
+    await page.getByTestId("nav-settings").click();
+    await expect(page).toHaveURL(/\/settings/, { timeout: 10_000 });
+    await page.getByTestId("settings-logout").click();
     await expect(page).toHaveURL(/\/(login)?$/, { timeout: 10_000 });
 
     // After logout, key material should persist but authorization cleared.

@@ -56,6 +56,8 @@ export type AdminPushTestResultItem =
   components["schemas"]["AdminPushTestResultItem"];
 export type UserMeResponse = components["schemas"]["UserMeResponse"];
 export type UserMeUpdateRequest = components["schemas"]["UserMeUpdateRequest"];
+export type DashboardResponse = components["schemas"]["DashboardResponse"];
+export type MembershipInfo = components["schemas"]["MembershipInfo"];
 
 // ── User-defined (demo) types ─────────────────────────────────────────────
 
@@ -83,6 +85,7 @@ type _AssertDemoPingGet = paths["/demo/ping"]["get"];
 type _AssertDemoSseGet = paths["/demo/sse"]["get"];
 type _AssertMeGet = paths["/me"]["get"];
 type _AssertMePatch = paths["/me"]["patch"];
+type _AssertDashboardGet = paths["/dashboard"]["get"];
 type _AssertAdminProjectPatch = paths["/admin/projects/{project_id}"]["patch"];
 type _AssertAdminPushChannelsGet =
   paths["/admin/projects/{project_id}/push/channels"]["get"];
@@ -101,6 +104,7 @@ export type {
   _AssertDemoSseGet,
   _AssertMeGet,
   _AssertMePatch,
+  _AssertDashboardGet,
   _AssertAdminProjectPatch,
   _AssertAdminPushChannelsGet,
   _AssertAdminPushTestPost,
