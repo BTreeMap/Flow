@@ -22,7 +22,7 @@ async function registerUser(
   page: Page,
   name = "Security Test User",
 ): Promise<void> {
-  const uniqueEmail = `sec-${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}@test.local`;
+  const uniqueEmail = `sec-${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}@example.com`;
   await page.goto("/register");
 
   // Step 1: Email

@@ -20,7 +20,7 @@ async function registerAndGoToRealtime(page: Page): Promise<void> {
   await page.goto("/register");
 
   // Step 1: Email
-  const uniqueEmail = `rt-e2e-${Date.now()}@test.local`;
+  const uniqueEmail = `rt-e2e-${Date.now()}@example.com`;
   await page.getByTestId("register-email").fill(uniqueEmail);
   await page.getByTestId("register-email-submit").click();
 

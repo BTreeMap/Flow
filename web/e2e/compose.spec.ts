@@ -101,7 +101,7 @@ test.describe("Compose stack: API proxy and SSE", () => {
     await expect(page).toHaveURL(/\/register/);
 
     // Step 1: Email
-    await page.getByTestId("register-email").fill("compose-e2e@test.local");
+    await page.getByTestId("register-email").fill("compose-e2e@example.com");
     await page.getByTestId("register-email-submit").click();
 
     // Step 2: Passkey enrollment
@@ -126,7 +126,7 @@ test.describe("Compose stack: API proxy and SSE", () => {
     await page.goto("/register");
 
     // Step 1: Email
-    await page.getByTestId("register-email").fill("sse-compose@test.local");
+    await page.getByTestId("register-email").fill("sse-compose@example.com");
     await page.getByTestId("register-email-submit").click();
 
     // Step 2: Passkey enrollment

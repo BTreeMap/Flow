@@ -69,7 +69,7 @@ test.describe("Passkey auth flows", () => {
     await expect(page).toHaveURL(/\/register/);
 
     // Complete 3-step registration
-    await registerViaPasskey(page, "e2e-test@test.local", "E2E Test User");
+    await registerViaPasskey(page, "e2e-test@example.com", "E2E Test User");
     await expect(page.getByTestId("dashboard-heading")).toBeVisible();
 
     // Verify backend auth works – hit /api/health (library-provided)
@@ -112,7 +112,7 @@ test.describe("Passkey auth flows", () => {
   test("logout and login with passkey", async ({ page }) => {
     // First register
     await page.goto("/register");
-    await registerViaPasskey(page, "e2e-login@test.local", "E2E Login User");
+    await registerViaPasskey(page, "e2e-login@example.com", "E2E Login User");
 
     // Logout
     await page.getByTestId("nav-logout").click();
@@ -134,7 +134,7 @@ test.describe("Passkey auth flows", () => {
   test("add a second passkey", async ({ page }) => {
     // Register
     await page.goto("/register");
-    await registerViaPasskey(page, "e2e-multikey@test.local", "E2E Multi Key");
+    await registerViaPasskey(page, "e2e-multikey@example.com", "E2E Multi Key");
 
     // Go to settings
     await page.getByTestId("nav-settings").click();
@@ -174,7 +174,7 @@ test.describe("Passkey auth flows", () => {
     await page.goto("/register");
     await registerViaPasskey(
       page,
-      "e2e-revoke@test.local",
+      "e2e-revoke@example.com",
       "E2E Revoke User",
     );
 
