@@ -62,12 +62,18 @@ export function Notifications() {
   useEffect(() => {
     if (!projectId) return;
     (async () => {
-      const { error: apiError } = await api.GET("/p/{project_id}/push/vapid-public-key", {
-        params: { path: { project_id: projectId } },
-      });
+      const { error: apiError } = await api.GET(
+        "/p/{project_id}/push/vapid-public-key",
+        {
+          params: { path: { project_id: projectId } },
+        },
+      );
       if (!apiError) return;
       const detail = extractErrorDetail(apiError, "");
-      if (detail.toLowerCase().includes("vapid") && detail.includes("not configured")) {
+      if (
+        detail.toLowerCase().includes("vapid") &&
+        detail.includes("not configured")
+      ) {
         setPushNotConfigured(true);
       }
     })();
@@ -94,8 +100,14 @@ export function Notifications() {
         },
       );
       if (vapidError) {
-        const detail = extractErrorDetail(vapidError, "Failed to fetch VAPID key");
-        if (detail.toLowerCase().includes("vapid") && detail.includes("not configured")) {
+        const detail = extractErrorDetail(
+          vapidError,
+          "Failed to fetch VAPID key",
+        );
+        if (
+          detail.toLowerCase().includes("vapid") &&
+          detail.includes("not configured")
+        ) {
           setPushNotConfigured(true);
         }
         throw new Error(detail);
@@ -103,7 +115,9 @@ export function Notifications() {
       const { public_key } = vapidData;
 
       const padding = "=".repeat((4 - (public_key.length % 4)) % 4);
-      const base64 = (public_key + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const base64 = (public_key + padding)
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
       const rawData = atob(base64);
       const applicationServerKey = new Uint8Array(rawData.length);
       for (let i = 0; i < rawData.length; i++) {
@@ -176,12 +190,15 @@ export function Notifications() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Smartphone className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-text">Add to Home Screen</h2>
+              <h2 className="text-lg font-semibold text-text">
+                Add to Home Screen
+              </h2>
             </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-text-muted">
             <p>
-              To receive push notifications on iOS, you need to install this app first:
+              To receive push notifications on iOS, you need to install this app
+              first:
             </p>
             <ol className="list-decimal list-inside space-y-1">
               <li>
@@ -202,13 +219,15 @@ export function Notifications() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-warning" />
-              <h2 className="text-lg font-semibold text-text">Push not configured</h2>
+              <h2 className="text-lg font-semibold text-text">
+                Push not configured
+              </h2>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-text-muted">
-              VAPID keys are missing on the server, so push notifications are disabled.
-              See{" "}
+              VAPID keys are missing on the server, so push notifications are
+              disabled. See{" "}
               <a
                 href="https://github.com/BTreeMap/Flow#vapid-web-push-configuration"
                 target="_blank"
@@ -227,7 +246,9 @@ export function Notifications() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-text">Push Notifications</h2>
+            <h2 className="text-lg font-semibold text-text">
+              Push Notifications
+            </h2>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -237,16 +258,18 @@ export function Notifications() {
           <div className="text-sm text-text-muted">
             {permission === "denied" ? (
               <p>
-                Notifications are blocked. Please enable them in your browser settings.
+                Notifications are blocked. Please enable them in your browser
+                settings.
               </p>
             ) : subscribed ? (
               <p>
-                You are currently subscribed to push notifications for this project.
+                You are currently subscribed to push notifications for this
+                project.
               </p>
             ) : (
               <p>
-                Enable push notifications to receive reminders and updates even when the
-                app is closed.
+                Enable push notifications to receive reminders and updates even
+                when the app is closed.
               </p>
             )}
           </div>

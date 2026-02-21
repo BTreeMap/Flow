@@ -11,15 +11,23 @@ import {
   X,
   LogOut,
   Smartphone,
+  User,
+  Save,
 } from "lucide-react";
 import { apiFetch } from "../auth";
 import { toCreateOptions, serializeCreateResponse } from "../auth/webauthn";
 import { Card, CardContent, CardHeader } from "../components/Card";
 import { Button } from "../components/Button";
+import { Input } from "../components/Input";
 import { Alert } from "../components/Alert";
 import { SectionHeader } from "../components/SectionHeader";
 import api from "../api/client";
-import type { AuthSessionItem, AuthSessionsResponse, PasskeyInfo } from "../api/types";
+import type {
+  AuthSessionItem,
+  AuthSessionsResponse,
+  PasskeyInfo,
+  UserMeResponse,
+} from "../api/types";
 import {
   applyThemePreference,
   readThemePreference,
@@ -151,6 +159,51 @@ export function Settings() {
   const [themePreference, setThemePreference] = useState<ThemePreference>(() =>
     readThemePreference(),
   );
+  const [profileEmail, setProfileEmail] = useState("");
+  const [profileDisplayName, setProfileDisplayName] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+
+  const { data: profile, isLoading: profileLoading } = useQuery<UserMeResponse>(
+    {
+      queryKey: ["me"],
+      queryFn: async () => {
+        const { data, error } = await api.GET("/me");
+        if (error) throw new Error("Failed to load profile");
+        return data as UserMeResponse;
+      },
+      // Initialize form fields when data loads
+    },
+  );
+
+  // Sync form fields when profile data loads/changes
+  const [profileInitialized, setProfileInitialized] = useState(false);
+  if (profile && !profileInitialized) {
+    setProfileEmail(profile.email ?? "");
+    setProfileDisplayName(profile.display_name ?? "");
+    setProfileInitialized(true);
+  }
+
+  const saveProfile = async () => {
+    setProfileSaving(true);
+    setProfileSuccess(false);
+    setError(null);
+    try {
+      const body: Record<string, string> = {};
+      if (profileEmail.trim()) body.email = profileEmail.trim();
+      if (profileDisplayName.trim())
+        body.display_name = profileDisplayName.trim();
+      const { error: apiError } = await api.PATCH("/me", { body });
+      if (apiError) throw new Error("Failed to save profile");
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save profile");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const { data: passkeys, isLoading } = useQuery<PasskeyInfo[]>({
     queryKey: ["passkeys"],
@@ -292,6 +345,53 @@ export function Settings() {
 
       <Card>
         <CardHeader>
+          <SectionHeader
+            icon={<User className="w-5 h-5" />}
+            title="Profile"
+            subtitle="Your email and display name"
+          />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {profileLoading ? (
+            <p className="text-sm text-text-muted">Loading…</p>
+          ) : (
+            <>
+              <Input
+                label="Email"
+                type="email"
+                placeholder="you@example.com"
+                value={profileEmail}
+                onChange={(e) => setProfileEmail(e.target.value)}
+                data-testid="profile-email"
+              />
+              <Input
+                label="Display Name"
+                placeholder="Your name"
+                value={profileDisplayName}
+                onChange={(e) => setProfileDisplayName(e.target.value)}
+                data-testid="profile-display-name"
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => void saveProfile()}
+                  disabled={profileSaving}
+                  data-testid="profile-save"
+                >
+                  <Save className="w-4 h-4" />
+                  {profileSaving ? "Saving…" : "Save"}
+                </Button>
+                {profileSuccess && (
+                  <span className="text-sm text-success">Saved!</span>
+                )}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <SectionHeader icon={<Brush className="w-5 h-5" />} title="Theme" />
         </CardHeader>
         <CardContent>
@@ -349,10 +449,14 @@ export function Settings() {
                     <p className="text-sm font-medium text-text">
                       {session.label || "Unnamed device"}
                       {session.is_current && (
-                        <span className="ml-2 text-xs text-primary">Current</span>
+                        <span className="ml-2 text-xs text-primary">
+                          Current
+                        </span>
                       )}
                       {session.revoked_at && (
-                        <span className="ml-2 text-xs text-danger">(revoked)</span>
+                        <span className="ml-2 text-xs text-danger">
+                          (revoked)
+                        </span>
                       )}
                     </p>
                     <p className="text-xs text-text-muted font-mono">
@@ -363,7 +467,9 @@ export function Settings() {
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => revokeSessionMutation.mutate(session.device_id)}
+                      onClick={() =>
+                        revokeSessionMutation.mutate(session.device_id)
+                      }
                     >
                       <LogOut className="w-3 h-3" />
                       Revoke

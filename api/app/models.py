@@ -32,6 +32,9 @@ class Project(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     study_settings_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active", server_default="active"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -306,3 +309,18 @@ class PatchAuditLog(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     membership: Mapped[ProjectMembership] = relationship()
+
+
+class FlowUserProfile(Base):
+    """User-level profile extension for display_name (not in upstream User model)."""
+
+    __tablename__ = "flow_user_profiles"
+
+    user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

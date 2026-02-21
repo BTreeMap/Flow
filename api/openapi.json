@@ -302,6 +302,11 @@
           "project_id": {
             "title": "Project Id",
             "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
           }
         },
         "required": [
@@ -310,6 +315,34 @@
           "member_count"
         ],
         "title": "AdminProjectItem",
+        "type": "object"
+      },
+      "AdminProjectUpdateRequest": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "AdminProjectUpdateRequest",
         "type": "object"
       },
       "AdminProjectsResponse": {
@@ -326,6 +359,186 @@
           "projects"
         ],
         "title": "AdminProjectsResponse",
+        "type": "object"
+      },
+      "AdminPushChannelItem": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "endpoint_hint": {
+            "title": "Endpoint Hint",
+            "type": "string"
+          },
+          "last_failure_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Failure At"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
+          "membership_id": {
+            "title": "Membership Id",
+            "type": "integer"
+          },
+          "subscription_id": {
+            "title": "Subscription Id",
+            "type": "integer"
+          },
+          "user_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Email"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscription_id",
+          "membership_id",
+          "user_id",
+          "endpoint_hint",
+          "created_at"
+        ],
+        "title": "AdminPushChannelItem",
+        "type": "object"
+      },
+      "AdminPushChannelsResponse": {
+        "properties": {
+          "channels": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPushChannelItem"
+            },
+            "title": "Channels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "channels"
+        ],
+        "title": "AdminPushChannelsResponse",
+        "type": "object"
+      },
+      "AdminPushTestRequest": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "subscription_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Subscription Ids",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "project_id",
+          "subscription_ids",
+          "title",
+          "body"
+        ],
+        "title": "AdminPushTestRequest",
+        "type": "object"
+      },
+      "AdminPushTestResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPushTestResultItem"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "AdminPushTestResponse",
+        "type": "object"
+      },
+      "AdminPushTestResultItem": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "subscription_id": {
+            "title": "Subscription Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "subscription_id",
+          "ok"
+        ],
+        "title": "AdminPushTestResultItem",
         "type": "object"
       },
       "AuthMeResponse": {
@@ -422,19 +635,13 @@
       },
       "ClaimRequest": {
         "properties": {
-          "email": {
-            "format": "email",
-            "title": "Email",
-            "type": "string"
-          },
           "invite_code": {
             "title": "Invite Code",
             "type": "string"
           }
         },
         "required": [
-          "invite_code",
-          "email"
+          "invite_code"
         ],
         "title": "ClaimRequest",
         "type": "object"
@@ -1237,6 +1444,75 @@
         "title": "SendMessageResponse",
         "type": "object"
       },
+      "UserMeResponse": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "is_admin": {
+            "default": false,
+            "title": "Is Admin",
+            "type": "boolean"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "UserMeResponse",
+        "type": "object"
+      },
+      "UserMeUpdateRequest": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "title": "UserMeUpdateRequest",
+        "type": "object"
+      },
       "UserProfileData": {
         "description": "Structured user profile fields (Store A). Pydantic validated.",
         "properties": {
@@ -1547,6 +1823,67 @@
         ]
       }
     },
+    "/admin/projects/{project_id}": {
+      "patch": {
+        "operationId": "admin_update_project_admin_projects__project_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminProjectUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Admin Update Project Admin Projects  Project Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin Update Project",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/projects/{project_id}/export": {
       "get": {
         "operationId": "admin_project_export_admin_projects__project_id__export_get",
@@ -1695,6 +2032,99 @@
           }
         ],
         "summary": "Admin Project Participants",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/projects/{project_id}/push/channels": {
+      "get": {
+        "operationId": "admin_push_channels_admin_projects__project_id__push_channels_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPushChannelsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin Push Channels",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/push/test": {
+      "post": {
+        "operationId": "admin_push_test_admin_push_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPushTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPushTestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Admin Push Test",
         "tags": [
           "admin"
         ]
@@ -2411,6 +2841,78 @@
           }
         },
         "summary": "Healthz"
+      }
+    },
+    "/me": {
+      "get": {
+        "description": "Return current user profile including email and display name.",
+        "operationId": "get_me_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Get Me",
+        "tags": [
+          "user"
+        ]
+      },
+      "patch": {
+        "description": "Update current user's email and/or display name.",
+        "operationId": "update_me_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserMeUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "DeviceJWT": []
+          }
+        ],
+        "summary": "Update Me",
+        "tags": [
+          "user"
+        ]
       }
     },
     "/p/{project_id}/activate/claim": {

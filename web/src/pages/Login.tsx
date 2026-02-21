@@ -1,13 +1,22 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams, useNavigate } from "react-router";
 import { Fingerprint, LogIn } from "lucide-react";
 import { useAuth } from "../auth";
 import { Card, CardContent, CardHeader } from "../components/Card";
 import { Button } from "../components/Button";
 import { Alert } from "../components/Alert";
 
+function safeReturnTo(value: string | null): string {
+  if (!value) return "/dashboard";
+  if (value.startsWith("/") && !value.startsWith("//")) return value;
+  return "/dashboard";
+}
+
 export function Login() {
   const { login, isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const returnTo = safeReturnTo(searchParams.get("return_to"));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,6 +33,7 @@ export function Login() {
     setError(null);
     try {
       await login();
+      navigate(returnTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -64,7 +74,10 @@ export function Login() {
 
           <p className="text-center text-sm text-text-muted">
             No account?{" "}
-            <Link to="/register" className="text-primary hover:underline">
+            <Link
+              to={`/register${returnTo !== "/dashboard" ? `?return_to=${encodeURIComponent(returnTo)}` : ""}`}
+              className="text-primary hover:underline"
+            >
               Register
             </Link>
           </p>

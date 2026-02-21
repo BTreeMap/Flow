@@ -26,7 +26,8 @@ export type PasskeyRenameResponse =
 export type PasskeyFinishResponse =
   components["schemas"]["PasskeyFinishResponse"];
 
-export type AuthSessionsResponse = components["schemas"]["AuthSessionsResponse"];
+export type AuthSessionsResponse =
+  components["schemas"]["AuthSessionsResponse"];
 export type AuthSessionItem = components["schemas"]["AuthSessionItem"];
 export type AdminDebugStatusResponse =
   components["schemas"]["AdminDebugStatusResponse"];
@@ -34,11 +35,27 @@ export type AdminLLMConnectivityRequest =
   components["schemas"]["AdminLLMConnectivityRequest"];
 export type AdminLLMConnectivityResponse =
   components["schemas"]["AdminLLMConnectivityResponse"];
-export type AdminProjectsResponse = components["schemas"]["AdminProjectsResponse"];
+export type AdminProjectsResponse =
+  components["schemas"]["AdminProjectsResponse"];
 export type AdminCreateProjectRequest =
   components["schemas"]["AdminCreateProjectRequest"];
 export type AdminCreateInvitesResponse =
   components["schemas"]["AdminCreateInvitesResponse"];
+export type AdminProjectItem = components["schemas"]["AdminProjectItem"];
+export type AdminProjectUpdateRequest =
+  components["schemas"]["AdminProjectUpdateRequest"];
+export type AdminPushChannelItem =
+  components["schemas"]["AdminPushChannelItem"];
+export type AdminPushChannelsResponse =
+  components["schemas"]["AdminPushChannelsResponse"];
+export type AdminPushTestRequest =
+  components["schemas"]["AdminPushTestRequest"];
+export type AdminPushTestResponse =
+  components["schemas"]["AdminPushTestResponse"];
+export type AdminPushTestResultItem =
+  components["schemas"]["AdminPushTestResultItem"];
+export type UserMeResponse = components["schemas"]["UserMeResponse"];
+export type UserMeUpdateRequest = components["schemas"]["UserMeUpdateRequest"];
 
 // ── User-defined (demo) types ─────────────────────────────────────────────
 
@@ -56,13 +73,20 @@ export type EchoResponse = components["schemas"]["EchoResponse"];
 type _AssertPasskeysGet = paths["/auth/passkeys"]["get"];
 type _AssertPasskeysPatch = paths["/auth/passkeys/{key_id}"]["patch"];
 type _AssertAuthSessionsGet = paths["/auth/sessions"]["get"];
-type _AssertAuthSessionRevokePost = paths["/auth/sessions/{device_id}/revoke"]["post"];
+type _AssertAuthSessionRevokePost =
+  paths["/auth/sessions/{device_id}/revoke"]["post"];
 type _AssertAdminDebugStatusGet = paths["/admin/debug/status"]["get"];
 type _AssertAdminDebugConnectivityPost =
   paths["/admin/debug/llm-connectivity"]["post"];
 type _AssertDemoEchoPost = paths["/demo/echo"]["post"];
 type _AssertDemoPingGet = paths["/demo/ping"]["get"];
 type _AssertDemoSseGet = paths["/demo/sse"]["get"];
+type _AssertMeGet = paths["/me"]["get"];
+type _AssertMePatch = paths["/me"]["patch"];
+type _AssertAdminProjectPatch = paths["/admin/projects/{project_id}"]["patch"];
+type _AssertAdminPushChannelsGet =
+  paths["/admin/projects/{project_id}/push/channels"]["get"];
+type _AssertAdminPushTestPost = paths["/admin/push/test"]["post"];
 
 // Suppress "declared but never read" – they exist purely for the type check.
 export type {
@@ -75,4 +99,9 @@ export type {
   _AssertDemoEchoPost,
   _AssertDemoPingGet,
   _AssertDemoSseGet,
+  _AssertMeGet,
+  _AssertMePatch,
+  _AssertAdminProjectPatch,
+  _AssertAdminPushChannelsGet,
+  _AssertAdminPushTestPost,
 };

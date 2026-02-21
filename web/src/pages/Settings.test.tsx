@@ -286,7 +286,9 @@ describe("Settings – sessions", () => {
       return Promise.resolve({ data: {} });
     });
     render(<Settings />, { wrapper });
-    expect(await screen.findByText("Failed to load sessions")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Failed to load sessions"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("No sessions found.")).not.toBeInTheDocument();
   });
 });
