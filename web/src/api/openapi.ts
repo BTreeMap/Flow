@@ -1008,6 +1008,10 @@ export interface components {
             conversation_id?: number | null;
             /** Display Name */
             display_name?: string | null;
+            /** Last Message At */
+            last_message_at?: string | null;
+            /** Last Message Preview */
+            last_message_preview?: string | null;
             /** Project Id */
             project_id: string;
             /** Status */

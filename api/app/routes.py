@@ -116,6 +116,8 @@ class MembershipInfo(BaseModel):
     display_name: str | None = None
     status: str
     conversation_id: int | None = None
+    last_message_preview: str | None = None
+    last_message_at: str | None = None
 
 
 class DashboardResponse(BaseModel):
@@ -345,6 +347,28 @@ async def dashboard(
     )
     memberships = result.scalars().all()
 
+    # Batch: fetch last message per conversation to avoid N+1
+    membership_ids = [m.id for m in memberships]
+    last_msg_map: dict[int, Message] = {}
+    if membership_ids:
+        # Subquery for the max message id per conversation
+        latest_msg_subq = (
+            select(
+                Conversation.membership_id,
+                func.max(Message.id).label("max_msg_id"),
+            )
+            .join(Message, Message.conversation_id == Conversation.id)
+            .where(Conversation.membership_id.in_(membership_ids))
+            .group_by(Conversation.membership_id)
+            .subquery()
+        )
+        last_msgs_result = await db.execute(
+            select(latest_msg_subq.c.membership_id, Message)
+            .join(Message, Message.id == latest_msg_subq.c.max_msg_id)
+        )
+        for row in last_msgs_result:
+            last_msg_map[row[0]] = row[1]
+
     items: list[MembershipInfo] = []
     for m in memberships:
         # Fetch project display name
@@ -359,12 +383,16 @@ async def dashboard(
         )
         conv = conv_result.scalar_one_or_none()
 
+        last_msg = last_msg_map.get(m.id)
+
         items.append(
             MembershipInfo(
                 project_id=m.project_id,
                 display_name=project.display_name if project else None,
                 status=m.status,
                 conversation_id=conv.id if conv else None,
+                last_message_preview=last_msg.content[:120] if last_msg else None,
+                last_message_at=last_msg.created_at.isoformat() if last_msg else None,
             )
         )
 
