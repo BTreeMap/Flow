@@ -56,6 +56,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+MESSAGE_PREVIEW_MAX_LENGTH = 120
+
 # ---------------------------------------------------------------------------
 # In-memory SSE fan-out queues: conversation_id -> set of asyncio.Queue
 # ---------------------------------------------------------------------------
@@ -392,7 +394,9 @@ async def dashboard(
                 display_name=project.display_name if project else None,
                 status=m.status,
                 conversation_id=conv.id if conv else None,
-                last_message_preview=last_msg.content[:120] if last_msg else None,
+                last_message_preview=last_msg.content[:MESSAGE_PREVIEW_MAX_LENGTH]
+                if last_msg
+                else None,
                 last_message_at=last_msg.created_at.isoformat() if last_msg else None,
             )
         )

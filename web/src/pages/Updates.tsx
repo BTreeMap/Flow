@@ -128,7 +128,7 @@ export function Updates() {
 
 function NotificationIndicator() {
   const supported =
-    typeof Notification !== "undefined" && "PushManager" in (typeof window !== "undefined" ? window : {});
+    typeof Notification !== "undefined" && "PushManager" in window;
   const permission =
     typeof Notification !== "undefined" ? Notification.permission : "default";
 

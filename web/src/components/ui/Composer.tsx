@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Send } from "lucide-react";
 
+const COMPOSER_MAX_HEIGHT = 80;
+
 interface ComposerProps {
   onSend: (text: string) => void;
   disabled?: boolean;
@@ -14,7 +16,7 @@ export function Composer({ onSend, disabled }: ComposerProps) {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 80) + "px";
+    el.style.height = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT) + "px";
   }, [text]);
 
   const handleSend = () => {
@@ -48,7 +50,7 @@ export function Composer({ onSend, disabled }: ComposerProps) {
         placeholder="Type a message…"
         disabled={disabled}
         className="flex-1 resize-none px-4 py-2.5 bg-surface-2 border border-border rounded-[var(--radius-pill)] text-[15px] text-text placeholder:text-text-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-focus transition-colors"
-        style={{ maxHeight: "80px" }}
+        style={{ maxHeight: `${COMPOSER_MAX_HEIGHT}px` }}
       />
       <button
         onClick={handleSend}
