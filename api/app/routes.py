@@ -363,8 +363,9 @@ async def dashboard(
             .subquery()
         )
         last_msgs_result = await db.execute(
-            select(latest_msg_subq.c.membership_id, Message)
-            .join(Message, Message.id == latest_msg_subq.c.max_msg_id)
+            select(latest_msg_subq.c.membership_id, Message).join(
+                Message, Message.id == latest_msg_subq.c.max_msg_id
+            )
         )
         for row in last_msgs_result:
             last_msg_map[row[0]] = row[1]
