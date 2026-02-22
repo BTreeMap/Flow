@@ -1,15 +1,10 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert } from "../components/Alert";
-import { MessageSquare, Plus, Download, Search } from "lucide-react";
-import { Link, useNavigate } from "react-router";
-import { getOrMintToken } from "../auth/token";
-import { PageHeader } from "../components/ui/PageHeader";
-import { ListRow } from "../components/ui/ListRow";
-import { Button } from "../components/Button";
-import { useInstallPrompt } from "../hooks/useInstallPrompt";
-import { useLayoutMode } from "../hooks/useLayoutMode";
-import type { DashboardResponse, MembershipInfo } from "../api/types";
+import { MessageSquare, Search } from "lucide-react";
+import { Link, useParams } from "react-router";
+import { getOrMintToken } from "../../auth/token";
+import { ListRow } from "../ui/ListRow";
+import type { DashboardResponse, MembershipInfo } from "../../api/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -34,8 +29,7 @@ function formatTime(iso: string): string {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
   if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7)
-    return d.toLocaleDateString([], { weekday: "short" });
+  if (diffDays < 7) return d.toLocaleDateString([], { weekday: "short" });
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
@@ -53,13 +47,14 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-export function Dashboard() {
-  const navigate = useNavigate();
-  const layoutMode = useLayoutMode();
+interface ChatListPaneProps {
+  /** When true, renders compact (inside side rail shell) */
+  embedded?: boolean;
+}
+
+export function ChatListPane({ embedded }: ChatListPaneProps) {
+  const { projectId: activeProjectId } = useParams<{ projectId: string }>();
   const [search, setSearch] = useState("");
-  const { canPrompt, promptInstall, showIOSGuide } = useInstallPrompt();
-  const [showFab, setShowFab] = useState(false);
-  const [inviteInput, setInviteInput] = useState("");
 
   const { data, isLoading, error } = useQuery<DashboardResponse>({
     queryKey: ["dashboard"],
@@ -92,54 +87,19 @@ export function Dashboard() {
     };
   }, [active, ended, search]);
 
-  const handleJoinFromFab = () => {
-    const code = inviteInput.trim();
-    if (!code) return;
-    // Try to parse as a full URL or just a code
-    const urlMatch = code.match(/\/p\/([^/]+)\/activate/);
-    if (urlMatch) {
-      navigate(`/p/${urlMatch[1]}/activate`);
-    } else {
-      // Assume it's a project id or path
-      navigate(code.startsWith("/") ? code : `/p/${code}/activate`);
-    }
-    setShowFab(false);
-    setInviteInput("");
-  };
-
-  // In side mode, the chat list is rendered by the shell's ChatListPane.
-  // The main pane shows a placeholder.
-  if (layoutMode === "side") {
-    return (
-      <div className="flex flex-col h-full bg-surface-2" data-testid="dashboard-page">
-        <PageHeader title="Chats" data-testid="dashboard-heading" />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-text-muted">
-            <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p className="text-[15px]">Select a chat to start messaging</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col min-h-screen bg-bg" data-testid="dashboard-page">
-      <PageHeader
-        title="Chats"
-        data-testid="dashboard-heading"
-        actions={
-          canPrompt ? (
-            <button
-              onClick={() => void (showIOSGuide ? null : promptInstall())}
-              className="flex items-center gap-1 px-2.5 py-1 text-[12px] font-medium text-primary bg-primary/10 rounded-full hover:bg-primary/20 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Install
-            </button>
-          ) : undefined
-        }
-      />
+    <div className="flex flex-col h-full" data-testid="chat-list-pane">
+      {/* Header */}
+      {!embedded && (
+        <header className="sticky top-0 z-40 flex items-center justify-between h-[var(--header-h)] px-4 bg-surface/95 backdrop-blur-sm border-b border-divider">
+          <h1 className="text-[17px] font-semibold text-text">Chats</h1>
+        </header>
+      )}
+      {embedded && (
+        <div className="px-4 pt-4 pb-1">
+          <h2 className="text-[15px] font-semibold text-text">Chats</h2>
+        </div>
+      )}
 
       {/* Search */}
       <div className="px-3 py-2">
@@ -157,7 +117,7 @@ export function Dashboard() {
       </div>
 
       {/* Content */}
-      <div className="flex-1">
+      <div className="flex-1 overflow-y-auto">
         {isLoading && (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
@@ -165,12 +125,8 @@ export function Dashboard() {
         )}
 
         {error && (
-          <div className="px-4 mt-2">
-            <Alert variant="error">
-              {error instanceof Error
-                ? error.message
-                : "Failed to load chats"}
-            </Alert>
+          <div className="px-4 mt-2 text-[13px] text-danger">
+            {error instanceof Error ? error.message : "Failed to load chats"}
           </div>
         )}
 
@@ -198,6 +154,9 @@ export function Dashboard() {
                   primary={m.display_name ?? m.project_id}
                   secondary={m.last_message_preview ?? "No messages yet"}
                   unread={isUnread(m)}
+                  className={
+                    activeProjectId === m.project_id ? "bg-primary/5" : ""
+                  }
                   trailing={
                     m.last_message_at ? (
                       <span className="text-[11px] text-text-subtle whitespace-nowrap">
@@ -230,60 +189,6 @@ export function Dashboard() {
           </>
         )}
       </div>
-
-      {/* FAB */}
-      <button
-        onClick={() => setShowFab(true)}
-        className="fixed bottom-[calc(var(--bottomnav-h)+env(safe-area-inset-bottom,0px)+16px)] right-4 w-14 h-14 rounded-full bg-primary text-on-primary shadow-md flex items-center justify-center hover:bg-primary-hover transition-colors z-40 md:bottom-6"
-        aria-label="Join project"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
-
-      {/* FAB modal */}
-      {showFab && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm mx-4 mb-4 md:mb-0 bg-surface rounded-[var(--radius-lg)] shadow-md p-5 space-y-4">
-            <h2 className="text-[17px] font-semibold text-text">
-              Join a Project
-            </h2>
-            <p className="text-[13px] text-text-muted">
-              Paste an invite link or enter a project activation path.
-            </p>
-            <input
-              type="text"
-              placeholder="Invite link or /p/.../activate"
-              value={inviteInput}
-              onChange={(e) => setInviteInput(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-2 text-[14px] text-text placeholder:text-text-subtle rounded-[var(--radius-pill)] border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleJoinFromFab();
-              }}
-            />
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowFab(false);
-                  setInviteInput("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleJoinFromFab}
-                disabled={!inviteInput.trim()}
-              >
-                Go
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-

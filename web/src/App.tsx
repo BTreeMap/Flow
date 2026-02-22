@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router";
 import { Layout } from "./components/Layout";
-import { MobileShell } from "./components/MobileShell";
-import { ChatShell } from "./components/ChatShell";
+import { AppShell } from "./components/shell/AppShell";
+import { ChatAppShell } from "./components/shell/ChatAppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Landing } from "./pages/Landing";
 import { Register } from "./pages/Register";
@@ -66,8 +66,8 @@ export function App() {
         />
       </Route>
 
-      {/* App pages with bottom nav (mobile shell) */}
-      <Route element={<MobileShell />}>
+      {/* App pages with responsive shell (bottom nav or side rail) */}
+      <Route element={<AppShell />}>
         <Route
           path="/dashboard"
           element={
@@ -94,8 +94,8 @@ export function App() {
         />
       </Route>
 
-      {/* Immersive chat (no nav chrome) */}
-      <Route element={<ChatShell />}>
+      {/* Chat with responsive shell (immersive or split view) */}
+      <Route element={<ChatAppShell />}>
         <Route
           path="/p/:projectId/chat"
           element={

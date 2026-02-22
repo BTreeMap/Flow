@@ -1,8 +1,11 @@
+import { AssistantMarkdown } from "../chat/AssistantMarkdown";
+
 interface MessageBubbleProps {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp?: string;
   isGroupContinuation?: boolean;
+  isStreaming?: boolean;
 }
 
 export function MessageBubble({
@@ -10,6 +13,7 @@ export function MessageBubble({
   content,
   timestamp,
   isGroupContinuation,
+  isStreaming,
 }: MessageBubbleProps) {
   if (role === "system") {
     return (
@@ -43,10 +47,14 @@ export function MessageBubble({
       }`}
     >
       <div
-        className={`${bubbleColor} text-text text-[15px] leading-[1.35] px-3 py-2 max-w-[78%] md:max-w-[65%] whitespace-pre-wrap shadow-sm`}
+        className={`${bubbleColor} text-text text-[15px] leading-[1.35] px-3 py-2 max-w-[78%] md:max-w-[65%] shadow-sm ${isUser ? "whitespace-pre-wrap" : ""}`}
         style={{ borderRadius }}
       >
-        {content}
+        {isUser ? (
+          content
+        ) : (
+          <AssistantMarkdown markdown={content} isStreaming={isStreaming} />
+        )}
         {timestamp && (
           <span className="block text-[11px] text-text-subtle mt-1 text-right">
             {timestamp}

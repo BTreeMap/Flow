@@ -28,6 +28,11 @@ vi.mock("../hooks/useInstallPrompt", () => ({
   }),
 }));
 
+// Mock layout mode to bottom (mobile) so Dashboard renders full chat list
+vi.mock("../hooks/useLayoutMode", () => ({
+  useLayoutMode: () => "bottom",
+}));
+
 const mockMemberships = [
   {
     project_id: "p1",

@@ -8,6 +8,7 @@ interface ChatHeaderProps {
   title: string;
   avatar?: ReactNode;
   backTo?: string;
+  hideBack?: boolean;
   connectionStatus?: "online" | "reconnecting" | "offline";
   menuItems?: { label: string; onClick: () => void }[];
 }
@@ -22,6 +23,7 @@ export function ChatHeader({
   title,
   avatar,
   backTo = "/dashboard",
+  hideBack,
   connectionStatus,
   menuItems,
 }: ChatHeaderProps) {
@@ -42,9 +44,12 @@ export function ChatHeader({
 
   return (
     <header className="sticky top-0 z-40 flex items-center gap-2 h-[var(--header-h)] px-2 bg-surface/95 backdrop-blur-sm border-b border-divider">
-      <IconButton label="Back" onClick={() => navigate(backTo)}>
-        <ArrowLeft className="w-5 h-5" />
-      </IconButton>
+      {!hideBack && (
+        <IconButton label="Back" onClick={() => navigate(backTo)}>
+          <ArrowLeft className="w-5 h-5" />
+        </IconButton>
+      )}
+      {hideBack && <div className="w-2" />}
 
       {avatar && <div className="shrink-0">{avatar}</div>}
 
