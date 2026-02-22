@@ -317,6 +317,8 @@ class FlowUserProfile(Base):
     __tablename__ = "flow_user_profiles"
 
     user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    email_raw: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    email_normalized: Mapped[str | None] = mapped_column(String(320), nullable=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
