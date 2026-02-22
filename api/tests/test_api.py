@@ -19,7 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.id_utils import generate_project_id
 from app.models import (
     Base,
+    FlowUserProfile,
     OutboxEvent,
+    ParticipantContact,
     PushSubscription,
     Project,
     ProjectInvite,
@@ -128,6 +130,13 @@ async def seeded_client(client: AsyncClient) -> AsyncGenerator[dict[str, Any], N
             expires_at=expires,
         )
         db.add(invite)
+        db.add(
+            FlowUserProfile(
+                user_id="u_testuser_000000000000000000",
+                email_raw="test@example.com",
+                email_normalized="test@example.com",
+            )
+        )
         await db.commit()
 
     yield {
@@ -555,7 +564,7 @@ async def test_project_me(seeded_client: dict[str, Any]) -> None:
     data = resp.json()
     assert data["membership_status"] == "active"
     assert data["conversation_id"] is not None
-    assert data["email"] is None
+    assert data["email"] == "test@example.com"
 
 
 @pytest.mark.asyncio
@@ -671,6 +680,16 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
     assert "push_subscriptions" in export_data
     assert "invite_codes" not in export_data
 
+    async with _test_session_factory() as db:
+        db.add(
+            FlowUserProfile(
+                user_id="u_admin_0000000000000000000000",
+                email_raw="admin@example.com",
+                email_normalized="admin@example.com",
+            )
+        )
+        await db.commit()
+
     await client.post(
         f"/p/{project_id}/activate/claim",
         json={"invite_code": invite_code},
@@ -707,7 +726,7 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
     assert participants_after.status_code == 200
     participants = participants_after.json()["participants"]
     assert len(participants) == 1
-    assert participants[0]["email"] is None
+    assert participants[0]["email"] == "admin@example.com"
     assert "last_push_success_at" in participants[0]
     assert "last_push_failure_at" in participants[0]
     export_after = await client.get(f"/admin/projects/{project_id}/export")
@@ -878,6 +897,15 @@ async def test_multi_use_invite_limit_enforced(client: AsyncClient) -> None:
     app.dependency_overrides[_get_current_user] = _override_require_user(
         "u_user_one_0000000000000000000"
     )
+    async with _test_session_factory() as db:
+        db.add(
+            FlowUserProfile(
+                user_id="u_user_one_0000000000000000000",
+                email_raw="user1@example.com",
+                email_normalized="user1@example.com",
+            )
+        )
+        await db.commit()
     first = await client.post(
         f"/p/{project_id}/activate/claim",
         json={"invite_code": invite_code},
@@ -887,6 +915,15 @@ async def test_multi_use_invite_limit_enforced(client: AsyncClient) -> None:
     app.dependency_overrides[_get_current_user] = _override_require_user(
         "u_user_two_0000000000000000000"
     )
+    async with _test_session_factory() as db:
+        db.add(
+            FlowUserProfile(
+                user_id="u_user_two_0000000000000000000",
+                email_raw="user2@example.com",
+                email_normalized="user2@example.com",
+            )
+        )
+        await db.commit()
     second = await client.post(
         f"/p/{project_id}/activate/claim",
         json={"invite_code": invite_code},
@@ -896,6 +933,15 @@ async def test_multi_use_invite_limit_enforced(client: AsyncClient) -> None:
     app.dependency_overrides[_get_current_user] = _override_require_user(
         "u_user_three_0000000000000000"
     )
+    async with _test_session_factory() as db:
+        db.add(
+            FlowUserProfile(
+                user_id="u_user_three_0000000000000000",
+                email_raw="user3@example.com",
+                email_normalized="user3@example.com",
+            )
+        )
+        await db.commit()
     third = await client.post(
         f"/p/{project_id}/activate/claim",
         json={"invite_code": invite_code},
@@ -1005,6 +1051,20 @@ async def test_patch_me_email(client: AsyncClient) -> None:
     assert resp.status_code == 200
     assert resp.json()["email"] == "new@example.com"
 
+    resp2 = await client.get("/me")
+    assert resp2.status_code == 200
+    assert resp2.json()["email"] == "new@example.com"
+
+    async with _test_session_factory() as db:
+        profile_result = await db.execute(
+            select(FlowUserProfile).where(
+                FlowUserProfile.user_id == "u_testuser_000000000000000000"
+            )
+        )
+        profile = profile_result.scalar_one()
+        assert profile.email_raw == "new@example.com"
+        assert profile.email_normalized == "new@example.com"
+
 
 # ---------------------------------------------------------------------------
 # Claim invite without email returns 409
@@ -1015,21 +1075,21 @@ async def test_patch_me_email(client: AsyncClient) -> None:
 async def test_claim_invite_without_email_returns_409(
     seeded_client: dict[str, Any],
 ) -> None:
-    """Claim invite without user email returns EMAIL_REQUIRED."""
-    from app.main import app
-    from h4ckath0n.auth.dependencies import _get_current_user
-
-    no_email_user = _make_fake_user()
-    no_email_user.email = None
-
-    async def _dep() -> Any:
-        return no_email_user
-
-    app.dependency_overrides[_get_current_user] = _dep
+    """Claim invite without Flow profile email returns EMAIL_REQUIRED."""
 
     client = seeded_client["client"]
     project_id = seeded_client["project_id"]
     invite_code = seeded_client["invite_code"]
+    user_id = "u_testuser_000000000000000000"
+
+    async with _test_session_factory() as db:
+        profile_result = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id == user_id)
+        )
+        profile = profile_result.scalar_one()
+        profile.email_raw = None
+        profile.email_normalized = None
+        await db.commit()
 
     resp = await client.post(
         f"/p/{project_id}/activate/claim",
@@ -1039,5 +1099,32 @@ async def test_claim_invite_without_email_returns_409(
     data = resp.json()
     assert data["code"] == "EMAIL_REQUIRED"
 
-    # Restore override
-    app.dependency_overrides[_get_current_user] = _override_require_user()
+    patch_resp = await client.patch("/me", json={"email": "retry@example.com"})
+    assert patch_resp.status_code == 200
+
+    retry_resp = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+    assert retry_resp.status_code == 200
+
+    project_me_resp = await client.get(f"/p/{project_id}/me")
+    assert project_me_resp.status_code == 200
+    assert project_me_resp.json()["email"] == "retry@example.com"
+
+    async with _test_session_factory() as db:
+        membership_result = await db.execute(
+            select(ProjectMembership).where(
+                ProjectMembership.project_id == project_id,
+                ProjectMembership.user_id == user_id,
+            )
+        )
+        membership = membership_result.scalar_one()
+        contact_result = await db.execute(
+            select(ParticipantContact)
+            .where(ParticipantContact.membership_id == membership.id)
+            .order_by(ParticipantContact.created_at.desc())
+            .limit(1)
+        )
+        contact = contact_result.scalar_one()
+        assert contact.email_raw == "retry@example.com"

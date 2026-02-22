@@ -421,7 +421,11 @@ async def get_me(
     profile = profile_result.scalar_one_or_none()
     return UserMeResponse(
         user_id=user.id,
-        email=user.email,
+        email=(
+            profile.email_raw or profile.email_normalized
+            if profile is not None
+            else None
+        ),
         display_name=profile.display_name if profile else None,
         is_admin=user.role == "admin",
     )
@@ -434,8 +438,18 @@ async def update_me(
     db: AsyncSession = Depends(get_db),
 ) -> UserMeResponse:
     """Update current user's email and/or display name."""
+    profile_result = await db.execute(
+        select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+    if profile is None:
+        profile = FlowUserProfile(user_id=user.id)
+        db.add(profile)
+
     if body.email is not None:
-        user.email = str(body.email).strip().lower()
+        trimmed_email = str(body.email).strip()
+        profile.email_raw = trimmed_email
+        profile.email_normalized = trimmed_email.lower()
 
     if body.display_name is not None:
         # None = don't update; empty string = invalid
@@ -447,15 +461,7 @@ async def update_me(
         if len(trimmed) == 0:
             raise HTTPException(status_code=422, detail="Display name cannot be empty")
 
-        profile_result = await db.execute(
-            select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
-        )
-        profile = profile_result.scalar_one_or_none()
-        if profile is None:
-            profile = FlowUserProfile(user_id=user.id, display_name=trimmed)
-            db.add(profile)
-        else:
-            profile.display_name = trimmed
+        profile.display_name = trimmed
 
     await db.commit()
 
@@ -466,7 +472,11 @@ async def update_me(
     profile = profile_result.scalar_one_or_none()
     return UserMeResponse(
         user_id=user.id,
-        email=user.email,
+        email=(
+            profile.email_raw or profile.email_normalized
+            if profile is not None
+            else None
+        ),
         display_name=profile.display_name if profile else None,
         is_admin=user.role == "admin",
     )
@@ -616,8 +626,14 @@ async def claim_invite(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
-    # Require email on user profile before joining
-    if user.email is None:
+    # Require email on Flow user profile before joining
+    profile_result = await db.execute(
+        select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+    profile_email_raw = profile.email_raw if profile else None
+    profile_email_normalized = profile.email_normalized if profile else None
+    if not (profile_email_raw or profile_email_normalized):
         return JSONResponse(
             status_code=409,
             content={
@@ -725,6 +741,28 @@ async def claim_invite(
         db.add(conv)
         await db.flush()
 
+    contact_result = await db.execute(
+        select(ParticipantContact)
+        .where(ParticipantContact.membership_id == membership.id)
+        .order_by(ParticipantContact.created_at.desc())
+        .limit(1)
+    )
+    contact = contact_result.scalar_one_or_none()
+    contact_email_raw = (
+        profile_email_raw if profile_email_raw is not None else profile_email_normalized
+    )
+    if contact is None or (
+        contact.email_raw != profile_email_raw
+        or contact.email_normalized != profile_email_normalized
+    ):
+        db.add(
+            ParticipantContact(
+                membership_id=membership.id,
+                email_raw=contact_email_raw,
+                email_normalized=profile_email_normalized,
+            )
+        )
+
     await db.commit()
     await db.refresh(membership)
     await db.refresh(conv)
@@ -764,11 +802,17 @@ async def project_me(
         .limit(1)
     )
     contact = contact_result.scalar_one_or_none()
+    profile_result = await db.execute(
+        select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+    )
+    profile = profile_result.scalar_one_or_none()
 
     return MeResponse(
         membership_status=membership.status,
         conversation_id=conv.id if conv else None,
-        email=contact.email_raw if contact else None,
+        email=contact.email_raw
+        if contact
+        else (profile.email_raw if profile else None),
     )
 
 
@@ -1186,6 +1230,15 @@ async def admin_project_participants(
         )
         for contact in contacts_result.scalars().all():
             latest_contact_by_membership.setdefault(contact.membership_id, contact)
+    profile_by_user_id: dict[str, FlowUserProfile] = {}
+    user_ids = list({membership.user_id for membership in memberships})
+    if user_ids:
+        profiles_result = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id.in_(user_ids))
+        )
+        profile_by_user_id = {
+            profile.user_id: profile for profile in profiles_result.scalars().all()
+        }
 
     push_stats_by_membership: dict[int, dict[str, Any]] = {
         membership_id: {"count": 0, "last_success_at": None, "last_failure_at": None}
@@ -1227,7 +1280,13 @@ async def admin_project_participants(
                 ended_at=membership.ended_at.isoformat()
                 if membership.ended_at
                 else None,
-                email=contact.email_raw if contact else None,
+                email=contact.email_raw
+                if contact
+                else (
+                    profile_by_user_id.get(membership.user_id).email_raw
+                    if profile_by_user_id.get(membership.user_id)
+                    else None
+                ),
                 push_subscription_count=stats["count"],
                 last_push_success_at=stats["last_success_at"].isoformat()
                 if stats["last_success_at"]
