@@ -8,6 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { ChatHeader } from "../components/ui/ChatHeader";
 import { MessageBubble } from "../components/ui/MessageBubble";
 import { Composer } from "../components/ui/Composer";
+import { useLayoutMode } from "../hooks/useLayoutMode";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -37,6 +38,7 @@ export function ChatThread() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   useAuth();
+  const layoutMode = useLayoutMode();
   const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -335,9 +337,10 @@ export function ChatThread() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-chat-bg">
+    <div className={`flex flex-col bg-chat-bg ${layoutMode === "side" ? "h-full" : "h-screen"}`}>
       <ChatHeader
         title={chatTitle}
+        hideBack={layoutMode === "side"}
         avatar={
           <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[13px] font-semibold">
             {(chatTitle[0] ?? "C").toUpperCase()}
