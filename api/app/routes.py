@@ -748,6 +748,9 @@ async def claim_invite(
         .limit(1)
     )
     contact = contact_result.scalar_one_or_none()
+    contact_email_raw = (
+        profile_email_raw if profile_email_raw is not None else profile_email_normalized
+    )
     if contact is None or (
         contact.email_raw != profile_email_raw
         or contact.email_normalized != profile_email_normalized
@@ -755,7 +758,7 @@ async def claim_invite(
         db.add(
             ParticipantContact(
                 membership_id=membership.id,
-                email_raw=profile_email_raw or profile_email_normalized or "",
+                email_raw=contact_email_raw,
                 email_normalized=profile_email_normalized,
             )
         )
@@ -1280,8 +1283,8 @@ async def admin_project_participants(
                 email=contact.email_raw
                 if contact
                 else (
-                    profile_by_user_id[membership.user_id].email_raw
-                    if membership.user_id in profile_by_user_id
+                    profile_by_user_id.get(membership.user_id).email_raw
+                    if profile_by_user_id.get(membership.user_id)
                     else None
                 ),
                 push_subscription_count=stats["count"],
