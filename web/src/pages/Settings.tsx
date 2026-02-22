@@ -23,6 +23,7 @@ import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { Alert } from "../components/Alert";
 import { SectionHeader } from "../components/SectionHeader";
+import { PageHeader } from "../components/ui/PageHeader";
 import api from "../api/client";
 import type {
   AuthSessionItem,
@@ -324,13 +325,9 @@ export function Settings() {
   const activePasskeys = passkeys?.filter((p) => !p.revoked_at) ?? [];
 
   return (
-    <div className="space-y-6 px-4 py-6 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-[17px] font-semibold text-text">Settings</h1>
-        <p className="text-[13px] text-text-muted">
-          Manage your passkeys and account security
-        </p>
-      </div>
+    <div className="flex flex-col min-h-screen bg-bg">
+      <PageHeader title="Settings" data-testid="settings-heading" />
+      <div className="space-y-6 px-4 py-6 max-w-2xl mx-auto w-full">
 
       {error && (
         <Alert variant="error" data-testid="settings-error">
@@ -395,7 +392,7 @@ export function Settings() {
 
       <Card>
         <CardHeader>
-          <SectionHeader icon={<Brush className="w-5 h-5" />} title="Theme" />
+          <SectionHeader icon={<Brush className="w-5 h-5" />} title="Theme" subtitle="Choose your appearance" />
         </CardHeader>
         <CardContent>
           <fieldset className="space-y-2">
@@ -596,6 +593,7 @@ export function Settings() {
         <LogOut className="w-5 h-5 text-danger" />
         <span className="text-[15px] font-medium text-danger">Log Out</span>
       </button>
+      </div>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { ChatListPane } from "../chats/ChatListPane";
 
 /**
  * Desktop / landscape shell with side rail navigation.
- * For chat routes, shows a three-column layout: rail | chat list | main.
+ * For chat routes and dashboard, shows a three-column layout: rail | chat list | main.
  * For other routes, shows rail | main.
  */
 export function SideRailShell() {
@@ -24,15 +24,7 @@ export function SideRailShell() {
         </div>
       )}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        {isDashboard ? (
-          <div className="flex-1 flex items-center justify-center bg-surface-2">
-            <div className="text-center text-text-muted">
-              <p className="text-[15px]">Select a chat to start messaging</p>
-            </div>
-          </div>
-        ) : (
-          <Outlet />
-        )}
+        <Outlet />
       </main>
     </div>
   );

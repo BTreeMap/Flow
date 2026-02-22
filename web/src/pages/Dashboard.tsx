@@ -8,6 +8,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ListRow } from "../components/ui/ListRow";
 import { Button } from "../components/Button";
 import { useInstallPrompt } from "../hooks/useInstallPrompt";
+import { useLayoutMode } from "../hooks/useLayoutMode";
 import type { DashboardResponse, MembershipInfo } from "../api/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -54,6 +55,7 @@ function Avatar({ name }: { name: string }) {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const layoutMode = useLayoutMode();
   const [search, setSearch] = useState("");
   const { canPrompt, promptInstall, showIOSGuide } = useInstallPrompt();
   const [showFab, setShowFab] = useState(false);
@@ -104,6 +106,22 @@ export function Dashboard() {
     setShowFab(false);
     setInviteInput("");
   };
+
+  // In side mode, the chat list is rendered by the shell's ChatListPane.
+  // The main pane shows a placeholder.
+  if (layoutMode === "side") {
+    return (
+      <div className="flex flex-col h-full bg-surface-2" data-testid="dashboard-page">
+        <PageHeader title="Chats" data-testid="dashboard-heading" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-text-muted">
+            <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-20" />
+            <p className="text-[15px]">Select a chat to start messaging</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-bg" data-testid="dashboard-page">

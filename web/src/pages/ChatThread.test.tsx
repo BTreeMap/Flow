@@ -44,4 +44,20 @@ describe("MessageBubble", () => {
     const bubble = container.querySelector(".mt-\\[2px\\]");
     expect(bubble).toBeInTheDocument();
   });
+
+  it("renders user message as plain text (not markdown)", () => {
+    render(<MessageBubble role="user" content="**bold** text" />);
+    expect(screen.getByText("**bold** text")).toBeInTheDocument();
+  });
+
+  it("renders assistant message through Streamdown (markdown)", () => {
+    const { container } = render(
+      <MessageBubble role="assistant" content="Hello **world**" />,
+    );
+    // Streamdown renders markdown - check for the bubble container
+    expect(container.querySelector(".bg-bubble-in")).toBeInTheDocument();
+    // The content should be rendered (Streamdown processes it)
+    expect(container.textContent).toContain("Hello");
+    expect(container.textContent).toContain("world");
+  });
 });
