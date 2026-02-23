@@ -260,9 +260,7 @@ class TestPromptLoaderUnit:
 
 class TestSSEEventIdConsistency:
     @pytest.mark.asyncio
-    async def test_sse_uses_conversation_event_id(
-        self, seeded: dict[str, Any]
-    ) -> None:
+    async def test_sse_uses_conversation_event_id(self, seeded: dict[str, Any]) -> None:
         """send_message SSE payload id must equal ConversationEvent.id, not Message.id."""
         client = seeded["client"]
         project_id = seeded["project_id"]
@@ -381,9 +379,7 @@ class TestSSECrossProcess:
 
 class TestTurnIdempotencyConcurrency:
     @pytest.mark.asyncio
-    async def test_concurrent_same_client_msg_id(
-        self, seeded: dict[str, Any]
-    ) -> None:
+    async def test_concurrent_same_client_msg_id(self, seeded: dict[str, Any]) -> None:
         """N concurrent POSTs with same client_msg_id create exactly 1 assistant message.
         Note: With SQLite, true concurrent writes may cause lock contention, so we
         test with sequential calls that simulate retry behavior.
