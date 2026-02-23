@@ -76,12 +76,17 @@ describe("AppShell", () => {
     expect(screen.getByTestId("nav-chats")).toBeInTheDocument();
     expect(screen.getByTestId("nav-updates")).toBeInTheDocument();
     expect(screen.getByTestId("nav-settings")).toBeInTheDocument();
+    // bottom-nav should NOT be present in side mode
+    expect(screen.queryByTestId("bottom-nav")).not.toBeInTheDocument();
   });
 
   it("renders bottom nav in bottom mode", () => {
     currentMode = "bottom";
     renderWithShell("/settings");
+    expect(screen.getByTestId("bottom-nav")).toBeInTheDocument();
     expect(screen.getByTestId("nav-settings")).toBeInTheDocument();
+    // nav-rail should NOT be present in bottom mode
+    expect(screen.queryByTestId("nav-rail")).not.toBeInTheDocument();
   });
 
   it("shows chat list pane and main content area in side mode on dashboard route", () => {

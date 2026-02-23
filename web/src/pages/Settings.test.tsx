@@ -295,6 +295,8 @@ describe("Settings – sessions", () => {
       await screen.findByText("Failed to load sessions"),
     ).toBeInTheDocument();
     expect(screen.queryByText("No sessions found.")).not.toBeInTheDocument();
+    // Error alert should be present with stable data-testid
+    expect(screen.getByTestId("sessions-error")).toBeInTheDocument();
   });
 });
 

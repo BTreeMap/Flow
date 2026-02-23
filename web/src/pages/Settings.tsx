@@ -435,7 +435,7 @@ export function Settings() {
           {sessionsLoading ? (
             <p className="text-sm text-text-muted">Loading…</p>
           ) : sessionsIsError ? (
-            <Alert variant="error">
+            <Alert variant="error" data-testid="sessions-error">
               {sessionsError?.message || "Failed to load devices"}
             </Alert>
           ) : sessions && sessions.length > 0 ? (
