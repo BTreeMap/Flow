@@ -23,6 +23,7 @@ from starlette.responses import JSONResponse
 
 from app.db import get_db
 from app.id_utils import generate_server_msg_id
+from app.prompt_loader import prompt_version
 from app.models import (
     FlowUserProfile,
     MemoryItem,
@@ -932,6 +933,12 @@ async def send_message(
     await db.refresh(assistant_msg)
 
     # Publish SSE events
+    _route_to_prompt = {
+        "INTAKE": "intake_system",
+        "FEEDBACK": "feedback_system",
+        "COACH": "coach_system",
+    }
+    _prompt_name = _route_to_prompt.get(_decision.route, "coach_system")
     _publish_event(
         conv.id,
         {
@@ -946,6 +953,7 @@ async def send_message(
                     "created_at": assistant_msg.created_at.isoformat()
                     if assistant_msg.created_at
                     else datetime.now(UTC).isoformat(),
+                    "prompt_versions": prompt_version(_prompt_name),
                 }
             ),
         },
