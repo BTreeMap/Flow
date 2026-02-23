@@ -893,11 +893,16 @@ async def send_message(
     membership = await _get_membership(db, project_id, user.id)
     conv = await _get_conversation(db, membership.id)
 
+    # Eagerly capture IDs to survive potential rollback
+    conv_id = conv.id
+    membership_id = membership.id
+
     # --- Turn gating (idempotent when client_msg_id is provided) ----------
+    turn: ConversationTurn | None = None
     if body.client_msg_id:
         # Try to claim the turn by inserting a row with status=processing
         turn = ConversationTurn(
-            conversation_id=conv.id,
+            conversation_id=conv_id,
             client_msg_id=body.client_msg_id,
             status="processing",
         )
@@ -909,7 +914,7 @@ async def send_message(
             # A turn with this client_msg_id already exists
             existing = await db.execute(
                 select(ConversationTurn).where(
-                    ConversationTurn.conversation_id == conv.id,
+                    ConversationTurn.conversation_id == conv_id,
                     ConversationTurn.client_msg_id == body.client_msg_id,
                 )
             )
@@ -917,7 +922,12 @@ async def send_message(
             if turn is None:
                 raise HTTPException(status_code=500, detail="Turn conflict")
             if turn.status == "completed" and turn.assistant_message_id is not None:
-                asst = await db.get(Message, turn.assistant_message_id)
+                asst_result = await db.execute(
+                    select(Message).where(
+                        Message.id == turn.assistant_message_id,
+                    )
+                )
+                asst = asst_result.scalars().first()
                 if asst:
                     return SendMessageResponse(
                         message_id=asst.id,
@@ -927,14 +937,27 @@ async def send_message(
                     )
             if turn.status == "processing":
                 # Another request is processing this turn; wait briefly
+                turn_id = turn.id
                 for _ in range(6):
                     await asyncio.sleep(0.5)
-                    await db.refresh(turn)
+                    re_result = await db.execute(
+                        select(ConversationTurn).where(
+                            ConversationTurn.id == turn_id,
+                        )
+                    )
+                    turn = re_result.scalars().first()
+                    if turn is None:
+                        break
                     if (
                         turn.status == "completed"
                         and turn.assistant_message_id is not None
                     ):
-                        asst = await db.get(Message, turn.assistant_message_id)
+                        asst_result = await db.execute(
+                            select(Message).where(
+                                Message.id == turn.assistant_message_id,
+                            )
+                        )
+                        asst = asst_result.scalars().first()
                         if asst:
                             return SendMessageResponse(
                                 message_id=asst.id,
@@ -957,6 +980,14 @@ async def send_message(
                     content={"detail": "Turn is still processing"},
                 )
 
+        # Re-fetch conversation after potential rollback
+        conv_result = await db.execute(
+            select(Conversation).where(Conversation.id == conv_id)
+        )
+        conv = conv_result.scalars().first()
+        if conv is None:
+            raise HTTPException(status_code=500, detail="Conversation not found")
+
     # --- Process the turn (winner path) -----------------------------------
     try:
         llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
@@ -966,7 +997,7 @@ async def send_message(
 
         # Persist user message
         user_msg = Message(
-            conversation_id=conv.id,
+            conversation_id=conv_id,
             role="user",
             content=body.text,
             client_msg_id=body.client_msg_id,
@@ -986,7 +1017,7 @@ async def send_message(
         assistant_content, _decision = await engine_process_turn(
             db=db,
             conversation=conv,
-            membership_id=membership.id,
+            membership_id=membership_id,
             user_msg=user_msg,
             user_text=body.text,
             llm=llm,
@@ -994,7 +1025,7 @@ async def send_message(
         )
 
         assistant_msg = Message(
-            conversation_id=conv.id,
+            conversation_id=conv_id,
             role="assistant",
             content=assistant_content,
             server_msg_id=generate_server_msg_id(),
@@ -1029,7 +1060,7 @@ async def send_message(
         # Persist event for durable SSE replay
         conv_event = await persist_event(
             db,
-            conv.id,
+            conv_id,
             "message.final",
             sse_payload,
         )
@@ -1039,7 +1070,7 @@ async def send_message(
 
         # Publish SSE events (use ConversationEvent.id, not Message.id)
         _publish_event(
-            conv.id,
+            conv_id,
             {
                 "event": "message.final",
                 "id": str(conv_event.id),
@@ -1061,7 +1092,7 @@ async def send_message(
                 async with async_session_factory() as err_db:
                     result = await err_db.execute(
                         select(ConversationTurn).where(
-                            ConversationTurn.conversation_id == conv.id,
+                            ConversationTurn.conversation_id == conv_id,
                             ConversationTurn.client_msg_id == body.client_msg_id,
                         )
                     )
