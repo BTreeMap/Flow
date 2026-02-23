@@ -311,6 +311,50 @@ class PatchAuditLog(Base):
     membership: Mapped[ProjectMembership] = relationship()
 
 
+class ConversationEvent(Base):
+    """Persisted SSE event for durable replay via Last-Event-ID."""
+
+    __tablename__ = "conversation_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("conversations.id"), nullable=False, index=True
+    )
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class ConversationTurn(Base):
+    """Deduplicate user messages via client_msg_id."""
+
+    __tablename__ = "conversation_turns"
+    __table_args__ = (
+        UniqueConstraint(
+            "conversation_id",
+            "client_msg_id",
+            name="uq_turn_conversation_client_msg",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("conversations.id"), nullable=False
+    )
+    client_msg_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_message_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("messages.id"), nullable=False
+    )
+    assistant_message_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("messages.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class FlowUserProfile(Base):
     """User-level profile extension for display_name (not in upstream User model)."""
 

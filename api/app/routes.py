@@ -23,7 +23,9 @@ from starlette.responses import JSONResponse
 
 from app.db import get_db
 from app.id_utils import generate_server_msg_id
+from app.prompt_loader import prompt_version
 from app.models import (
+    ConversationTurn,
     FlowUserProfile,
     MemoryItem,
     OutboxEvent,
@@ -38,6 +40,7 @@ from app.models import (
     UserProfileStore,
 )
 from app.schemas.patches import UserProfileData
+from app.services.event_service import load_events_since, persist_event
 from app.services.outbox_service import replace_next_scheduled_prompt
 from app.services.profile_service import load_user_profile, save_user_profile
 from h4ckath0n.auth import require_user
@@ -890,6 +893,26 @@ async def send_message(
     """Persist user message, run engine turn, persist assistant reply."""
     membership = await _get_membership(db, project_id, user.id)
     conv = await _get_conversation(db, membership.id)
+
+    # Idempotent messaging: check for existing turn with same client_msg_id
+    if body.client_msg_id:
+        existing = await db.execute(
+            select(ConversationTurn).where(
+                ConversationTurn.conversation_id == conv.id,
+                ConversationTurn.client_msg_id == body.client_msg_id,
+            )
+        )
+        turn = existing.scalars().first()
+        if turn and turn.assistant_message_id is not None:
+            asst = await db.get(Message, turn.assistant_message_id)
+            if asst:
+                return SendMessageResponse(
+                    message_id=asst.id,
+                    server_msg_id=asst.server_msg_id,
+                    role="assistant",
+                    content=asst.content,
+                )
+
     llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
         "OPENAI_API_KEY"
     )
@@ -928,6 +951,42 @@ async def send_message(
     db.add(assistant_msg)
     await db.flush()
 
+    # Create ConversationTurn for idempotency tracking
+    if body.client_msg_id:
+        turn_entry = ConversationTurn(
+            conversation_id=conv.id,
+            client_msg_id=body.client_msg_id,
+            user_message_id=user_msg.id,
+            assistant_message_id=assistant_msg.id,
+        )
+        db.add(turn_entry)
+
+    # Build SSE payload
+    _route_to_prompt = {
+        "INTAKE": "intake_system",
+        "FEEDBACK": "feedback_system",
+        "COACH": "coach_system",
+    }
+    _prompt_name = _route_to_prompt.get(_decision.route, "coach_system")
+    sse_payload = {
+        "message_id": assistant_msg.id,
+        "server_msg_id": assistant_msg.server_msg_id,
+        "role": "assistant",
+        "content": assistant_content,
+        "created_at": assistant_msg.created_at.isoformat()
+        if assistant_msg.created_at
+        else datetime.now(UTC).isoformat(),
+        "prompt_versions": prompt_version(_prompt_name),
+    }
+
+    # Persist event for durable SSE replay
+    await persist_event(
+        db,
+        conv.id,
+        "message.final",
+        sse_payload,
+    )
+
     await db.commit()
     await db.refresh(assistant_msg)
 
@@ -937,17 +996,7 @@ async def send_message(
         {
             "event": "message.final",
             "id": str(assistant_msg.id),
-            "data": json.dumps(
-                {
-                    "message_id": assistant_msg.id,
-                    "server_msg_id": assistant_msg.server_msg_id,
-                    "role": "assistant",
-                    "content": assistant_content,
-                    "created_at": assistant_msg.created_at.isoformat()
-                    if assistant_msg.created_at
-                    else datetime.now(UTC).isoformat(),
-                }
-            ),
+            "data": json.dumps(sse_payload),
         },
     )
 
@@ -979,11 +1028,30 @@ async def event_stream(
     membership = await _get_membership(db, project_id, ctx.user_id)
     conv = await _get_conversation(db, membership.id)
 
+    # Parse Last-Event-ID for durable replay
+    last_event_id = 0
+    raw_last_id = request.headers.get("Last-Event-ID", "").strip()
+    if raw_last_id:
+        try:
+            last_event_id = int(raw_last_id)
+        except ValueError:
+            pass
+
+    # Load missed events for replay
+    missed_events = await load_events_since(db, conv.id, after_id=last_event_id)
+
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
     _sse_queues[conv.id].add(queue)
 
     async def generate() -> Any:
         try:
+            # Replay missed events first
+            for evt in missed_events:
+                yield {
+                    "event": evt.event_type,
+                    "id": str(evt.id),
+                    "data": evt.payload_json,
+                }
             while True:
                 if await request.is_disconnected():
                     return

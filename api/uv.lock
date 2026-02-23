@@ -559,6 +559,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
+    { name = "alembic" },
     { name = "asyncpg" },
     { name = "cryptography" },
     { name = "h4ckath0n" },
@@ -583,6 +584,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.22.1" },
+    { name = "alembic", specifier = ">=1.16.1" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cryptography", specifier = ">=44.0" },
     { name = "h4ckath0n", specifier = ">=0.1.8.dev20260220171602" },

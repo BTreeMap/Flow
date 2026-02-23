@@ -109,7 +109,7 @@ User Message
      ▼
 ┌──────────────┐
 │  Specialist   │  (Intake / Feedback / Coach)
-│  Agent        │  Uses LangChain agent with tools
+│  Agent        │  Uses LangChain agent with proposal tools only
 │               │  Can call propose_profile_patch / propose_memory_patch
 └──────┬───────┘
        │ proposals
@@ -148,6 +148,28 @@ User Message
 
 ---
 
+## Prompt System
+
+All prompts are loaded from `api/prompts/*.txt` files via `app.prompt_loader`:
+
+| File | Used By |
+|------|---------|
+| `router_system.txt` | Router (structured output routing) |
+| `intake_system.txt` | Intake specialist agent |
+| `feedback_system.txt` | Feedback specialist agent |
+| `coach_system.txt` | Coach specialist agent |
+| `prompt_generator_system.txt` | Scheduled habit prompt generation |
+
+### Prompt Versioning
+
+Each assistant message SSE event includes a `prompt_versions` field with:
+- `prompt_file`: name of the prompt file used by the specialist
+- `prompt_sha256`: SHA-256 hash of the prompt content at time of generation
+
+This enables tracking which prompt version produced each response, supporting A/B testing and prompt quality analysis.
+
+---
+
 ## Audit Trail
 
 All proposals are logged in the `patch_audit_log` table:
@@ -173,24 +195,54 @@ All proposals are logged in the `patch_audit_log` table:
 | `patch_audit_log` | Audit trail for all proposals and decisions |
 | `conversations` | Chat conversations (1:1 with membership) |
 | `messages` | Chat message history |
-| `conversation_runtime_state` | Legacy runtime state (JSON blob) |
+| `conversation_runtime_state` | Runtime state for conversation protocol (JSON blob) |
+| `conversation_events` | Persisted SSE events for durable replay |
+| `conversation_turns` | Idempotent messaging deduplication (client_msg_id) |
+| `outbox_events` | Scheduled/async event queue with dedup and leasing |
 
 ---
 
-## Milestone 1 operational additions
+## Alembic Migrations
 
-- Activation requires an email end-to-end (`POST /p/{project_id}/activate/claim` validates `email` as `EmailStr`). Email remains contact metadata only and is not used for identity/auth.
-- Invite claim is idempotent for already-active memberships: if a participant already joined, reopening an expired/revoked invite link returns success without consuming another invite use.
-- Deterministic onboarding endpoint (`GET/PUT /p/{project_id}/profile`) writes `UserProfileData` directly from explicit participant input.
-- Runtime protocol state is persisted in `conversation_runtime_state` after INTAKE/FEEDBACK tool mutations.
-- Outbox worker (`app.worker.outbox_worker`) processes due `outbox_events`, handles `scheduled_prompt`, inserts assistant messages, and best-effort push delivery.
-- Outbox worker claims events with lease fields (`locked_until`, `locked_by`, `claimed_at`) before processing, uses a 5-minute lock TTL, retries with exponential backoff, and dead-letters after max attempts.
-- Invites are multi-use by default with `max_uses`/`uses` and optional `revoked_at`; claim uses are consumed atomically only when a new membership is created.
-- Push subscriptions are membership-scoped (`membership_id` + `endpoint`) so the same device endpoint can be registered across multiple projects without overwrite.
-- Router now auto-attaches latest user-message evidence IDs for eligible Intake/Feedback proposals when specialists omit evidence IDs, preserving validator strictness while enabling LLM-mode proposals.
-- Export payloads must never include raw invite tokens/codes.
+Flow uses its own Alembic environment separate from h4ckath0n:
 
-> Note: schema changes rely on `create_all` (no Alembic yet), so existing deployed databases require reset to pick up new columns.
+- **Migration directory:** `api/app/db_migrations/`
+- **Version table:** `flow_alembic_version`
+- **Runner:** `api/app/db_migrations/migrate.py` (`upgrade_to_head()`, `stamp_head()`)
+- **Startup:** The lifespan runs `upgrade_to_head()` with `init_db()` fallback for test environments.
+- **URL normalization:** Async driver prefixes (`sqlite+aiosqlite`, `postgresql+asyncpg`) are converted to sync equivalents for Alembic.
+
+---
+
+## Durable SSE with Replay
+
+The `/p/{project_id}/events` SSE endpoint supports durable replay:
+
+1. Events are persisted to `conversation_events` before being published to in-memory queues.
+2. If a client reconnects with `Last-Event-ID` header, missed events are replayed from the database before switching to live streaming.
+3. Cross-process delivery uses DB polling (no Redis dependency).
+
+---
+
+## Idempotent Messaging
+
+`POST /p/{project_id}/messages` supports idempotent retries:
+
+1. If `client_msg_id` is provided, the endpoint checks `conversation_turns` for an existing turn.
+2. If found, the existing assistant message is returned without re-processing.
+3. If not found, a new turn entry is created with `Unique(conversation_id, client_msg_id)`.
+
+---
+
+## Worker Semantics
+
+The outbox worker (`app.worker.outbox_worker`) processes scheduled events:
+
+- After persisting a scheduled prompt message and committing, **push delivery is best-effort**.
+- Push failures or timeouts are logged per-subscription but do **not** cause the outbox event to retry.
+- This prevents duplicate messages from push delivery failures.
+- Events are claimed with lease fields (`locked_until`, `locked_by`, `claimed_at`) and use 5-minute lock TTL.
+- Failed events retry with exponential backoff; dead-letter after max attempts.
 
 ---
 
@@ -199,19 +251,22 @@ All proposals are logged in the `patch_audit_log` table:
 | File | Purpose |
 |------|---------|
 | `api/app/agents/engine.py` | Main turn engine: `process_turn()` |
-| `api/app/agents/router.py` | Legacy router (kept for backward compat) |
+| `api/app/agents/router.py` | Router structured output helpers |
 | `api/app/agents/coach.py` | Coach specialist agent |
 | `api/app/agents/intake.py` | Intake specialist agent |
 | `api/app/agents/feedback.py` | Feedback specialist agent |
 | `api/app/tools/proposal_tools.py` | Proposal tools + ProposalCollector |
+| `api/app/prompt_loader.py` | Prompt file loader with caching and versioning |
 | `api/app/services/profile_service.py` | Profile/memory persistence + validation |
+| `api/app/services/event_service.py` | SSE event persistence and replay |
 | `api/app/schemas/patches.py` | All Pydantic schemas for proposals |
 | `api/app/schemas/router.py` | RouteDecision (INTAKE/FEEDBACK/COACH) |
+| `api/app/db_migrations/migrate.py` | Alembic migration runner |
 
 ---
 
 ## Deprecation Notes
 
-- The legacy conversation flow engine (`api/app/engine/`) is retained for backward compatibility with existing tests.
+- The legacy conversation flow engine (`api/app/engine/`) is retained for test coverage of pure utility functions (tone, state, scheduler). It is not used by any canonical runtime path.
 - The legacy behavioral contract (`docs/legacy-conversation-flow-contract.md`) is deprecated and for historical reference only.
 - New work should use the Router + specialist architecture defined here.

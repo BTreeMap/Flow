@@ -12,18 +12,13 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
 
+from app.prompt_loader import load_prompt
 from app.schemas.router import RouteDecision
 
 logger = logging.getLogger(__name__)
 
-# Default router system prompt
-ROUTER_SYSTEM_PROMPT = (
-    "You are a routing coordinator for a habit-building conversation system. "
-    "Your sole purpose is to decide whether the current user message should be "
-    "handled by the INTAKE module (onboarding, profile building, schedule setup) "
-    "or the FEEDBACK module (habit tracking, barrier analysis, feedback collection). "
-    "Output ONLY a JSON object matching the schema. Do not talk to the user."
-)
+# Router prompt loaded from file
+ROUTER_SYSTEM_PROMPT = load_prompt("router_system")
 
 ROUTER_USER_TEMPLATE = (
     "Current conversation sub-state: {sub_state}\n"

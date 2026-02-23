@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Conversation, ConversationRuntimeState, Message
+from app.prompt_loader import load_prompt
 from app.schemas.patches import (
     FEEDBACK_ALLOWED_FIELDS,
     INTAKE_ALLOWED_FIELDS,
@@ -53,14 +54,7 @@ MAX_HISTORY_MESSAGES = 30
 # Router (structured output, no user-visible text)
 # ---------------------------------------------------------------------------
 
-ROUTER_SYSTEM_PROMPT = (
-    "You are a routing coordinator for a habit-building conversation system. "
-    "Decide which specialist should handle this message:\n"
-    "- INTAKE: onboarding, profile building, schedule setup (use when required fields are missing)\n"
-    "- FEEDBACK: habit tracking, barrier analysis, feedback collection (use when in feedback protocol)\n"
-    "- COACH: normal conversation, encouragement, nudges (use for general chat)\n"
-    "Output ONLY a JSON object matching the schema. Do not talk to the user."
-)
+ROUTER_SYSTEM_PROMPT = load_prompt("router_system")
 
 _router_prompt = ChatPromptTemplate.from_messages(
     [
@@ -275,6 +269,24 @@ async def _process_proposals(
 
 
 # ---------------------------------------------------------------------------
+# Specialist agent factory
+# ---------------------------------------------------------------------------
+
+_RECURSION_LIMIT = 22
+
+
+def _create_specialist_agent(
+    llm: BaseChatModel,
+    tools: list,
+    prompt_name: str,
+) -> object:
+    """Build a LangGraph agent for a specialist using a prompt loaded from file."""
+    from langchain.agents import create_agent
+
+    return create_agent(llm, tools=tools, system_prompt=load_prompt(prompt_name))
+
+
+# ---------------------------------------------------------------------------
 # Main turn pipeline
 # ---------------------------------------------------------------------------
 
@@ -334,7 +346,6 @@ async def process_turn(
     logger.info("Route decision: %s (reason: %s)", decision.route, decision.reason)
 
     # Step 3: Invoke specialist
-    state_data: dict[str, str] | None = None
     if llm is not None:
         # LLM-backed agent invocation
         collector = ProposalCollector()
@@ -351,55 +362,28 @@ async def process_turn(
 
         if decision.route == "INTAKE":
             from app.agents.intake import run_intake
-            from app.tools.langchain_tools import make_intake_tools
 
-            state_data = {}
-            if runtime_state:
-                try:
-                    state_data = json.loads(runtime_state.state_json)
-                except (json.JSONDecodeError, TypeError):
-                    state_data = {}
-            all_tools = make_intake_tools(state_data) + proposal_tools
-            from langchain.agents import create_agent
-
-            agent = create_agent(
-                llm,
-                tools=all_tools,
-                system_prompt=(
-                    "You are a habit-building intake assistant. "
-                    "Help the user set up their profile. Use tools to save data "
-                    "and propose_profile_patch for profile updates."
-                ),
+            assistant_text = run_intake(
+                _create_specialist_agent(llm, proposal_tools, "intake_system"),
+                user_text,
+                chat_history,
             )
-            assistant_text = run_intake(agent, user_text, chat_history)
         elif decision.route == "FEEDBACK":
             from app.agents.feedback import run_feedback
-            from app.tools.langchain_tools import make_feedback_tools
 
-            state_data = {}
-            if runtime_state:
-                try:
-                    state_data = json.loads(runtime_state.state_json)
-                except (json.JSONDecodeError, TypeError):
-                    state_data = {}
-            all_tools = make_feedback_tools(state_data) + proposal_tools
-            from langchain.agents import create_agent
-
-            agent = create_agent(
-                llm,
-                tools=all_tools,
-                system_prompt=(
-                    "You are a habit feedback tracker. "
-                    "Help the user reflect on their progress. Use tools and "
-                    "propose_profile_patch/propose_memory_patch for updates."
-                ),
+            assistant_text = run_feedback(
+                _create_specialist_agent(llm, proposal_tools, "feedback_system"),
+                user_text,
+                chat_history,
             )
-            assistant_text = run_feedback(agent, user_text, chat_history)
         else:
-            from app.agents.coach import create_coach_agent, run_coach
+            from app.agents.coach import run_coach
 
-            agent = create_coach_agent(llm, collector)
-            assistant_text = run_coach(agent, user_text, chat_history)
+            assistant_text = run_coach(
+                _create_specialist_agent(llm, proposal_tools, "coach_system"),
+                user_text,
+                chat_history,
+            )
     else:
         # Stub mode (no LLM)
         assistant_text, collector = _run_specialist_stub(decision.route, user_text)
@@ -413,16 +397,5 @@ async def process_turn(
         recent_message_ids,
         latest_user_message_id=user_msg.id,
     )
-
-    if state_data is not None:
-        if runtime_state is None:
-            runtime_state = ConversationRuntimeState(
-                conversation_id=conversation.id,
-                state_json=json.dumps(state_data),
-            )
-            db.add(runtime_state)
-        else:
-            runtime_state.state_json = json.dumps(state_data)
-        await db.flush()
 
     return assistant_text, decision

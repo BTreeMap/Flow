@@ -163,6 +163,7 @@ async def test_claim_due_events_prevents_double_claim(
 async def test_slow_push_times_out_without_duplicate_messages(
     db: AsyncSession, seeded: dict[str, int | str], monkeypatch
 ) -> None:
+    """Push timeout must not cause the outbox event to retry."""
     project_id = str(seeded["project_id"])
     membership_id = int(seeded["membership_id"])
     event = OutboxEvent(
@@ -206,9 +207,9 @@ async def test_slow_push_times_out_without_duplicate_messages(
     )
 
     await _process_event(event, worker_id="worker-timeout")
-    await _process_event(event, worker_id="worker-timeout")
 
     async with _session_factory() as verify_db:
+        # Message should still be persisted exactly once
         message_result = await verify_db.execute(
             select(Message).where(
                 Message.role == "assistant",
@@ -218,8 +219,8 @@ async def test_slow_push_times_out_without_duplicate_messages(
         messages = message_result.scalars().all()
         assert len(messages) == 1
 
+        # Event should be deleted (not retried) despite push timeout
         event_result = await verify_db.execute(
             select(OutboxEvent).where(OutboxEvent.id == event.id)
         )
-        retry_event = event_result.scalar_one()
-        assert retry_event.attempts >= 1
+        assert event_result.scalar_one_or_none() is None
