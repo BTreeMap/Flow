@@ -23,7 +23,7 @@ export function SideRailShell() {
           <ChatListPane embedded />
         </div>
       )}
-      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      <main className="flex-1 min-w-0 flex flex-col overflow-y-auto">
         <Outlet />
       </main>
     </div>
