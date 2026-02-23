@@ -183,6 +183,7 @@ async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
         logger.warning(
             "Push delivery failed for event %s (best-effort, not retrying event)",
             event.dedupe_key,
+            exc_info=True,
         )
 
 
