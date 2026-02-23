@@ -1,13 +1,13 @@
-"""LangChain tool wrappers package."""
+"""LangChain tools package — proposal tools for the new architecture."""
 
 from __future__ import annotations
 
-from app.tools.langchain_tools import (
-    make_feedback_tools,
-    make_intake_tools,
+from app.tools.proposal_tools import (
+    ProposalCollector,
+    make_proposal_tools,
 )
 
 __all__ = [
-    "make_feedback_tools",
-    "make_intake_tools",
+    "ProposalCollector",
+    "make_proposal_tools",
 ]

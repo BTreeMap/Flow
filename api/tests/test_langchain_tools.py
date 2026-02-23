@@ -1,41 +1,24 @@
-"""Tests for LangChain @tool wrappers (§4.4–§4.7).
+"""Tests for LangChain proposal tools (new architecture).
 
 Validates:
-- Each tool has a Pydantic args_schema
-- Tools return typed result dicts
-- Tools return structured errors on failure (no exceptions)
-- Tool names and schemas match expectations
+- Proposal tools have Pydantic args_schema
+- Proposal tools record proposals to the collector
+- Proposal tools return structured results
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from app.engine.state import DataKey, UserProfile
-from app.schemas.tool_schemas import (
-    GenerateHabitPromptResult,
-    ProfileSaveResult,
-    SchedulerResult,
-    StateTransitionResult,
-)
-from app.tools.langchain_tools import (
-    make_feedback_tools,
-    make_intake_tools,
+from app.tools.proposal_tools import (
+    ProposalCollector,
+    make_proposal_tools,
 )
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _empty_state() -> dict[str, str]:
-    return {}
-
-
-def _state_with_profile(**overrides: str) -> dict[str, str]:
-    profile = UserProfile(**overrides)
-    return {DataKey.USER_PROFILE.value: profile.model_dump_json()}
 
 
 def _find_tool(tools: list[Any], name: str) -> Any:
@@ -51,171 +34,120 @@ def _find_tool(tools: list[Any], name: str) -> Any:
 
 
 class TestToolCreation:
-    def test_intake_tools_have_four_tools(self) -> None:
-        tools = make_intake_tools(_empty_state())
+    def test_proposal_tools_have_two_tools(self) -> None:
+        collector = ProposalCollector()
+        tools = make_proposal_tools(collector, source_bot="INTAKE")
         names = sorted(t.name for t in tools)
-        assert names == [
-            "generate_habit_prompt",
-            "save_user_profile",
-            "scheduler",
-            "transition_state",
-        ]
-
-    def test_feedback_tools_have_three_tools(self) -> None:
-        tools = make_feedback_tools(_empty_state())
-        names = sorted(t.name for t in tools)
-        assert names == [
-            "save_user_profile",
-            "scheduler",
-            "transition_state",
-        ]
-
-    def test_feedback_tools_exclude_prompt_generator(self) -> None:
-        """Feedback agent must NOT have generate_habit_prompt (§4.3)."""
-        tools = make_feedback_tools(_empty_state())
-        names = [t.name for t in tools]
-        assert "generate_habit_prompt" not in names
+        assert names == ["propose_memory_patch", "propose_profile_patch"]
 
     def test_all_tools_have_args_schema(self) -> None:
         """Every tool must declare a Pydantic args_schema."""
-        for t in make_intake_tools(_empty_state()):
+        collector = ProposalCollector()
+        for t in make_proposal_tools(collector, source_bot="INTAKE"):
             assert t.args_schema is not None
             assert hasattr(t.args_schema, "model_fields")
 
 
 # ---------------------------------------------------------------------------
-# save_user_profile tool
+# propose_profile_patch tool
 # ---------------------------------------------------------------------------
 
 
-class TestProfileSaveTool:
-    def test_success_returns_typed_result(self) -> None:
-        state = _empty_state()
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "save_user_profile")
-        result = tool.invoke({"prompt_anchor": "after coffee"})
-        parsed = ProfileSaveResult.model_validate(result)
-        assert parsed.ok is True
-        assert parsed.status == "success"
-
-    def test_noop_returns_typed_result(self) -> None:
-        state = _state_with_profile(prompt_anchor="same")
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "save_user_profile")
-        result = tool.invoke({"prompt_anchor": "same"})
-        parsed = ProfileSaveResult.model_validate(result)
-        assert parsed.ok is True
-        assert parsed.status == "noop"
-
-    def test_empty_args_returns_noop(self) -> None:
-        state = _empty_state()
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "save_user_profile")
-        result = tool.invoke({})
-        parsed = ProfileSaveResult.model_validate(result)
-        assert parsed.ok is True
-        assert parsed.status == "noop"
-
-
-# ---------------------------------------------------------------------------
-# scheduler tool
-# ---------------------------------------------------------------------------
-
-
-class TestSchedulerTool:
-    def test_create_returns_typed_result(self) -> None:
-        state = _empty_state()
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "scheduler")
-        result = tool.invoke(
-            {"action": "create", "type": "fixed", "fixed_time": "08:00"}
-        )
-        parsed = SchedulerResult.model_validate(result)
-        assert parsed.ok is True
-        assert "created" in parsed.message
-
-    def test_list_empty_returns_typed_result(self) -> None:
-        state = _empty_state()
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "scheduler")
-        result = tool.invoke({"action": "list"})
-        parsed = SchedulerResult.model_validate(result)
-        assert parsed.ok is True
-
-    def test_unknown_action_returns_error(self) -> None:
-        state = _empty_state()
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "scheduler")
-        result = tool.invoke({"action": "delete", "schedule_id": "nonexistent"})
-        parsed = SchedulerResult.model_validate(result)
-        assert parsed.ok is False
-        assert parsed.error is not None
-
-
-# ---------------------------------------------------------------------------
-# generate_habit_prompt tool
-# ---------------------------------------------------------------------------
-
-
-class TestPromptGeneratorTool:
-    def test_missing_profile_returns_error(self) -> None:
-        state = _empty_state()
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "generate_habit_prompt")
-        result = tool.invoke({})
-        parsed = GenerateHabitPromptResult.model_validate(result)
-        assert parsed.ok is False
-        assert parsed.error is not None
-
-    def test_success_with_complete_profile(self) -> None:
-        state = _state_with_profile(prompt_anchor="after coffee", preferred_time="8am")
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "generate_habit_prompt")
-        result = tool.invoke({})
-        parsed = GenerateHabitPromptResult.model_validate(result)
-        assert parsed.ok is True
-        assert parsed.prompt is not None
-        assert "after coffee" in parsed.prompt
-
-
-# ---------------------------------------------------------------------------
-# transition_state tool
-# ---------------------------------------------------------------------------
-
-
-class TestStateTransitionTool:
-    def test_immediate_transition(self) -> None:
-        state = _empty_state()
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "transition_state")
-        result = tool.invoke({"target_state": "FEEDBACK"})
-        parsed = StateTransitionResult.model_validate(result)
-        assert parsed.ok is True
-        assert parsed.applied_state == "FEEDBACK"
-        assert state[DataKey.CONVERSATION_STATE.value] == "FEEDBACK"
-
-    def test_delayed_transition(self) -> None:
-        state = _empty_state()
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "transition_state")
+class TestProfilePatchTool:
+    def test_records_proposal_to_collector(self) -> None:
+        collector = ProposalCollector()
+        tools = make_proposal_tools(collector, source_bot="INTAKE")
+        tool = _find_tool(tools, "propose_profile_patch")
         result = tool.invoke(
             {
-                "target_state": "FEEDBACK",
-                "delay_minutes": 30,
+                "patch": {"prompt_anchor": "after coffee"},
+                "confidence": 0.9,
+                "message_ids": [1],
+                "source_bot": "INTAKE",
             }
         )
-        parsed = StateTransitionResult.model_validate(result)
-        assert parsed.ok is True
-        assert parsed.scheduled_for is not None
+        assert result["status"] == "proposal_recorded"
+        assert len(collector.profile_proposals) == 1
+        assert (
+            collector.profile_proposals[0]["patch"]["prompt_anchor"] == "after coffee"
+        )
 
-    def test_invalid_state_returns_error(self) -> None:
-        """Invalid target_state is caught by Pydantic schema validation."""
-        import pytest
-        from pydantic import ValidationError
+    def test_empty_message_ids_allowed(self) -> None:
+        collector = ProposalCollector()
+        tools = make_proposal_tools(collector, source_bot="FEEDBACK")
+        tool = _find_tool(tools, "propose_profile_patch")
+        result = tool.invoke(
+            {
+                "patch": {"last_barrier": "evening fatigue"},
+                "confidence": 0.8,
+                "message_ids": [],
+                "source_bot": "FEEDBACK",
+            }
+        )
+        assert result["status"] == "proposal_recorded"
+        assert len(collector.profile_proposals) == 1
 
-        state = _empty_state()
-        tools = make_intake_tools(state)
-        tool = _find_tool(tools, "transition_state")
-        # Pydantic Literal["INTAKE", "FEEDBACK"] rejects "INVALID"
-        with pytest.raises(ValidationError):
-            tool.invoke({"target_state": "INVALID"})
+    def test_multiple_proposals_accumulated(self) -> None:
+        collector = ProposalCollector()
+        tools = make_proposal_tools(collector, source_bot="INTAKE")
+        tool = _find_tool(tools, "propose_profile_patch")
+        tool.invoke(
+            {
+                "patch": {"prompt_anchor": "a"},
+                "confidence": 0.9,
+                "message_ids": [1],
+                "source_bot": "INTAKE",
+            }
+        )
+        tool.invoke(
+            {
+                "patch": {"preferred_time": "8am"},
+                "confidence": 0.9,
+                "message_ids": [2],
+                "source_bot": "INTAKE",
+            }
+        )
+        assert len(collector.profile_proposals) == 2
+
+
+# ---------------------------------------------------------------------------
+# propose_memory_patch tool
+# ---------------------------------------------------------------------------
+
+
+class TestMemoryPatchTool:
+    def test_records_memory_proposal(self) -> None:
+        collector = ProposalCollector()
+        tools = make_proposal_tools(collector, source_bot="FEEDBACK")
+        tool = _find_tool(tools, "propose_memory_patch")
+        result = tool.invoke(
+            {
+                "items": [{"content": "User prefers mornings"}],
+                "confidence": 0.85,
+                "message_ids": [5],
+                "source_bot": "FEEDBACK",
+            }
+        )
+        assert result["status"] == "proposal_recorded"
+        assert len(collector.memory_proposals) == 1
+        assert (
+            collector.memory_proposals[0]["items"][0]["content"]
+            == "User prefers mornings"
+        )
+
+    def test_with_quotes(self) -> None:
+        collector = ProposalCollector()
+        tools = make_proposal_tools(collector, source_bot="COACH")
+        tool = _find_tool(tools, "propose_memory_patch")
+        result = tool.invoke(
+            {
+                "items": [{"content": "Knee pain limits options"}],
+                "confidence": 0.7,
+                "message_ids": [10],
+                "quotes": ["my knee has been bothering me"],
+                "source_bot": "COACH",
+            }
+        )
+        assert result["status"] == "proposal_recorded"
+        evidence = collector.memory_proposals[0]["evidence"]
+        assert "my knee" in evidence["quotes"][0]

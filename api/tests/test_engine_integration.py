@@ -320,9 +320,7 @@ class TestEngineTurnPipeline:
         assert decision.route == "COACH"
 
     @pytest.mark.asyncio
-    async def test_feedback_state_routes_correctly(
-        self, seeded_db: dict
-    ) -> None:
+    async def test_feedback_state_routes_correctly(self, seeded_db: dict) -> None:
         """With FEEDBACK state set, stub engine routes to FEEDBACK."""
         db = seeded_db["db"]
         conv = seeded_db["conversation"]
