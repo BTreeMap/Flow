@@ -21,7 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from app.db import get_db
+from app.db import async_session_factory, get_db
 from app.id_utils import generate_server_msg_id
 from app.prompt_loader import prompt_version
 from app.models import (
@@ -645,25 +645,7 @@ async def claim_invite(
             },
         )
 
-    # Hash the invite code and look up the invite token for this project.
-    # For existing members, invite validity is not required (idempotent re-open).
-    code_hash = hashlib.sha256(body.invite_code.encode()).hexdigest()
-    now = datetime.now(UTC)
-
-    invite_result = await db.execute(
-        select(ProjectInvite).where(
-            ProjectInvite.project_id == project_id,
-            ProjectInvite.invite_code_hash == code_hash,
-        )
-    )
-    invite = invite_result.scalar_one_or_none()
-    if invite is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired invite code",
-        )
-
-    # Check for existing membership
+    # Check for existing membership BEFORE invite lookup
     existing_result = await db.execute(
         select(ProjectMembership).where(
             ProjectMembership.project_id == project_id,
@@ -680,11 +662,27 @@ async def claim_invite(
             detail="Membership ended",
         )
 
-    created_membership = False
     if membership is not None:
-        # Existing non-ended membership: idempotent success regardless invite validity.
+        # Existing non-ended membership: idempotent success regardless of invite validity
         pass
     else:
+        # New membership: validate invite code
+        now = datetime.now(UTC)
+        code_hash = hashlib.sha256(body.invite_code.encode()).hexdigest()
+
+        invite_result = await db.execute(
+            select(ProjectInvite).where(
+                ProjectInvite.project_id == project_id,
+                ProjectInvite.invite_code_hash == code_hash,
+            )
+        )
+        invite = invite_result.scalar_one_or_none()
+        if invite is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired invite code",
+            )
+
         expires_at = invite.expires_at
         compare_now = now if expires_at.tzinfo else now.replace(tzinfo=None)
         if invite.revoked_at is not None or expires_at <= compare_now:
@@ -697,6 +695,7 @@ async def claim_invite(
             project_id=project_id, user_id=user.id, status="active"
         )
         db.add(membership)
+        created_membership = False
         try:
             await db.flush()
             created_membership = True
@@ -889,123 +888,222 @@ async def send_message(
     body: SendMessageRequest,
     user: User = require_user(),
     db: AsyncSession = Depends(get_db),
-) -> SendMessageResponse:
+) -> Any:
     """Persist user message, run engine turn, persist assistant reply."""
     membership = await _get_membership(db, project_id, user.id)
     conv = await _get_conversation(db, membership.id)
 
-    # Idempotent messaging: check for existing turn with same client_msg_id
+    # Eagerly capture IDs to survive potential rollback
+    conv_id = conv.id
+    membership_id = membership.id
+
+    # --- Turn gating (idempotent when client_msg_id is provided) ----------
+    turn: ConversationTurn | None = None
     if body.client_msg_id:
-        existing = await db.execute(
-            select(ConversationTurn).where(
-                ConversationTurn.conversation_id == conv.id,
-                ConversationTurn.client_msg_id == body.client_msg_id,
-            )
+        # Try to claim the turn by inserting a row with status=processing
+        turn = ConversationTurn(
+            conversation_id=conv_id,
+            client_msg_id=body.client_msg_id,
+            status="processing",
         )
-        turn = existing.scalars().first()
-        if turn and turn.assistant_message_id is not None:
-            asst = await db.get(Message, turn.assistant_message_id)
-            if asst:
-                return SendMessageResponse(
-                    message_id=asst.id,
-                    server_msg_id=asst.server_msg_id,
-                    role="assistant",
-                    content=asst.content,
+        db.add(turn)
+        try:
+            await db.flush()
+        except IntegrityError:
+            await db.rollback()
+            # A turn with this client_msg_id already exists
+            existing = await db.execute(
+                select(ConversationTurn).where(
+                    ConversationTurn.conversation_id == conv_id,
+                    ConversationTurn.client_msg_id == body.client_msg_id,
+                )
+            )
+            turn = existing.scalars().first()
+            if turn is None:
+                raise HTTPException(status_code=500, detail="Turn conflict")
+            if turn.status == "completed" and turn.assistant_message_id is not None:
+                asst_result = await db.execute(
+                    select(Message).where(
+                        Message.id == turn.assistant_message_id,
+                    )
+                )
+                asst = asst_result.scalars().first()
+                if asst:
+                    return SendMessageResponse(
+                        message_id=asst.id,
+                        server_msg_id=asst.server_msg_id,
+                        role="assistant",
+                        content=asst.content,
+                    )
+            if turn.status == "processing":
+                # Another request is processing this turn; wait briefly
+                turn_id = turn.id
+                for _ in range(6):
+                    await asyncio.sleep(0.5)
+                    re_result = await db.execute(
+                        select(ConversationTurn).where(
+                            ConversationTurn.id == turn_id,
+                        )
+                    )
+                    turn = re_result.scalars().first()
+                    if turn is None:
+                        break
+                    if (
+                        turn.status == "completed"
+                        and turn.assistant_message_id is not None
+                    ):
+                        asst_result = await db.execute(
+                            select(Message).where(
+                                Message.id == turn.assistant_message_id,
+                            )
+                        )
+                        asst = asst_result.scalars().first()
+                        if asst:
+                            return SendMessageResponse(
+                                message_id=asst.id,
+                                server_msg_id=asst.server_msg_id,
+                                role="assistant",
+                                content=asst.content,
+                            )
+                return JSONResponse(
+                    status_code=202,
+                    content={"detail": "Turn is still processing"},
+                )
+            if turn.status == "failed":
+                # Previous attempt failed; allow retry by resetting
+                turn.status = "processing"
+                turn.error = None
+                await db.flush()
+            else:
+                return JSONResponse(
+                    status_code=202,
+                    content={"detail": "Turn is still processing"},
                 )
 
-    llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
-        "OPENAI_API_KEY"
-    )
-    llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key) if llm_key else None
-
-    # Persist user message
-    user_msg = Message(
-        conversation_id=conv.id,
-        role="user",
-        content=body.text,
-        client_msg_id=body.client_msg_id,
-        server_msg_id=generate_server_msg_id(),
-    )
-    db.add(user_msg)
-    await db.flush()
-
-    # Run new architecture engine turn (Router + specialist)
-    from app.agents.engine import process_turn as engine_process_turn
-
-    assistant_content, _decision = await engine_process_turn(
-        db=db,
-        conversation=conv,
-        membership_id=membership.id,
-        user_msg=user_msg,
-        user_text=body.text,
-        llm=llm,
-        router_llm=llm,
-    )
-
-    assistant_msg = Message(
-        conversation_id=conv.id,
-        role="assistant",
-        content=assistant_content,
-        server_msg_id=generate_server_msg_id(),
-    )
-    db.add(assistant_msg)
-    await db.flush()
-
-    # Create ConversationTurn for idempotency tracking
-    if body.client_msg_id:
-        turn_entry = ConversationTurn(
-            conversation_id=conv.id,
-            client_msg_id=body.client_msg_id,
-            user_message_id=user_msg.id,
-            assistant_message_id=assistant_msg.id,
+        # Re-fetch conversation after potential rollback
+        conv_result = await db.execute(
+            select(Conversation).where(Conversation.id == conv_id)
         )
-        db.add(turn_entry)
+        conv = conv_result.scalars().first()
+        if conv is None:
+            raise HTTPException(status_code=500, detail="Conversation not found")
 
-    # Build SSE payload
-    _route_to_prompt = {
-        "INTAKE": "intake_system",
-        "FEEDBACK": "feedback_system",
-        "COACH": "coach_system",
-    }
-    _prompt_name = _route_to_prompt.get(_decision.route, "coach_system")
-    sse_payload = {
-        "message_id": assistant_msg.id,
-        "server_msg_id": assistant_msg.server_msg_id,
-        "role": "assistant",
-        "content": assistant_content,
-        "created_at": assistant_msg.created_at.isoformat()
-        if assistant_msg.created_at
-        else datetime.now(UTC).isoformat(),
-        "prompt_versions": prompt_version(_prompt_name),
-    }
+    # --- Process the turn (winner path) -----------------------------------
+    try:
+        llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
+            "OPENAI_API_KEY"
+        )
+        llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key) if llm_key else None
 
-    # Persist event for durable SSE replay
-    await persist_event(
-        db,
-        conv.id,
-        "message.final",
-        sse_payload,
-    )
+        # Persist user message
+        user_msg = Message(
+            conversation_id=conv_id,
+            role="user",
+            content=body.text,
+            client_msg_id=body.client_msg_id,
+            server_msg_id=generate_server_msg_id(),
+        )
+        db.add(user_msg)
+        await db.flush()
 
-    await db.commit()
-    await db.refresh(assistant_msg)
+        # Update turn with user_message_id
+        if body.client_msg_id and turn is not None:
+            turn.user_message_id = user_msg.id
+            await db.flush()
 
-    # Publish SSE events
-    _publish_event(
-        conv.id,
-        {
-            "event": "message.final",
-            "id": str(assistant_msg.id),
-            "data": json.dumps(sse_payload),
-        },
-    )
+        # Run new architecture engine turn (Router + specialist)
+        from app.agents.engine import process_turn as engine_process_turn
 
-    return SendMessageResponse(
-        message_id=assistant_msg.id,
-        server_msg_id=assistant_msg.server_msg_id,
-        role="assistant",
-        content=assistant_content,
-    )
+        assistant_content, _decision = await engine_process_turn(
+            db=db,
+            conversation=conv,
+            membership_id=membership_id,
+            user_msg=user_msg,
+            user_text=body.text,
+            llm=llm,
+            router_llm=llm,
+        )
+
+        assistant_msg = Message(
+            conversation_id=conv_id,
+            role="assistant",
+            content=assistant_content,
+            server_msg_id=generate_server_msg_id(),
+        )
+        db.add(assistant_msg)
+        await db.flush()
+
+        # Mark turn as completed
+        if body.client_msg_id and turn is not None:
+            turn.assistant_message_id = assistant_msg.id
+            turn.status = "completed"
+            await db.flush()
+
+        # Build SSE payload
+        _route_to_prompt = {
+            "INTAKE": "intake_system",
+            "FEEDBACK": "feedback_system",
+            "COACH": "coach_system",
+        }
+        _prompt_name = _route_to_prompt.get(_decision.route, "coach_system")
+        sse_payload = {
+            "message_id": assistant_msg.id,
+            "server_msg_id": assistant_msg.server_msg_id,
+            "role": "assistant",
+            "content": assistant_content,
+            "created_at": assistant_msg.created_at.isoformat()
+            if assistant_msg.created_at
+            else datetime.now(UTC).isoformat(),
+            "prompt_versions": prompt_version(_prompt_name),
+        }
+
+        # Persist event for durable SSE replay
+        conv_event = await persist_event(
+            db,
+            conv_id,
+            "message.final",
+            sse_payload,
+        )
+
+        await db.commit()
+        await db.refresh(assistant_msg)
+
+        # Publish SSE events (use ConversationEvent.id, not Message.id)
+        _publish_event(
+            conv_id,
+            {
+                "event": "message.final",
+                "id": str(conv_event.id),
+                "data": json.dumps(sse_payload),
+            },
+        )
+
+        return SendMessageResponse(
+            message_id=assistant_msg.id,
+            server_msg_id=assistant_msg.server_msg_id,
+            role="assistant",
+            content=assistant_content,
+        )
+    except Exception:
+        # Mark turn as failed on error
+        if body.client_msg_id:
+            try:
+                await db.rollback()
+                async with async_session_factory() as err_db:
+                    result = await err_db.execute(
+                        select(ConversationTurn).where(
+                            ConversationTurn.conversation_id == conv_id,
+                            ConversationTurn.client_msg_id == body.client_msg_id,
+                        )
+                    )
+                    err_turn = result.scalars().first()
+                    if err_turn and err_turn.status == "processing":
+                        err_turn.status = "failed"
+                        err_turn.error = "Internal processing error"
+                        await err_db.commit()
+            except Exception:
+                logger.exception("Failed to mark turn as failed")
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -1042,8 +1140,11 @@ async def event_stream(
 
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
     _sse_queues[conv.id].add(queue)
+    conversation_id = conv.id
 
     async def generate() -> Any:
+        nonlocal last_event_id
+        last_sent_event_id = last_event_id
         try:
             # Replay missed events first
             for evt in missed_events:
@@ -1052,19 +1153,41 @@ async def event_stream(
                     "id": str(evt.id),
                     "data": evt.payload_json,
                 }
+                last_sent_event_id = evt.id
             while True:
                 if await request.is_disconnected():
                     return
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=30.0)
                     yield event
+                    # Track last sent id from queue events
+                    eid = event.get("id")
+                    if eid:
+                        try:
+                            last_sent_event_id = int(eid)
+                        except (ValueError, TypeError):
+                            pass
                 except asyncio.TimeoutError:
-                    # Send keepalive comment
-                    yield {"comment": "keepalive"}
+                    # Poll DB for events created in other processes
+                    async with async_session_factory() as poll_db:
+                        db_events = await load_events_since(
+                            poll_db, conversation_id, after_id=last_sent_event_id
+                        )
+                    if db_events:
+                        for evt in db_events:
+                            yield {
+                                "event": evt.event_type,
+                                "id": str(evt.id),
+                                "data": evt.payload_json,
+                            }
+                            last_sent_event_id = evt.id
+                    else:
+                        # Send keepalive comment
+                        yield {"comment": "keepalive"}
         finally:
-            _sse_queues[conv.id].discard(queue)
-            if not _sse_queues[conv.id]:
-                del _sse_queues[conv.id]
+            _sse_queues[conversation_id].discard(queue)
+            if not _sse_queues[conversation_id]:
+                del _sse_queues[conversation_id]
 
     return sse_response(generate())
 

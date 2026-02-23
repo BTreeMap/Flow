@@ -42,7 +42,7 @@ export function BottomNav() {
   const { pathname } = useLocation();
 
   return (
-    <nav aria-label="Main navigation" className="fixed bottom-0 inset-x-0 z-50 bg-surface border-t border-divider" style={{ height: "calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px))", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    <nav aria-label="Main navigation" data-testid="bottom-nav" className="fixed bottom-0 inset-x-0 z-50 bg-surface border-t border-divider" style={{ height: "calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px))", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       <div className="flex items-center justify-around h-[var(--bottomnav-h)]">
         {navItems.map((item) => {
           const active = isActive(item, pathname);

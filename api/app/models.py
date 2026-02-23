@@ -328,7 +328,7 @@ class ConversationEvent(Base):
 
 
 class ConversationTurn(Base):
-    """Deduplicate user messages via client_msg_id."""
+    """Deduplicate user messages via client_msg_id with turn gating."""
 
     __tablename__ = "conversation_turns"
     __table_args__ = (
@@ -344,14 +344,24 @@ class ConversationTurn(Base):
         Integer, ForeignKey("conversations.id"), nullable=False
     )
     client_msg_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    user_message_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("messages.id"), nullable=False
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="processing", server_default="processing"
+    )
+    user_message_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("messages.id"), nullable=True
     )
     assistant_message_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("messages.id"), nullable=True
     )
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
 
