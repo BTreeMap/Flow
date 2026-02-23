@@ -1438,34 +1438,6 @@
         "title": "SendMessageRequest",
         "type": "object"
       },
-      "SendMessageResponse": {
-        "properties": {
-          "content": {
-            "title": "Content",
-            "type": "string"
-          },
-          "message_id": {
-            "title": "Message Id",
-            "type": "integer"
-          },
-          "role": {
-            "title": "Role",
-            "type": "string"
-          },
-          "server_msg_id": {
-            "title": "Server Msg Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message_id",
-          "server_msg_id",
-          "role",
-          "content"
-        ],
-        "title": "SendMessageResponse",
-        "type": "object"
-      },
       "UserMeResponse": {
         "properties": {
           "display_name": {
@@ -3162,7 +3134,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SendMessageResponse"
+                  "title": "Response Send Message P  Project Id  Messages Post"
                 }
               }
             },

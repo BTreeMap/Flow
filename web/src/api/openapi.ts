@@ -1313,17 +1313,6 @@ export interface components {
             /** Text */
             text: string;
         };
-        /** SendMessageResponse */
-        SendMessageResponse: {
-            /** Content */
-            content: string;
-            /** Message Id */
-            message_id: number;
-            /** Role */
-            role: string;
-            /** Server Msg Id */
-            server_msg_id: string;
-        };
         /** UserMeResponse */
         UserMeResponse: {
             /** Display Name */
@@ -2545,7 +2534,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SendMessageResponse"];
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
