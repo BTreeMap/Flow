@@ -14,6 +14,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.db import init_db, engine as app_engine
+from app.db_migrations.migrate import upgrade_to_head
 from app.middleware import add_csp_middleware
 from app.routes import router
 from h4ckath0n import create_app
@@ -33,7 +34,11 @@ _h4ckath0n_lifespan = _base_app.router.lifespan_context
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Combined lifespan: h4ckath0n tables + application tables."""
     async with _h4ckath0n_lifespan(app):
-        await init_db()
+        try:
+            upgrade_to_head()
+        except Exception:
+            # Fallback for test environments (e.g. in-memory SQLite)
+            await init_db()
         try:
             yield
         finally:
