@@ -1,6 +1,6 @@
-"""Intake specialist agent — LangChain tool-calling agent (§4.2).
+"""Intake specialist agent — LangChain tool-calling agent.
 
-Uses ``create_agent`` (LangGraph-backed) so the LLM drives the tool loop
+Uses the LangGraph-backed agent so the LLM drives the tool loop
 via the framework — no hand-rolled iteration.
 """
 
@@ -8,38 +8,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from langchain.agents import create_agent
-from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 
-from app.engine.modules import INTAKE_FALLBACK, MAX_TOOL_ROUNDS
-from app.engine.tools import StateData
-from app.tools.langchain_tools import make_intake_tools
+from app.prompt_loader import load_prompt
 
-# Default system prompt for the Intake agent
-INTAKE_SYSTEM_PROMPT = (
-    "You are a habit-building intake assistant. "
-    "Help the user set up their profile, preferred time, habit domain, "
-    "and schedule. Use the provided tools to save profile data, "
-    "manage schedules, generate habit prompts, and transition state. "
-    "Follow the legacy contract rules for intake conversations."
+INTAKE_SYSTEM_PROMPT = load_prompt("intake_system")
+
+INTAKE_FALLBACK = (
+    "I'd love to help you set up your habit-building routine! "
+    "Could you tell me more about the habit you'd like to work on?"
 )
 
-# Each LangGraph step is one node execution.  A tool-calling round involves
-# two nodes (agent → tool), so ``MAX_TOOL_ROUNDS * 2 + 2`` is a safe
-# recursion limit that mirrors the legacy 10-round cap.
-_RECURSION_LIMIT = MAX_TOOL_ROUNDS * 2 + 2
-
-
-def create_intake_agent(
-    llm: BaseChatModel,
-    state_data: StateData,
-    system_prompt: str = INTAKE_SYSTEM_PROMPT,
-) -> CompiledStateGraph:
-    """Build a LangGraph agent for the Intake specialist."""
-    tools = make_intake_tools(state_data)
-    return create_agent(llm, tools=tools, system_prompt=system_prompt)
+_RECURSION_LIMIT = 22
 
 
 def run_intake(

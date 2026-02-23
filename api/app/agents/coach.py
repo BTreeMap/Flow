@@ -9,35 +9,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from langchain.agents import create_agent
-from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 
-from app.tools.proposal_tools import ProposalCollector, make_proposal_tools
+from app.prompt_loader import load_prompt
 
-COACH_SYSTEM_PROMPT = (
-    "You are a supportive habit coach. Help the user stay on track with their habits. "
-    "Provide encouragement, suggestions, and accountability. "
-    "If the user shares relevant preferences or patterns, propose them via "
-    "propose_profile_patch or propose_memory_patch tools. "
-    "You must NOT claim to directly update the profile or memory — you can only propose candidates. "
-    "The Router will decide whether to commit your proposals."
-)
+COACH_SYSTEM_PROMPT = load_prompt("coach_system")
 
 COACH_FALLBACK = "I'm here to support your habit journey. How can I help you today?"
 
 _RECURSION_LIMIT = 22
-
-
-def create_coach_agent(
-    llm: BaseChatModel,
-    collector: ProposalCollector,
-    system_prompt: str = COACH_SYSTEM_PROMPT,
-) -> CompiledStateGraph:
-    """Build a LangGraph agent for the Coach specialist."""
-    tools = make_proposal_tools(collector, source_bot="COACH")
-    return create_agent(llm, tools=tools, system_prompt=system_prompt)
 
 
 def run_coach(

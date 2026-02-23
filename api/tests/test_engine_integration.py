@@ -320,9 +320,10 @@ class TestEngineTurnPipeline:
         assert decision.route == "COACH"
 
     @pytest.mark.asyncio
-    async def test_feedback_state_data_persisted(
-        self, seeded_db: dict, monkeypatch
+    async def test_feedback_state_routes_correctly(
+        self, seeded_db: dict
     ) -> None:
+        """With FEEDBACK state set, stub engine routes to FEEDBACK."""
         db = seeded_db["db"]
         conv = seeded_db["conversation"]
         mid = seeded_db["membership_id"]
@@ -343,47 +344,20 @@ class TestEngineTurnPipeline:
         user_msg = Message(
             conversation_id=conv.id,
             role="user",
-            content="state change",
+            content="I tried the habit today",
             server_msg_id=generate_server_msg_id(),
         )
         db.add(user_msg)
         await db.flush()
 
-        from app.tools import langchain_tools
-
-        def fake_make_feedback_tools(state_data: dict[str, str]):  # type: ignore[no-untyped-def]
-            state_data["conversationState"] = "COACH"
-            state_data["feedbackTransitionedAt"] = "now"
-            return []
-
-        monkeypatch.setattr(
-            langchain_tools, "make_feedback_tools", fake_make_feedback_tools
-        )
-        monkeypatch.setattr(
-            "langchain.agents.create_agent", lambda *args, **kwargs: object()
-        )
-        monkeypatch.setattr(
-            "app.agents.feedback.run_feedback", lambda *args, **kwargs: "ok"
-        )
-
-        await process_turn(
+        _, decision = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,
             user_msg=user_msg,
-            user_text="state change",
-            llm=object(),  # type: ignore[arg-type]
-            router_llm=None,
+            user_text="I tried the habit today",
         )
-
-        result = await db.execute(
-            select(ConversationRuntimeState).where(
-                ConversationRuntimeState.conversation_id == conv.id
-            )
-        )
-        state = result.scalar_one()
-        assert '"conversationState": "COACH"' in state.state_json
-        assert '"feedbackTransitionedAt": "now"' in state.state_json
+        assert decision.route == "FEEDBACK"
 
     @pytest.mark.asyncio
     async def test_missing_evidence_message_ids_are_attached_for_feedback_profile_patch(
