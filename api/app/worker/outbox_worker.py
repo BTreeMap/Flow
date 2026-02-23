@@ -103,7 +103,6 @@ async def _send_push_for_membership(
         )
     )
     subscriptions = result.scalars().all()
-    had_timeout = False
     for sub in subscriptions:
         payload = json.dumps(
             {
@@ -128,14 +127,11 @@ async def _send_push_for_membership(
             )
             sub.last_success_at = datetime.now(UTC)
         except asyncio.TimeoutError:
-            had_timeout = True
             sub.last_failure_at = datetime.now(UTC)
             logger.warning("Push send timed out for subscription %s", sub.id)
         except WebPushException as exc:
             sub.last_failure_at = datetime.now(UTC)
             logger.warning("Push send failed for subscription %s: %s", sub.id, exc)
-    if had_timeout:
-        raise TimeoutError("Push send timed out")
 
 
 async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
@@ -179,8 +175,15 @@ async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
     await db.flush()
     await db.commit()
 
-    await _send_push_for_membership(db, membership.id, membership.project_id)
-    await db.flush()
+    # Push is best-effort: failures/timeouts must NOT retry the whole event.
+    try:
+        await _send_push_for_membership(db, membership.id, membership.project_id)
+        await db.flush()
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "Push delivery failed for event %s (best-effort, not retrying event)",
+            event.dedupe_key,
+        )
 
 
 async def _process_event(event: OutboxEvent, worker_id: str) -> None:

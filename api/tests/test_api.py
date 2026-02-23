@@ -1128,3 +1128,50 @@ async def test_claim_invite_without_email_returns_409(
         )
         contact = contact_result.scalar_one()
         assert contact.email_raw == "retry@example.com"
+
+
+# ---------------------------------------------------------------------------
+# Invite concurrency: IntegrityError path must not consume invite uses
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_claim_invite_integrity_error_does_not_consume_uses(
+    seeded_client: dict[str, Any],
+) -> None:
+    """Regression test: if membership already exists on IntegrityError path,
+    invite uses must NOT be incremented."""
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    # First claim creates the membership and consumes one invite use.
+    first = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+    assert first.status_code == 200
+
+    async with _test_session_factory() as db:
+        invite_result = await db.execute(
+            select(ProjectInvite).where(ProjectInvite.project_id == project_id)
+        )
+        invite = invite_result.scalar_one()
+        uses_after_first = invite.uses
+
+    # Second claim by the same user hits the existing-membership path.
+    # Invite uses must remain unchanged.
+    second = await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+    assert second.status_code == 200
+
+    async with _test_session_factory() as db:
+        invite_result = await db.execute(
+            select(ProjectInvite).where(ProjectInvite.project_id == project_id)
+        )
+        invite = invite_result.scalar_one()
+        assert invite.uses == uses_after_first, (
+            "IntegrityError/existing-membership path must not consume invite uses"
+        )
