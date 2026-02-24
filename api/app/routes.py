@@ -11,10 +11,10 @@ import secrets
 import time
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -130,6 +130,8 @@ class DashboardResponse(BaseModel):
 
 
 class ClaimRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     invite_code: str
 
 
@@ -146,6 +148,8 @@ class MeResponse(BaseModel):
 
 
 class SendMessageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     text: str
     client_msg_id: str | None = None
 
@@ -169,9 +173,18 @@ class MessageListResponse(BaseModel):
     messages: list[MessageItem]
 
 
+class PushKeys(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    p256dh: str
+    auth: str
+
+
 class PushSubscribeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     endpoint: str
-    keys: dict[str, str]
+    keys: PushKeys
     user_agent: str | None = None
 
 
@@ -180,6 +193,8 @@ class PushSubscribeResponse(BaseModel):
 
 
 class PushUnsubscribeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     endpoint: str
 
 
@@ -192,6 +207,8 @@ class VapidPublicKeyResponse(BaseModel):
 
 
 class ProfileUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     prompt_anchor: str
     preferred_time: str
     habit_domain: str = ""
@@ -199,6 +216,8 @@ class ProfileUpdateRequest(BaseModel):
 
 
 class AdminCreateProjectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     display_name: str
     study_settings: dict[str, Any] | None = None
 
@@ -216,6 +235,8 @@ class AdminProjectsResponse(BaseModel):
 
 
 class AdminCreateInviteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     count: int = 1
     expires_at: datetime
     max_uses: int | None = None
@@ -254,13 +275,17 @@ class UserMeResponse(BaseModel):
 
 
 class UserMeUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     email: EmailStr | None = None
     display_name: str | None = None
 
 
 class AdminProjectUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     display_name: str | None = None
-    status: str | None = None
+    status: Literal["active", "paused", "ended"] | None = None
 
 
 class AdminPushChannelItem(BaseModel):
@@ -280,7 +305,9 @@ class AdminPushChannelsResponse(BaseModel):
 
 
 class AdminPushTestRequest(BaseModel):
-    project_id: str
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: Annotated[str, Field(pattern=r"^p[a-z2-7]{31}$")]
     subscription_ids: list[int]
     title: str
     body: str
@@ -322,6 +349,8 @@ class AdminDebugStatusResponse(BaseModel):
 
 
 class AdminLLMConnectivityRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     model: str = "gpt-4o-mini"
     prompt: str = "Reply with exactly: OK"
     max_tokens: int = 128
@@ -1245,8 +1274,8 @@ async def push_subscribe(
 
     if existing is not None:
         # Update keys in case they changed
-        existing.p256dh = body.keys.get("p256dh", existing.p256dh)
-        existing.auth = body.keys.get("auth", existing.auth)
+        existing.p256dh = body.keys.p256dh
+        existing.auth = body.keys.auth
         existing.user_agent = body.user_agent or existing.user_agent
         await db.commit()
         await db.refresh(existing)
@@ -1255,8 +1284,8 @@ async def push_subscribe(
     sub = PushSubscription(
         membership_id=membership.id,
         endpoint=body.endpoint,
-        p256dh=body.keys.get("p256dh", ""),
-        auth=body.keys.get("auth", ""),
+        p256dh=body.keys.p256dh,
+        auth=body.keys.auth,
         user_agent=body.user_agent or "",
     )
     db.add(sub)
