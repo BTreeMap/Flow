@@ -401,6 +401,17 @@ npm run typecheck
 npm run test
 ```
 
+### OpenAPI contract sync (required when backend request/response schemas change)
+If you modify FastAPI route request/response models, validation constraints, or anything that changes generated OpenAPI, you **must** regenerate and commit the frontend API types in the same PR.
+
+```bash
+cd web
+npm run gen:api:check
+```
+
+- If `gen:api:check` fails with a diff in `web/src/api/openapi.ts`, run `npm run gen:api` and commit the updated file.
+- Do not merge backend schema changes that leave `web/src/api/openapi.ts` stale.
+
 ### End-to-end (E2E)
 ```bash
 cd web
