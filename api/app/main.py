@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import json
+import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -25,20 +26,45 @@ from h4ckath0n.realtime import (
     sse_response,
 )
 
+_logger = logging.getLogger(__name__)
+
 # Create the h4ckath0n app (handles its own DB tables via lifespan)
 _base_app = create_app()
 _h4ckath0n_lifespan = _base_app.router.lifespan_context
+
+
+def _is_in_memory_sqlite(url: str) -> bool:
+    """Return *True* when *url* points at an in-memory SQLite database."""
+    normalized = url.replace("sqlite+aiosqlite", "sqlite")
+    return normalized in ("sqlite://", "sqlite:///:memory:") or ":memory:" in normalized
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Combined lifespan: h4ckath0n tables + application tables."""
     async with _h4ckath0n_lifespan(app):
+        db_url = os.environ.get(
+            "H4CKATH0N_DATABASE_URL", "sqlite+aiosqlite:///./data/flow-app.db"
+        )
         try:
             upgrade_to_head()
         except Exception:
-            # Fallback for test environments (e.g. in-memory SQLite)
-            await init_db()
+            if _is_in_memory_sqlite(db_url):
+                _logger.warning(
+                    "Alembic upgrade failed on in-memory SQLite; "
+                    "falling back to create_all (dev/test only)."
+                )
+                await init_db()
+            else:
+                _logger.error(
+                    "Alembic migration failed. Fix migrations before starting "
+                    "the application with a persistent database."
+                )
+                raise RuntimeError(
+                    "Alembic migration failed — refusing to fall back to "
+                    "create_all on a persistent database. "
+                    "Run 'alembic upgrade head' manually or fix the migration."
+                ) from None
         try:
             yield
         finally:
