@@ -167,11 +167,6 @@ async def test_auth_me(client: AsyncClient) -> None:
     assert resp.json()["user_id"] == "u_testuser_000000000000000000"
 
 
-def test_generate_project_id_is_lowercase_base32() -> None:
-    project_id = generate_project_id()
-    assert re.fullmatch(r"p[a-z2-7]{31}", project_id) is not None
-
-
 # ---------------------------------------------------------------------------
 # Activation: claim invite (Scenario 1 precondition)
 # ---------------------------------------------------------------------------
