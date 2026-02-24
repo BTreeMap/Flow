@@ -14,7 +14,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -40,6 +39,45 @@ from app.models import (
     UserProfileStore,
 )
 from app.schemas.patches import UserProfileData
+from app.schemas import (
+    AdminCreateInviteRequest,
+    AdminCreateInvitesResponse,
+    AdminCreateProjectRequest,
+    AdminDebugStatusResponse,
+    AdminLLMConnectivityRequest,
+    AdminLLMConnectivityResponse,
+    AdminParticipantItem,
+    AdminParticipantsResponse,
+    AdminProjectItem,
+    AdminProjectsResponse,
+    AdminProjectUpdateRequest,
+    AdminPushChannelItem,
+    AdminPushChannelsResponse,
+    AdminPushTestRequest,
+    AdminPushTestResponse,
+    AdminPushTestResultItem,
+    AuthMeResponse,
+    AuthSessionRevokeResponse,
+    AuthSessionItem,
+    AuthSessionsResponse,
+    ClaimRequest,
+    ClaimResponse,
+    DashboardResponse,
+    MeResponse,
+    MembershipInfo,
+    MessageItem,
+    MessageListResponse,
+    ProfileUpdateRequest,
+    PushSubscribeRequest,
+    PushSubscribeResponse,
+    PushUnsubscribeRequest,
+    PushUnsubscribeResponse,
+    SendMessageRequest,
+    SendMessageResponse,
+    UserMeResponse,
+    UserMeUpdateRequest,
+    VapidPublicKeyResponse,
+)
 from app.services.event_service import load_events_since, persist_event
 from app.services.outbox_service import replace_next_scheduled_prompt
 from app.services.profile_service import load_user_profile, save_user_profile
@@ -109,231 +147,6 @@ async def _get_conversation(db: AsyncSession, membership_id: int) -> Conversatio
             detail="Conversation not found",
         )
     return conv
-
-
-# ---------------------------------------------------------------------------
-# Pydantic schemas
-# ---------------------------------------------------------------------------
-
-
-class MembershipInfo(BaseModel):
-    project_id: str
-    display_name: str | None = None
-    status: str
-    conversation_id: int | None = None
-    last_message_preview: str | None = None
-    last_message_at: str | None = None
-
-
-class DashboardResponse(BaseModel):
-    memberships: list[MembershipInfo]
-
-
-class ClaimRequest(BaseModel):
-    invite_code: str
-
-
-class ClaimResponse(BaseModel):
-    project_id: str
-    membership_status: str
-    conversation_id: int
-
-
-class MeResponse(BaseModel):
-    membership_status: str
-    conversation_id: int | None = None
-    email: str | None = None
-
-
-class SendMessageRequest(BaseModel):
-    text: str
-    client_msg_id: str | None = None
-
-
-class SendMessageResponse(BaseModel):
-    message_id: int
-    server_msg_id: str
-    role: str
-    content: str
-
-
-class MessageItem(BaseModel):
-    message_id: int
-    server_msg_id: str
-    role: str
-    content: str
-    created_at: str
-
-
-class MessageListResponse(BaseModel):
-    messages: list[MessageItem]
-
-
-class PushSubscribeRequest(BaseModel):
-    endpoint: str
-    keys: dict[str, str]
-    user_agent: str | None = None
-
-
-class PushSubscribeResponse(BaseModel):
-    subscription_id: int
-
-
-class PushUnsubscribeRequest(BaseModel):
-    endpoint: str
-
-
-class PushUnsubscribeResponse(BaseModel):
-    ok: bool
-
-
-class VapidPublicKeyResponse(BaseModel):
-    public_key: str
-
-
-class ProfileUpdateRequest(BaseModel):
-    prompt_anchor: str
-    preferred_time: str
-    habit_domain: str = ""
-    motivational_frame: str = ""
-
-
-class AdminCreateProjectRequest(BaseModel):
-    display_name: str
-    study_settings: dict[str, Any] | None = None
-
-
-class AdminProjectItem(BaseModel):
-    project_id: str
-    display_name: str | None = None
-    status: str = "active"
-    created_at: str
-    member_count: int
-
-
-class AdminProjectsResponse(BaseModel):
-    projects: list[AdminProjectItem]
-
-
-class AdminCreateInviteRequest(BaseModel):
-    count: int = 1
-    expires_at: datetime
-    max_uses: int | None = None
-    label: str | None = None
-
-
-class AdminCreateInvitesResponse(BaseModel):
-    invite_codes: list[str]
-
-
-class AdminParticipantItem(BaseModel):
-    user_id: str
-    status: str
-    created_at: str
-    ended_at: str | None = None
-    email: str | None = None
-    push_subscription_count: int
-    last_push_success_at: str | None = None
-    last_push_failure_at: str | None = None
-
-
-class AdminParticipantsResponse(BaseModel):
-    participants: list[AdminParticipantItem]
-
-
-class AuthMeResponse(BaseModel):
-    user_id: str
-    role: str
-
-
-class UserMeResponse(BaseModel):
-    user_id: str
-    email: str | None = None
-    display_name: str | None = None
-    is_admin: bool = False
-
-
-class UserMeUpdateRequest(BaseModel):
-    email: EmailStr | None = None
-    display_name: str | None = None
-
-
-class AdminProjectUpdateRequest(BaseModel):
-    display_name: str | None = None
-    status: str | None = None
-
-
-class AdminPushChannelItem(BaseModel):
-    subscription_id: int
-    membership_id: int
-    user_id: str
-    user_email: str | None = None
-    display_name: str | None = None
-    endpoint_hint: str
-    created_at: str
-    last_success_at: str | None = None
-    last_failure_at: str | None = None
-
-
-class AdminPushChannelsResponse(BaseModel):
-    channels: list[AdminPushChannelItem]
-
-
-class AdminPushTestRequest(BaseModel):
-    project_id: str
-    subscription_ids: list[int]
-    title: str
-    body: str
-    url: str | None = None
-
-
-class AdminPushTestResultItem(BaseModel):
-    subscription_id: int
-    ok: bool
-    error: str | None = None
-
-
-class AdminPushTestResponse(BaseModel):
-    results: list[AdminPushTestResultItem]
-
-
-class AuthSessionItem(BaseModel):
-    device_id: str
-    label: str | None = None
-    created_at: str
-    revoked_at: str | None = None
-    is_current: bool
-
-
-class AuthSessionsResponse(BaseModel):
-    sessions: list[AuthSessionItem]
-
-
-class AuthSessionRevokeResponse(BaseModel):
-    ok: bool
-
-
-class AdminDebugStatusResponse(BaseModel):
-    llm_mode: str
-    openai_api_key_configured: bool
-    vapid_public_key_configured: bool
-    vapid_private_key_configured: bool
-    warnings: list[str]
-
-
-class AdminLLMConnectivityRequest(BaseModel):
-    model: str = "gpt-4o-mini"
-    prompt: str = "Reply with exactly: OK"
-    max_tokens: int = 128
-    temperature: float = 0.0
-
-
-class AdminLLMConnectivityResponse(BaseModel):
-    ok: bool
-    model: str
-    latency_ms: int
-    response_text: str | None = None
-    error: str | None = None
 
 
 # ---------------------------------------------------------------------------

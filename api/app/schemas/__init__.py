@@ -1,7 +1,54 @@
-"""Pydantic schemas for LangChain orchestration layer."""
+"""Pydantic schemas used by API routes and LangChain orchestration."""
 
 from __future__ import annotations
 
+from app.schemas.admin import (
+    AdminCreateInviteRequest,
+    AdminCreateInvitesResponse,
+    AdminCreateProjectRequest,
+    AdminDebugStatusResponse,
+    AdminLLMConnectivityRequest,
+    AdminLLMConnectivityResponse,
+    AdminParticipantItem,
+    AdminParticipantsResponse,
+    AdminProjectItem,
+    AdminProjectsResponse,
+    AdminProjectUpdateRequest,
+)
+from app.schemas.auth import (
+    AuthMeResponse,
+    AuthSessionItem,
+    AuthSessionRevokeResponse,
+    AuthSessionsResponse,
+    UserMeResponse,
+    UserMeUpdateRequest,
+)
+from app.schemas.chat import (
+    MessageItem,
+    MessageListResponse,
+    ProfileUpdateRequest,
+    SendMessageRequest,
+    SendMessageResponse,
+)
+from app.schemas.dashboard import (
+    ClaimRequest,
+    ClaimResponse,
+    DashboardResponse,
+    MembershipInfo,
+    MeResponse,
+)
+from app.schemas.push import (
+    AdminPushChannelItem,
+    AdminPushChannelsResponse,
+    AdminPushTestRequest,
+    AdminPushTestResponse,
+    AdminPushTestResultItem,
+    PushSubscribeRequest,
+    PushSubscribeResponse,
+    PushUnsubscribeRequest,
+    PushUnsubscribeResponse,
+    VapidPublicKeyResponse,
+)
 from app.schemas.router import RouteDecision
 from app.schemas.tool_schemas import (
     GenerateHabitPromptArgs,
@@ -15,13 +62,50 @@ from app.schemas.tool_schemas import (
 )
 
 __all__ = [
+    "AdminCreateInviteRequest",
+    "AdminCreateInvitesResponse",
+    "AdminCreateProjectRequest",
+    "AdminDebugStatusResponse",
+    "AdminLLMConnectivityRequest",
+    "AdminLLMConnectivityResponse",
+    "AdminParticipantItem",
+    "AdminParticipantsResponse",
+    "AdminProjectItem",
+    "AdminProjectsResponse",
+    "AdminProjectUpdateRequest",
+    "AdminPushChannelItem",
+    "AdminPushChannelsResponse",
+    "AdminPushTestRequest",
+    "AdminPushTestResponse",
+    "AdminPushTestResultItem",
+    "AuthMeResponse",
+    "AuthSessionItem",
+    "AuthSessionRevokeResponse",
+    "AuthSessionsResponse",
+    "ClaimRequest",
+    "ClaimResponse",
+    "DashboardResponse",
     "GenerateHabitPromptArgs",
     "GenerateHabitPromptResult",
+    "MembershipInfo",
+    "MessageItem",
+    "MessageListResponse",
+    "MeResponse",
     "ProfileSaveArgs",
     "ProfileSaveResult",
+    "ProfileUpdateRequest",
+    "PushSubscribeRequest",
+    "PushSubscribeResponse",
+    "PushUnsubscribeRequest",
+    "PushUnsubscribeResponse",
     "RouteDecision",
     "SchedulerArgs",
     "SchedulerResult",
+    "SendMessageRequest",
+    "SendMessageResponse",
     "StateTransitionArgs",
     "StateTransitionResult",
+    "UserMeResponse",
+    "UserMeUpdateRequest",
+    "VapidPublicKeyResponse",
 ]
