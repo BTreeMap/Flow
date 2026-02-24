@@ -74,10 +74,18 @@ export function Dashboard() {
   });
 
   const memberships = data?.memberships ?? [];
-  const active = memberships.filter((m) => m.status === "active");
-  const ended = memberships.filter((m) => m.status !== "active");
 
   const filtered = useMemo(() => {
+    const active = memberships.filter((m) => m.status === "active");
+    const ended = memberships.filter((m) => m.status !== "active");
+
+    // Sort active memberships by last_message_at descending
+    active.sort((a, b) => {
+      const aT = a.last_message_at ?? "";
+      const bT = b.last_message_at ?? "";
+      return bT.localeCompare(aT);
+    });
+
     if (!search.trim()) return { active, ended };
     const q = search.toLowerCase();
     return {
@@ -90,7 +98,7 @@ export function Dashboard() {
         (m.display_name ?? "").toLowerCase().includes(q),
       ),
     };
-  }, [active, ended, search]);
+  }, [data?.memberships, search]);
 
   const handleJoinFromFab = () => {
     const code = inviteInput.trim();
@@ -185,13 +193,7 @@ export function Dashboard() {
         )}
 
         {filtered.active.length > 0 &&
-          filtered.active
-            .sort((a, b) => {
-              const aT = a.last_message_at ?? "";
-              const bT = b.last_message_at ?? "";
-              return bT.localeCompare(aT);
-            })
-            .map((m) => (
+          filtered.active.map((m) => (
               <Link key={m.project_id} to={`/p/${m.project_id}/chat`}>
                 <ListRow
                   avatar={<Avatar name={m.display_name ?? ""} />}
