@@ -22,6 +22,7 @@ from app.models import (
 )
 from app.services.outbox_service import enqueue_next_scheduled_prompt
 from app.services.profile_service import load_user_profile
+from app import vapid_utils
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ async def _claim_due_events(worker_id: str, limit: int = 20) -> list[OutboxEvent
 
 def _push_enabled() -> bool:
     return bool(
-        os.environ.get("VAPID_PRIVATE_KEY") and os.environ.get("VAPID_PUBLIC_KEY")
+        vapid_utils.get_vapid_private_key() and vapid_utils.get_vapid_public_key()
     )
 
 
@@ -120,8 +121,8 @@ async def _send_push_for_membership(
                         "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
                     },
                     data=payload,
-                    vapid_private_key=os.environ.get("VAPID_PRIVATE_KEY"),
-                    vapid_claims={"sub": "mailto:flow@oss.joefang.org"},
+                    vapid_private_key=vapid_utils.get_vapid_private_key(),
+                    vapid_claims=vapid_utils.get_vapid_claims(),
                 ),
                 timeout=PUSH_TIMEOUT_SECONDS,
             )
