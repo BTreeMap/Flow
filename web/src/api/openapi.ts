@@ -846,7 +846,7 @@ export interface components {
             /** Display Name */
             display_name?: string | null;
             /** Status */
-            status?: string | null;
+            status?: ("active" | "paused" | "ended") | null;
         };
         /** AdminProjectsResponse */
         AdminProjectsResponse: {
@@ -1272,14 +1272,18 @@ export interface components {
             /** Prompt Anchor */
             prompt_anchor: string;
         };
+        /** PushKeys */
+        PushKeys: {
+            /** Auth */
+            auth: string;
+            /** P256Dh */
+            p256dh: string;
+        };
         /** PushSubscribeRequest */
         PushSubscribeRequest: {
             /** Endpoint */
             endpoint: string;
-            /** Keys */
-            keys: {
-                [key: string]: string;
-            };
+            keys: components["schemas"]["PushKeys"];
             /** User Agent */
             user_agent?: string | null;
         };
