@@ -33,6 +33,16 @@ function extractErrorDetail(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function getSubscriptionKeys(
+  subscription: PushSubscription,
+): { auth: string; p256dh: string } {
+  const keys = subscription.toJSON().keys;
+  if (!keys?.auth || !keys?.p256dh) {
+    throw new Error("Push subscription keys were missing from the browser.");
+  }
+  return { auth: keys.auth, p256dh: keys.p256dh };
+}
+
 export function Notifications() {
   const { projectId } = useParams<{ projectId: string }>();
   const [permission, setPermission] = useState<NotificationPermission>(
@@ -136,7 +146,7 @@ export function Notifications() {
           params: { path: { project_id: projectId } },
           body: {
             endpoint: subscription.endpoint,
-            keys: subscription.toJSON().keys ?? {},
+            keys: getSubscriptionKeys(subscription),
             user_agent: navigator.userAgent,
           },
         },
