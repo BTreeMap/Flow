@@ -458,7 +458,7 @@ exports[`page pattern snapshots > admin page uses compact header + spacing token
               id="expires-at"
               required=""
               type="datetime-local"
-              value="2026-03-03T21:14"
+              value="2026-03-10T21:14"
             />
           </div>
           <button

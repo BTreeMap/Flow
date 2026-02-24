@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Notifications } from "./Notifications";
 import { Admin } from "./Admin";
 import { DemoRealtime } from "./DemoRealtime";
@@ -33,6 +33,7 @@ function renderWithQuery(ui: React.ReactElement) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(Date, "now").mockReturnValue(new Date("2026-03-03T21:14:00.000Z").valueOf());
 
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -84,6 +85,10 @@ beforeEach(() => {
   });
 
   mockPost.mockResolvedValue({ data: {}, error: null });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("page pattern snapshots", () => {
