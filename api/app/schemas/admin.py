@@ -24,9 +24,7 @@ class AdminProjectItem(BaseModel):
 
 
 class AdminProjectsResponse(BaseModel):
-    projects: list[AdminProjectItem] = Field(
-        default_factory=list, description="Admin-visible project list."
-    )
+    projects: list[AdminProjectItem] = Field(description="Admin-visible project list.")
 
 
 class AdminCreateInviteRequest(BaseModel):
@@ -43,9 +41,7 @@ class AdminCreateInviteRequest(BaseModel):
 
 
 class AdminCreateInvitesResponse(BaseModel):
-    invite_codes: list[str] = Field(
-        default_factory=list, description="Newly generated plain invite codes."
-    )
+    invite_codes: list[str] = Field(description="Newly generated plain invite codes.")
 
 
 class AdminParticipantItem(BaseModel):
@@ -71,7 +67,7 @@ class AdminParticipantItem(BaseModel):
 
 class AdminParticipantsResponse(BaseModel):
     participants: list[AdminParticipantItem] = Field(
-        default_factory=list, description="Participants for a project."
+        description="Participants for a project."
     )
 
 
@@ -98,9 +94,7 @@ class AdminDebugStatusResponse(BaseModel):
     vapid_private_key_configured: bool = Field(
         description="Whether VAPID private key is configured."
     )
-    warnings: list[str] = Field(
-        default_factory=list, description="Operational warnings for admins."
-    )
+    warnings: list[str] = Field(description="Operational warnings for admins.")
 
 
 class AdminLLMConnectivityRequest(BaseModel):

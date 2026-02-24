@@ -47,7 +47,7 @@ class AuthSessionItem(BaseModel):
 
 class AuthSessionsResponse(BaseModel):
     sessions: list[AuthSessionItem] = Field(
-        default_factory=list, description="Active and historical sessions for the user."
+        description="Active and historical sessions for the user."
     )
 
 

@@ -54,7 +54,7 @@ class AdminPushChannelItem(BaseModel):
 
 class AdminPushChannelsResponse(BaseModel):
     channels: list[AdminPushChannelItem] = Field(
-        default_factory=list, description="Push channels visible to admins."
+        description="Push channels visible to admins."
     )
 
 
@@ -82,5 +82,5 @@ class AdminPushTestResultItem(BaseModel):
 
 class AdminPushTestResponse(BaseModel):
     results: list[AdminPushTestResultItem] = Field(
-        default_factory=list, description="Per-subscription push test results."
+        description="Per-subscription push test results."
     )

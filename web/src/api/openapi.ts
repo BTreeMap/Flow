@@ -725,234 +725,438 @@ export interface components {
         AdminCreateInviteRequest: {
             /**
              * Count
+             * @description Number of invite codes to create.
              * @default 1
              */
             count: number;
             /**
              * Expires At
              * Format: date-time
+             * @description Invite expiration timestamp.
              */
             expires_at: string;
-            /** Label */
+            /**
+             * Label
+             * @description Optional admin-only invite label.
+             */
             label?: string | null;
-            /** Max Uses */
+            /**
+             * Max Uses
+             * @description Maximum successful claims per code.
+             */
             max_uses?: number | null;
         };
         /** AdminCreateInvitesResponse */
         AdminCreateInvitesResponse: {
-            /** Invite Codes */
+            /**
+             * Invite Codes
+             * @description Newly generated plain invite codes.
+             */
             invite_codes: string[];
         };
         /** AdminCreateProjectRequest */
         AdminCreateProjectRequest: {
-            /** Display Name */
+            /**
+             * Display Name
+             * @description Project display name.
+             */
             display_name: string;
-            /** Study Settings */
+            /**
+             * Study Settings
+             * @description Optional project-level study settings.
+             */
             study_settings?: {
                 [key: string]: unknown;
             } | null;
         };
         /** AdminDebugStatusResponse */
         AdminDebugStatusResponse: {
-            /** Llm Mode */
+            /**
+             * Llm Mode
+             * @description Current LLM operation mode.
+             */
             llm_mode: string;
-            /** Openai Api Key Configured */
+            /**
+             * Openai Api Key Configured
+             * @description Whether an OpenAI API key is configured.
+             */
             openai_api_key_configured: boolean;
-            /** Vapid Private Key Configured */
+            /**
+             * Vapid Private Key Configured
+             * @description Whether VAPID private key is configured.
+             */
             vapid_private_key_configured: boolean;
-            /** Vapid Public Key Configured */
+            /**
+             * Vapid Public Key Configured
+             * @description Whether VAPID public key is configured.
+             */
             vapid_public_key_configured: boolean;
-            /** Warnings */
+            /**
+             * Warnings
+             * @description Operational warnings for admins.
+             */
             warnings: string[];
         };
         /** AdminLLMConnectivityRequest */
         AdminLLMConnectivityRequest: {
             /**
              * Max Tokens
+             * @description Token limit for connectivity test call.
              * @default 128
              */
             max_tokens: number;
             /**
              * Model
+             * @description Model id to test against.
              * @default gpt-4o-mini
              */
             model: string;
             /**
              * Prompt
+             * @description Prompt sent to test model connectivity.
              * @default Reply with exactly: OK
              */
             prompt: string;
             /**
              * Temperature
+             * @description Sampling temperature for connectivity test call.
              * @default 0
              */
             temperature: number;
         };
         /** AdminLLMConnectivityResponse */
         AdminLLMConnectivityResponse: {
-            /** Error */
+            /**
+             * Error
+             * @description Error string when unsuccessful.
+             */
             error?: string | null;
-            /** Latency Ms */
+            /**
+             * Latency Ms
+             * @description Round-trip latency in milliseconds.
+             */
             latency_ms: number;
-            /** Model */
+            /**
+             * Model
+             * @description Model used for the test.
+             */
             model: string;
-            /** Ok */
+            /**
+             * Ok
+             * @description Whether connectivity check succeeded.
+             */
             ok: boolean;
-            /** Response Text */
+            /**
+             * Response Text
+             * @description Model response text when successful.
+             */
             response_text?: string | null;
         };
         /** AdminParticipantItem */
         AdminParticipantItem: {
-            /** Created At */
+            /**
+             * Created At
+             * Format: date-time
+             * @description Membership creation timestamp.
+             */
             created_at: string;
-            /** Email */
+            /**
+             * Email
+             * @description Optional contact email metadata.
+             */
             email?: string | null;
-            /** Ended At */
+            /**
+             * Ended At
+             * @description Membership end timestamp.
+             */
             ended_at?: string | null;
-            /** Last Push Failure At */
+            /**
+             * Last Push Failure At
+             * @description Most recent failed push timestamp.
+             */
             last_push_failure_at?: string | null;
-            /** Last Push Success At */
+            /**
+             * Last Push Success At
+             * @description Most recent successful push timestamp.
+             */
             last_push_success_at?: string | null;
-            /** Push Subscription Count */
+            /**
+             * Push Subscription Count
+             * @description Count of active push subscriptions.
+             */
             push_subscription_count: number;
-            /** Status */
+            /**
+             * Status
+             * @description Membership status.
+             */
             status: string;
-            /** User Id */
+            /**
+             * User Id
+             * @description Participant user id.
+             */
             user_id: string;
         };
         /** AdminParticipantsResponse */
         AdminParticipantsResponse: {
-            /** Participants */
+            /**
+             * Participants
+             * @description Participants for a project.
+             */
             participants: components["schemas"]["AdminParticipantItem"][];
         };
         /** AdminProjectItem */
         AdminProjectItem: {
-            /** Created At */
+            /**
+             * Created At
+             * Format: date-time
+             * @description Project creation timestamp.
+             */
             created_at: string;
-            /** Display Name */
+            /**
+             * Display Name
+             * @description Project display name.
+             */
             display_name?: string | null;
-            /** Member Count */
+            /**
+             * Member Count
+             * @description Number of members in the project.
+             */
             member_count: number;
-            /** Project Id */
+            /**
+             * Project Id
+             * @description Project identifier.
+             */
             project_id: string;
             /**
              * Status
+             * @description Project status.
              * @default active
              */
             status: string;
         };
         /** AdminProjectUpdateRequest */
         AdminProjectUpdateRequest: {
-            /** Display Name */
+            /**
+             * Display Name
+             * @description Updated project display name.
+             */
             display_name?: string | null;
-            /** Status */
-            status?: string | null;
+            /**
+             * Status
+             * @description Updated project status.
+             */
+            status?: ("active" | "ended") | null;
         };
         /** AdminProjectsResponse */
         AdminProjectsResponse: {
-            /** Projects */
+            /**
+             * Projects
+             * @description Admin-visible project list.
+             */
             projects: components["schemas"]["AdminProjectItem"][];
         };
         /** AdminPushChannelItem */
         AdminPushChannelItem: {
-            /** Created At */
+            /**
+             * Created At
+             * Format: date-time
+             * @description Subscription creation timestamp.
+             */
             created_at: string;
-            /** Display Name */
+            /**
+             * Display Name
+             * @description Project display name.
+             */
             display_name?: string | null;
-            /** Endpoint Hint */
+            /**
+             * Endpoint Hint
+             * @description Redacted endpoint preview for diagnostics.
+             */
             endpoint_hint: string;
-            /** Last Failure At */
+            /**
+             * Last Failure At
+             * @description Most recent failed push timestamp.
+             */
             last_failure_at?: string | null;
-            /** Last Success At */
+            /**
+             * Last Success At
+             * @description Most recent successful push timestamp.
+             */
             last_success_at?: string | null;
-            /** Membership Id */
+            /**
+             * Membership Id
+             * @description Membership id owning the subscription.
+             */
             membership_id: number;
-            /** Subscription Id */
+            /**
+             * Subscription Id
+             * @description Internal subscription id.
+             */
             subscription_id: number;
-            /** User Email */
+            /**
+             * User Email
+             * @description Optional user contact email.
+             */
             user_email?: string | null;
-            /** User Id */
+            /**
+             * User Id
+             * @description User id owning the subscription.
+             */
             user_id: string;
         };
         /** AdminPushChannelsResponse */
         AdminPushChannelsResponse: {
-            /** Channels */
+            /**
+             * Channels
+             * @description Push channels visible to admins.
+             */
             channels: components["schemas"]["AdminPushChannelItem"][];
         };
         /** AdminPushTestRequest */
         AdminPushTestRequest: {
-            /** Body */
+            /**
+             * Body
+             * @description Notification body text.
+             */
             body: string;
-            /** Project Id */
+            /**
+             * Project Id
+             * @description Project id whose subscriptions are targeted.
+             */
             project_id: string;
-            /** Subscription Ids */
+            /**
+             * Subscription Ids
+             * @description Specific subscription ids to test.
+             */
             subscription_ids: number[];
-            /** Title */
+            /**
+             * Title
+             * @description Notification title.
+             */
             title: string;
-            /** Url */
+            /**
+             * Url
+             * @description Optional URL to open on notification click.
+             */
             url?: string | null;
         };
         /** AdminPushTestResponse */
         AdminPushTestResponse: {
-            /** Results */
+            /**
+             * Results
+             * @description Per-subscription push test results.
+             */
             results: components["schemas"]["AdminPushTestResultItem"][];
         };
         /** AdminPushTestResultItem */
         AdminPushTestResultItem: {
-            /** Error */
+            /**
+             * Error
+             * @description Error detail when delivery failed.
+             */
             error?: string | null;
-            /** Ok */
+            /**
+             * Ok
+             * @description Whether delivery succeeded.
+             */
             ok: boolean;
-            /** Subscription Id */
+            /**
+             * Subscription Id
+             * @description Subscription id tested.
+             */
             subscription_id: number;
         };
         /** AuthMeResponse */
         AuthMeResponse: {
-            /** Role */
-            role: string;
-            /** User Id */
+            /**
+             * Role
+             * @description Effective authenticated role.
+             * @enum {string}
+             */
+            role: "user" | "admin";
+            /**
+             * User Id
+             * @description Authenticated h4ckath0n user id.
+             */
             user_id: string;
         };
         /** AuthSessionItem */
         AuthSessionItem: {
-            /** Created At */
+            /**
+             * Created At
+             * Format: date-time
+             * @description Session creation timestamp.
+             */
             created_at: string;
-            /** Device Id */
+            /**
+             * Device Id
+             * @description Device/session identifier.
+             */
             device_id: string;
-            /** Is Current */
+            /**
+             * Is Current
+             * @description True when this is the currently active session.
+             */
             is_current: boolean;
-            /** Label */
+            /**
+             * Label
+             * @description Optional user-provided device label.
+             */
             label?: string | null;
-            /** Revoked At */
+            /**
+             * Revoked At
+             * @description Session revocation timestamp, if revoked.
+             */
             revoked_at?: string | null;
         };
         /** AuthSessionRevokeResponse */
         AuthSessionRevokeResponse: {
-            /** Ok */
+            /**
+             * Ok
+             * @description Indicates whether revoke action succeeded.
+             */
             ok: boolean;
         };
         /** AuthSessionsResponse */
         AuthSessionsResponse: {
-            /** Sessions */
+            /**
+             * Sessions
+             * @description Active and historical sessions for the user.
+             */
             sessions: components["schemas"]["AuthSessionItem"][];
         };
         /** ClaimRequest */
         ClaimRequest: {
-            /** Invite Code */
+            /**
+             * Invite Code
+             * @description Plain invite code from activation link.
+             */
             invite_code: string;
         };
         /** ClaimResponse */
         ClaimResponse: {
-            /** Conversation Id */
+            /**
+             * Conversation Id
+             * @description Conversation id created or reused after claim.
+             */
             conversation_id: number;
-            /** Membership Status */
+            /**
+             * Membership Status
+             * @description Resulting membership status after claim.
+             */
             membership_status: string;
-            /** Project Id */
+            /**
+             * Project Id
+             * @description Project identifier.
+             */
             project_id: string;
         };
         /** DashboardResponse */
         DashboardResponse: {
-            /** Memberships */
+            /**
+             * Memberships
+             * @description All project memberships visible to the current user.
+             */
             memberships: components["schemas"]["MembershipInfo"][];
         };
         /** EchoRequest */
@@ -995,44 +1199,90 @@ export interface components {
         };
         /** MeResponse */
         MeResponse: {
-            /** Conversation Id */
+            /**
+             * Conversation Id
+             * @description Conversation id for this project membership.
+             */
             conversation_id?: number | null;
-            /** Email */
+            /**
+             * Email
+             * @description Optional contact email metadata.
+             */
             email?: string | null;
-            /** Membership Status */
+            /**
+             * Membership Status
+             * @description Membership status in the target project.
+             */
             membership_status: string;
         };
         /** MembershipInfo */
         MembershipInfo: {
-            /** Conversation Id */
+            /**
+             * Conversation Id
+             * @description Internal conversation id for the membership thread.
+             */
             conversation_id?: number | null;
-            /** Display Name */
+            /**
+             * Display Name
+             * @description Project display name.
+             */
             display_name?: string | null;
-            /** Last Message At */
+            /**
+             * Last Message At
+             * @description Timestamp of the latest message.
+             */
             last_message_at?: string | null;
-            /** Last Message Preview */
+            /**
+             * Last Message Preview
+             * @description Preview text of the latest message.
+             */
             last_message_preview?: string | null;
-            /** Project Id */
+            /**
+             * Project Id
+             * @description Project identifier.
+             */
             project_id: string;
-            /** Status */
+            /**
+             * Status
+             * @description Membership status.
+             */
             status: string;
         };
         /** MessageItem */
         MessageItem: {
-            /** Content */
+            /**
+             * Content
+             * @description Message content.
+             */
             content: string;
-            /** Created At */
+            /**
+             * Created At
+             * Format: date-time
+             * @description Message creation timestamp.
+             */
             created_at: string;
-            /** Message Id */
+            /**
+             * Message Id
+             * @description Internal message row id.
+             */
             message_id: number;
-            /** Role */
+            /**
+             * Role
+             * @description Message role.
+             */
             role: string;
-            /** Server Msg Id */
+            /**
+             * Server Msg Id
+             * @description Server-generated stable message identifier.
+             */
             server_msg_id: string;
         };
         /** MessageListResponse */
         MessageListResponse: {
-            /** Messages */
+            /**
+             * Messages
+             * @description Conversation messages ordered by creation.
+             */
             messages: components["schemas"]["MessageItem"][];
         };
         /** PasskeyAddFinishRequest */
@@ -1259,43 +1509,69 @@ export interface components {
         ProfileUpdateRequest: {
             /**
              * Habit Domain
+             * @description Optional target habit domain.
              * @default
              */
             habit_domain: string;
             /**
              * Motivational Frame
+             * @description Optional motivational framing preference.
              * @default
              */
             motivational_frame: string;
-            /** Preferred Time */
+            /**
+             * Preferred Time
+             * @description Preferred reminder or coaching time.
+             */
             preferred_time: string;
-            /** Prompt Anchor */
+            /**
+             * Prompt Anchor
+             * @description Anchor phrase used for prompt framing.
+             */
             prompt_anchor: string;
         };
         /** PushSubscribeRequest */
         PushSubscribeRequest: {
-            /** Endpoint */
+            /**
+             * Endpoint
+             * @description Web Push endpoint URL.
+             */
             endpoint: string;
-            /** Keys */
+            /**
+             * Keys
+             * @description Subscription crypto keys (typically p256dh and auth).
+             */
             keys: {
                 [key: string]: string;
             };
-            /** User Agent */
+            /**
+             * User Agent
+             * @description Client user agent string.
+             */
             user_agent?: string | null;
         };
         /** PushSubscribeResponse */
         PushSubscribeResponse: {
-            /** Subscription Id */
+            /**
+             * Subscription Id
+             * @description Internal push subscription id.
+             */
             subscription_id: number;
         };
         /** PushUnsubscribeRequest */
         PushUnsubscribeRequest: {
-            /** Endpoint */
+            /**
+             * Endpoint
+             * @description Web Push endpoint URL to remove.
+             */
             endpoint: string;
         };
         /** PushUnsubscribeResponse */
         PushUnsubscribeResponse: {
-            /** Ok */
+            /**
+             * Ok
+             * @description Whether unsubscription succeeded.
+             */
             ok: boolean;
         };
         /** RootResponse */
@@ -1308,30 +1584,52 @@ export interface components {
         };
         /** SendMessageRequest */
         SendMessageRequest: {
-            /** Client Msg Id */
+            /**
+             * Client Msg Id
+             * @description Optional client-generated id for idempotency/tracing.
+             */
             client_msg_id?: string | null;
-            /** Text */
+            /**
+             * Text
+             * @description User-authored message text.
+             */
             text: string;
         };
         /** UserMeResponse */
         UserMeResponse: {
-            /** Display Name */
+            /**
+             * Display Name
+             * @description Optional display name.
+             */
             display_name?: string | null;
-            /** Email */
+            /**
+             * Email
+             * @description Optional contact email metadata.
+             */
             email?: string | null;
             /**
              * Is Admin
+             * @description Whether the user has admin privileges.
              * @default false
              */
             is_admin: boolean;
-            /** User Id */
+            /**
+             * User Id
+             * @description Authenticated user id.
+             */
             user_id: string;
         };
         /** UserMeUpdateRequest */
         UserMeUpdateRequest: {
-            /** Display Name */
+            /**
+             * Display Name
+             * @description Optional display name.
+             */
             display_name?: string | null;
-            /** Email */
+            /**
+             * Email
+             * @description Optional email metadata to store for contact.
+             */
             email?: string | null;
         };
         /**
@@ -1416,7 +1714,10 @@ export interface components {
         };
         /** VapidPublicKeyResponse */
         VapidPublicKeyResponse: {
-            /** Public Key */
+            /**
+             * Public Key
+             * @description Public VAPID key used for client subscription.
+             */
             public_key: string;
         };
     };

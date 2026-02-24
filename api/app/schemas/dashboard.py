@@ -25,8 +25,7 @@ class MembershipInfo(BaseModel):
 
 class DashboardResponse(BaseModel):
     memberships: list[MembershipInfo] = Field(
-        default_factory=list,
-        description="All project memberships visible to the current user.",
+        description="All project memberships visible to the current user."
     )
 
 

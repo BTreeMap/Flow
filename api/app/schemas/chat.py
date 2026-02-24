@@ -37,7 +37,7 @@ class MessageItem(BaseModel):
 
 class MessageListResponse(BaseModel):
     messages: list[MessageItem] = Field(
-        default_factory=list, description="Conversation messages ordered by creation."
+        description="Conversation messages ordered by creation."
     )
 
 

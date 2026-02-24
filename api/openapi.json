@@ -5,10 +5,14 @@
         "properties": {
           "count": {
             "default": 1,
+            "description": "Number of invite codes to create.",
+            "maximum": 100.0,
+            "minimum": 1.0,
             "title": "Count",
             "type": "integer"
           },
           "expires_at": {
+            "description": "Invite expiration timestamp.",
             "format": "date-time",
             "title": "Expires At",
             "type": "string"
@@ -16,23 +20,27 @@
           "label": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Optional admin-only invite label.",
             "title": "Label"
           },
           "max_uses": {
             "anyOf": [
               {
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Maximum successful claims per code.",
             "title": "Max Uses"
           }
         },
@@ -45,6 +53,7 @@
       "AdminCreateInvitesResponse": {
         "properties": {
           "invite_codes": {
+            "description": "Newly generated plain invite codes.",
             "items": {
               "type": "string"
             },
@@ -61,6 +70,9 @@
       "AdminCreateProjectRequest": {
         "properties": {
           "display_name": {
+            "description": "Project display name.",
+            "maxLength": 255,
+            "minLength": 1,
             "title": "Display Name",
             "type": "string"
           },
@@ -74,6 +86,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional project-level study settings.",
             "title": "Study Settings"
           }
         },
@@ -86,22 +99,27 @@
       "AdminDebugStatusResponse": {
         "properties": {
           "llm_mode": {
+            "description": "Current LLM operation mode.",
             "title": "Llm Mode",
             "type": "string"
           },
           "openai_api_key_configured": {
+            "description": "Whether an OpenAI API key is configured.",
             "title": "Openai Api Key Configured",
             "type": "boolean"
           },
           "vapid_private_key_configured": {
+            "description": "Whether VAPID private key is configured.",
             "title": "Vapid Private Key Configured",
             "type": "boolean"
           },
           "vapid_public_key_configured": {
+            "description": "Whether VAPID public key is configured.",
             "title": "Vapid Public Key Configured",
             "type": "boolean"
           },
           "warnings": {
+            "description": "Operational warnings for admins.",
             "items": {
               "type": "string"
             },
@@ -123,21 +141,31 @@
         "properties": {
           "max_tokens": {
             "default": 128,
+            "description": "Token limit for connectivity test call.",
+            "maximum": 4096.0,
+            "minimum": 1.0,
             "title": "Max Tokens",
             "type": "integer"
           },
           "model": {
             "default": "gpt-4o-mini",
+            "description": "Model id to test against.",
+            "minLength": 1,
             "title": "Model",
             "type": "string"
           },
           "prompt": {
             "default": "Reply with exactly: OK",
+            "description": "Prompt sent to test model connectivity.",
+            "minLength": 1,
             "title": "Prompt",
             "type": "string"
           },
           "temperature": {
             "default": 0.0,
+            "description": "Sampling temperature for connectivity test call.",
+            "maximum": 2.0,
+            "minimum": 0.0,
             "title": "Temperature",
             "type": "number"
           }
@@ -156,17 +184,22 @@
                 "type": "null"
               }
             ],
+            "description": "Error string when unsuccessful.",
             "title": "Error"
           },
           "latency_ms": {
+            "description": "Round-trip latency in milliseconds.",
+            "minimum": 0.0,
             "title": "Latency Ms",
             "type": "integer"
           },
           "model": {
+            "description": "Model used for the test.",
             "title": "Model",
             "type": "string"
           },
           "ok": {
+            "description": "Whether connectivity check succeeded.",
             "title": "Ok",
             "type": "boolean"
           },
@@ -179,6 +212,7 @@
                 "type": "null"
               }
             ],
+            "description": "Model response text when successful.",
             "title": "Response Text"
           }
         },
@@ -193,6 +227,8 @@
       "AdminParticipantItem": {
         "properties": {
           "created_at": {
+            "description": "Membership creation timestamp.",
+            "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
@@ -205,50 +241,61 @@
                 "type": "null"
               }
             ],
+            "description": "Optional contact email metadata.",
             "title": "Email"
           },
           "ended_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Membership end timestamp.",
             "title": "Ended At"
           },
           "last_push_failure_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Most recent failed push timestamp.",
             "title": "Last Push Failure At"
           },
           "last_push_success_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Most recent successful push timestamp.",
             "title": "Last Push Success At"
           },
           "push_subscription_count": {
+            "description": "Count of active push subscriptions.",
+            "minimum": 0.0,
             "title": "Push Subscription Count",
             "type": "integer"
           },
           "status": {
+            "description": "Membership status.",
             "title": "Status",
             "type": "string"
           },
           "user_id": {
+            "description": "Participant user id.",
             "title": "User Id",
             "type": "string"
           }
@@ -265,6 +312,7 @@
       "AdminParticipantsResponse": {
         "properties": {
           "participants": {
+            "description": "Participants for a project.",
             "items": {
               "$ref": "#/components/schemas/AdminParticipantItem"
             },
@@ -281,6 +329,8 @@
       "AdminProjectItem": {
         "properties": {
           "created_at": {
+            "description": "Project creation timestamp.",
+            "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
@@ -293,18 +343,23 @@
                 "type": "null"
               }
             ],
+            "description": "Project display name.",
             "title": "Display Name"
           },
           "member_count": {
+            "description": "Number of members in the project.",
+            "minimum": 0.0,
             "title": "Member Count",
             "type": "integer"
           },
           "project_id": {
+            "description": "Project identifier.",
             "title": "Project Id",
             "type": "string"
           },
           "status": {
             "default": "active",
+            "description": "Project status.",
             "title": "Status",
             "type": "string"
           }
@@ -322,23 +377,31 @@
           "display_name": {
             "anyOf": [
               {
+                "maxLength": 255,
+                "minLength": 1,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Updated project display name.",
             "title": "Display Name"
           },
           "status": {
             "anyOf": [
               {
+                "enum": [
+                  "active",
+                  "ended"
+                ],
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Updated project status.",
             "title": "Status"
           }
         },
@@ -348,6 +411,7 @@
       "AdminProjectsResponse": {
         "properties": {
           "projects": {
+            "description": "Admin-visible project list.",
             "items": {
               "$ref": "#/components/schemas/AdminProjectItem"
             },
@@ -364,6 +428,8 @@
       "AdminPushChannelItem": {
         "properties": {
           "created_at": {
+            "description": "Subscription creation timestamp.",
+            "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
@@ -376,39 +442,47 @@
                 "type": "null"
               }
             ],
+            "description": "Project display name.",
             "title": "Display Name"
           },
           "endpoint_hint": {
+            "description": "Redacted endpoint preview for diagnostics.",
             "title": "Endpoint Hint",
             "type": "string"
           },
           "last_failure_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Most recent failed push timestamp.",
             "title": "Last Failure At"
           },
           "last_success_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Most recent successful push timestamp.",
             "title": "Last Success At"
           },
           "membership_id": {
+            "description": "Membership id owning the subscription.",
             "title": "Membership Id",
             "type": "integer"
           },
           "subscription_id": {
+            "description": "Internal subscription id.",
             "title": "Subscription Id",
             "type": "integer"
           },
@@ -421,9 +495,11 @@
                 "type": "null"
               }
             ],
+            "description": "Optional user contact email.",
             "title": "User Email"
           },
           "user_id": {
+            "description": "User id owning the subscription.",
             "title": "User Id",
             "type": "string"
           }
@@ -441,6 +517,7 @@
       "AdminPushChannelsResponse": {
         "properties": {
           "channels": {
+            "description": "Push channels visible to admins.",
             "items": {
               "$ref": "#/components/schemas/AdminPushChannelItem"
             },
@@ -457,21 +534,30 @@
       "AdminPushTestRequest": {
         "properties": {
           "body": {
+            "description": "Notification body text.",
+            "maxLength": 500,
+            "minLength": 1,
             "title": "Body",
             "type": "string"
           },
           "project_id": {
+            "description": "Project id whose subscriptions are targeted.",
             "title": "Project Id",
             "type": "string"
           },
           "subscription_ids": {
+            "description": "Specific subscription ids to test.",
             "items": {
               "type": "integer"
             },
+            "minItems": 1,
             "title": "Subscription Ids",
             "type": "array"
           },
           "title": {
+            "description": "Notification title.",
+            "maxLength": 120,
+            "minLength": 1,
             "title": "Title",
             "type": "string"
           },
@@ -484,6 +570,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional URL to open on notification click.",
             "title": "Url"
           }
         },
@@ -499,6 +586,7 @@
       "AdminPushTestResponse": {
         "properties": {
           "results": {
+            "description": "Per-subscription push test results.",
             "items": {
               "$ref": "#/components/schemas/AdminPushTestResultItem"
             },
@@ -523,13 +611,16 @@
                 "type": "null"
               }
             ],
+            "description": "Error detail when delivery failed.",
             "title": "Error"
           },
           "ok": {
+            "description": "Whether delivery succeeded.",
             "title": "Ok",
             "type": "boolean"
           },
           "subscription_id": {
+            "description": "Subscription id tested.",
             "title": "Subscription Id",
             "type": "integer"
           }
@@ -544,10 +635,16 @@
       "AuthMeResponse": {
         "properties": {
           "role": {
+            "description": "Effective authenticated role.",
+            "enum": [
+              "user",
+              "admin"
+            ],
             "title": "Role",
             "type": "string"
           },
           "user_id": {
+            "description": "Authenticated h4ckath0n user id.",
             "title": "User Id",
             "type": "string"
           }
@@ -562,14 +659,18 @@
       "AuthSessionItem": {
         "properties": {
           "created_at": {
+            "description": "Session creation timestamp.",
+            "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
           "device_id": {
+            "description": "Device/session identifier.",
             "title": "Device Id",
             "type": "string"
           },
           "is_current": {
+            "description": "True when this is the currently active session.",
             "title": "Is Current",
             "type": "boolean"
           },
@@ -582,17 +683,20 @@
                 "type": "null"
               }
             ],
+            "description": "Optional user-provided device label.",
             "title": "Label"
           },
           "revoked_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Session revocation timestamp, if revoked.",
             "title": "Revoked At"
           }
         },
@@ -607,6 +711,7 @@
       "AuthSessionRevokeResponse": {
         "properties": {
           "ok": {
+            "description": "Indicates whether revoke action succeeded.",
             "title": "Ok",
             "type": "boolean"
           }
@@ -620,6 +725,7 @@
       "AuthSessionsResponse": {
         "properties": {
           "sessions": {
+            "description": "Active and historical sessions for the user.",
             "items": {
               "$ref": "#/components/schemas/AuthSessionItem"
             },
@@ -636,6 +742,7 @@
       "ClaimRequest": {
         "properties": {
           "invite_code": {
+            "description": "Plain invite code from activation link.",
             "title": "Invite Code",
             "type": "string"
           }
@@ -649,14 +756,17 @@
       "ClaimResponse": {
         "properties": {
           "conversation_id": {
+            "description": "Conversation id created or reused after claim.",
             "title": "Conversation Id",
             "type": "integer"
           },
           "membership_status": {
+            "description": "Resulting membership status after claim.",
             "title": "Membership Status",
             "type": "string"
           },
           "project_id": {
+            "description": "Project identifier.",
             "title": "Project Id",
             "type": "string"
           }
@@ -672,6 +782,7 @@
       "DashboardResponse": {
         "properties": {
           "memberships": {
+            "description": "All project memberships visible to the current user.",
             "items": {
               "$ref": "#/components/schemas/MembershipInfo"
             },
@@ -779,6 +890,7 @@
                 "type": "null"
               }
             ],
+            "description": "Conversation id for this project membership.",
             "title": "Conversation Id"
           },
           "email": {
@@ -790,9 +902,11 @@
                 "type": "null"
               }
             ],
+            "description": "Optional contact email metadata.",
             "title": "Email"
           },
           "membership_status": {
+            "description": "Membership status in the target project.",
             "title": "Membership Status",
             "type": "string"
           }
@@ -814,6 +928,7 @@
                 "type": "null"
               }
             ],
+            "description": "Internal conversation id for the membership thread.",
             "title": "Conversation Id"
           },
           "display_name": {
@@ -825,17 +940,20 @@
                 "type": "null"
               }
             ],
+            "description": "Project display name.",
             "title": "Display Name"
           },
           "last_message_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Timestamp of the latest message.",
             "title": "Last Message At"
           },
           "last_message_preview": {
@@ -847,13 +965,16 @@
                 "type": "null"
               }
             ],
+            "description": "Preview text of the latest message.",
             "title": "Last Message Preview"
           },
           "project_id": {
+            "description": "Project identifier.",
             "title": "Project Id",
             "type": "string"
           },
           "status": {
+            "description": "Membership status.",
             "title": "Status",
             "type": "string"
           }
@@ -868,22 +989,28 @@
       "MessageItem": {
         "properties": {
           "content": {
+            "description": "Message content.",
             "title": "Content",
             "type": "string"
           },
           "created_at": {
+            "description": "Message creation timestamp.",
+            "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
           "message_id": {
+            "description": "Internal message row id.",
             "title": "Message Id",
             "type": "integer"
           },
           "role": {
+            "description": "Message role.",
             "title": "Role",
             "type": "string"
           },
           "server_msg_id": {
+            "description": "Server-generated stable message identifier.",
             "title": "Server Msg Id",
             "type": "string"
           }
@@ -901,6 +1028,7 @@
       "MessageListResponse": {
         "properties": {
           "messages": {
+            "description": "Conversation messages ordered by creation.",
             "items": {
               "$ref": "#/components/schemas/MessageItem"
             },
@@ -1305,19 +1433,29 @@
         "properties": {
           "habit_domain": {
             "default": "",
+            "description": "Optional target habit domain.",
+            "maxLength": 255,
             "title": "Habit Domain",
             "type": "string"
           },
           "motivational_frame": {
             "default": "",
+            "description": "Optional motivational framing preference.",
+            "maxLength": 255,
             "title": "Motivational Frame",
             "type": "string"
           },
           "preferred_time": {
+            "description": "Preferred reminder or coaching time.",
+            "maxLength": 64,
+            "minLength": 1,
             "title": "Preferred Time",
             "type": "string"
           },
           "prompt_anchor": {
+            "description": "Anchor phrase used for prompt framing.",
+            "maxLength": 255,
+            "minLength": 1,
             "title": "Prompt Anchor",
             "type": "string"
           }
@@ -1332,6 +1470,8 @@
       "PushSubscribeRequest": {
         "properties": {
           "endpoint": {
+            "description": "Web Push endpoint URL.",
+            "minLength": 1,
             "title": "Endpoint",
             "type": "string"
           },
@@ -1339,6 +1479,8 @@
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Subscription crypto keys (typically p256dh and auth).",
+            "minProperties": 1,
             "title": "Keys",
             "type": "object"
           },
@@ -1351,6 +1493,7 @@
                 "type": "null"
               }
             ],
+            "description": "Client user agent string.",
             "title": "User Agent"
           }
         },
@@ -1364,6 +1507,7 @@
       "PushSubscribeResponse": {
         "properties": {
           "subscription_id": {
+            "description": "Internal push subscription id.",
             "title": "Subscription Id",
             "type": "integer"
           }
@@ -1377,6 +1521,8 @@
       "PushUnsubscribeRequest": {
         "properties": {
           "endpoint": {
+            "description": "Web Push endpoint URL to remove.",
+            "minLength": 1,
             "title": "Endpoint",
             "type": "string"
           }
@@ -1390,6 +1536,7 @@
       "PushUnsubscribeResponse": {
         "properties": {
           "ok": {
+            "description": "Whether unsubscription succeeded.",
             "title": "Ok",
             "type": "boolean"
           }
@@ -1419,15 +1566,20 @@
           "client_msg_id": {
             "anyOf": [
               {
+                "maxLength": 128,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Optional client-generated id for idempotency/tracing.",
             "title": "Client Msg Id"
           },
           "text": {
+            "description": "User-authored message text.",
+            "maxLength": 8000,
+            "minLength": 1,
             "title": "Text",
             "type": "string"
           }
@@ -1449,6 +1601,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional display name.",
             "title": "Display Name"
           },
           "email": {
@@ -1460,14 +1613,17 @@
                 "type": "null"
               }
             ],
+            "description": "Optional contact email metadata.",
             "title": "Email"
           },
           "is_admin": {
             "default": false,
+            "description": "Whether the user has admin privileges.",
             "title": "Is Admin",
             "type": "boolean"
           },
           "user_id": {
+            "description": "Authenticated user id.",
             "title": "User Id",
             "type": "string"
           }
@@ -1483,12 +1639,15 @@
           "display_name": {
             "anyOf": [
               {
+                "maxLength": 255,
+                "minLength": 1,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "Optional display name.",
             "title": "Display Name"
           },
           "email": {
@@ -1501,6 +1660,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional email metadata to store for contact.",
             "title": "Email"
           }
         },
@@ -1626,6 +1786,8 @@
       "VapidPublicKeyResponse": {
         "properties": {
           "public_key": {
+            "description": "Public VAPID key used for client subscription.",
+            "minLength": 1,
             "title": "Public Key",
             "type": "string"
           }
@@ -1648,7 +1810,7 @@
   "info": {
     "description": "Hackathon app powered by h4ckath0n",
     "title": "h4ckath0n",
-    "version": "0.1.8.dev20260220171602"
+    "version": "0.1.9.dev20260223"
   },
   "openapi": "3.1.0",
   "paths": {
