@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { Card, CardContent, CardHeader } from "../components/Card";
 import { Button } from "../components/Button";
 import { Alert } from "../components/Alert";
+import { PageHeader } from "../components/ui/PageHeader";
 import { Bell, BellOff, Smartphone, AlertTriangle } from "lucide-react";
 import api from "../api/client";
 
@@ -182,10 +183,12 @@ export function Notifications() {
   }, [projectId]);
 
   return (
-    <div className="max-w-md mx-auto space-y-4">
-      <h1 className="text-2xl font-bold text-text">Notifications</h1>
+    <div className="min-h-screen bg-bg">
+      <PageHeader title="Notifications" data-testid="notifications-heading" />
 
-      {showsIOSGuide && (
+      <main className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4">
+
+        {showsIOSGuide && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -212,9 +215,9 @@ export function Notifications() {
             </ol>
           </CardContent>
         </Card>
-      )}
+        )}
 
-      {pushNotConfigured && (
+        {pushNotConfigured && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -240,9 +243,9 @@ export function Notifications() {
             </p>
           </CardContent>
         </Card>
-      )}
+        )}
 
-      <Card>
+        <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary" />
@@ -309,7 +312,8 @@ export function Notifications() {
             {subscribed ? " · Subscribed" : ""}
           </p>
         </CardContent>
-      </Card>
+        </Card>
+      </main>
     </div>
   );
 }

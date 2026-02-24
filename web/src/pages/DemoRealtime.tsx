@@ -1,7 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useAuth, getOrMintToken } from "../auth";
-import { Card, CardContent, CardHeader } from "../components/Card";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
+import { useAuth, getOrMintToken } from "../auth";
+import { Button } from "../components/Button";
+import { Card, CardContent, CardHeader } from "../components/Card";
+import { Input } from "../components/Input";
+import { PageHeader } from "../components/ui/PageHeader";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -13,10 +16,6 @@ interface LogEntry {
 function timestamp(): string {
   return new Date().toLocaleTimeString();
 }
-
-// ---------------------------------------------------------------------------
-// WebSocket panel
-// ---------------------------------------------------------------------------
 
 function WebSocketPanel() {
   const [wsLog, setWsLog] = useState<LogEntry[]>([]);
@@ -85,7 +84,6 @@ function WebSocketPanel() {
     }
   }, [wsInput, addLog]);
 
-  // cleanup on unmount
   useEffect(() => {
     return () => {
       wsRef.current?.close();
@@ -99,22 +97,21 @@ function WebSocketPanel() {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={() => void connect()}
             disabled={connected}
-            className="px-3 py-1.5 text-sm bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-50"
             data-testid="ws-connect"
           >
             Connect
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={disconnect}
             disabled={!connected}
-            className="px-3 py-1.5 text-sm bg-danger text-white rounded-xl hover:opacity-80 transition-colors disabled:opacity-50"
+            variant="danger"
             data-testid="ws-disconnect"
           >
             Disconnect
-          </button>
+          </Button>
         </div>
 
         <div
@@ -130,7 +127,7 @@ function WebSocketPanel() {
         </div>
 
         <div className="flex gap-2">
-          <input
+          <Input
             type="text"
             value={wsInput}
             onChange={(e) => setWsInput(e.target.value)}
@@ -138,26 +135,17 @@ function WebSocketPanel() {
               if (e.key === "Enter") send();
             }}
             placeholder="Type a message…"
-            className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-border bg-surface text-text"
+            className="flex-1"
             data-testid="ws-input"
           />
-          <button
-            onClick={send}
-            disabled={!connected}
-            className="px-3 py-1.5 text-sm bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-50"
-            data-testid="ws-send"
-          >
+          <Button onClick={send} disabled={!connected} data-testid="ws-send">
             Send
-          </button>
+          </Button>
         </div>
       </CardContent>
     </Card>
   );
 }
-
-// ---------------------------------------------------------------------------
-// SSE panel
-// ---------------------------------------------------------------------------
 
 function SSEPanel() {
   const [sseLog, setSseLog] = useState<LogEntry[]>([]);
@@ -201,7 +189,7 @@ function SSEPanel() {
           addLog(`[error] ${err instanceof Error ? err.message : String(err)}`);
           abortRef.current = null;
           setStreaming(false);
-          throw err; // stop retrying
+          throw err;
         },
         async onopen(response) {
           if (!response.ok) {
@@ -219,7 +207,7 @@ function SSEPanel() {
         },
       });
     } catch {
-      // fetchEventSource may throw on abort – that's expected
+      // expected on abort
     } finally {
       abortRef.current = null;
       setStreaming(false);
@@ -234,7 +222,6 @@ function SSEPanel() {
     }
   }, []);
 
-  // cleanup on unmount
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
@@ -248,22 +235,21 @@ function SSEPanel() {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={() => void startStream()}
             disabled={streaming}
-            className="px-3 py-1.5 text-sm bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-50"
             data-testid="sse-start"
           >
             Start Stream
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={stopStream}
             disabled={!streaming}
-            className="px-3 py-1.5 text-sm bg-danger text-white rounded-xl hover:opacity-80 transition-colors disabled:opacity-50"
+            variant="danger"
             data-testid="sse-stop"
           >
             Stop Stream
-          </button>
+          </Button>
         </div>
 
         <div
@@ -282,44 +268,34 @@ function SSEPanel() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
-
 export function DemoRealtime() {
   const { userId, deviceId } = useAuth();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1
-          className="text-2xl font-bold text-text"
-          data-testid="realtime-heading"
-        >
-          Realtime Demo
-        </h1>
+    <div className="min-h-screen bg-bg">
+      <PageHeader title="Realtime Demo" data-testid="realtime-heading" />
+
+      <main className="mx-auto w-full max-w-5xl space-y-4 px-4 py-4">
         <p className="text-text-muted">
           Authenticated WebSocket &amp; SSE with device-key JWTs
           {userId && (
             <>
-              {" "}
-              · <span className="font-mono text-xs">{userId.slice(0, 8)}…</span>
+              {" "}· <span className="font-mono text-xs">{userId.slice(0, 8)}…</span>
             </>
           )}
           {deviceId && (
             <>
-              {" "}
-              ·{" "}
+              {" "}·{" "}
               <span className="font-mono text-xs">{deviceId.slice(0, 8)}…</span>
             </>
           )}
         </p>
-      </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <WebSocketPanel />
-        <SSEPanel />
-      </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <WebSocketPanel />
+          <SSEPanel />
+        </div>
+      </main>
     </div>
   );
 }

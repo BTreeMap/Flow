@@ -17,6 +17,7 @@ import { Button } from "../components/Button";
 import { Card, CardContent, CardHeader } from "../components/Card";
 import { Input } from "../components/Input";
 import { SectionHeader } from "../components/SectionHeader";
+import { PageHeader } from "../components/ui/PageHeader";
 import api from "../api/client";
 import type {
   AdminCreateInvitesResponse,
@@ -199,13 +200,13 @@ export function Admin() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text">Admin Panel</h1>
+    <div className="min-h-screen bg-bg">
+      <PageHeader title="Admin" data-testid="admin-heading" />
+
+      <main className="mx-auto w-full max-w-5xl space-y-4 px-4 py-4">
         <p className="text-text-muted">
           Server-side RBAC enforces all operations
         </p>
-      </div>
 
       {resolvedError && <Alert variant="error">{resolvedError}</Alert>}
       {role !== "admin" && (
@@ -490,6 +491,7 @@ export function Admin() {
       </Card>
 
       <PushTestPanel projects={projectsQuery.data ?? []} />
+      </main>
     </div>
   );
 }
@@ -587,11 +589,11 @@ function ProjectRow({
         <div className="flex-1 min-w-0">
           {editing ? (
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="text-sm border rounded px-2 py-0.5 flex-1 bg-surface text-text border-border"
+                className="flex-1"
                 autoFocus
               />
               <select
@@ -633,13 +635,14 @@ function ProjectRow({
         </div>
         {!editing && (project.status ?? "active") !== "ended" && (
           <div className="flex items-center gap-1 shrink-0">
-            <button
+            <Button
               onClick={() => setEditing(true)}
-              className="p-1 text-text-muted hover:text-text rounded"
+              variant="ghost"
+              size="sm"
               aria-label="Edit project"
             >
               <Pencil className="w-3.5 h-3.5" />
-            </button>
+            </Button>
             <Button
               variant="danger"
               size="sm"
