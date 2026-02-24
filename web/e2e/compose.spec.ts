@@ -117,44 +117,4 @@ test.describe("Compose stack: API proxy and SSE", () => {
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
     await expect(page.getByTestId("dashboard-heading")).toBeVisible();
   });
-
-  // -----------------------------------------------------------------------
-  // C7) SSE connectivity through the proxy
-  // -----------------------------------------------------------------------
-  test("SSE streams through /api proxy", async ({ page }) => {
-    // Register first (3-step flow)
-    await page.goto("/register");
-
-    // Step 1: Email
-    await page.getByTestId("register-email").fill("sse-compose@example.com");
-    await page.getByTestId("register-email-submit").click();
-
-    // Step 2: Passkey enrollment
-    await page.getByTestId("register-submit").click();
-
-    // Step 3: Display name – confirm
-    await expect(page.getByTestId("register-display-name")).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.getByTestId("register-display-name").fill("SSE Compose User");
-    await page.getByTestId("register-finish").click();
-
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
-
-    // Navigate to the realtime demo page
-    await page.goto("/demo/realtime");
-    await expect(page.getByTestId("realtime-heading")).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Start SSE stream
-    await page.getByTestId("sse-start").click();
-
-    const sseLog = page.getByTestId("sse-log");
-
-    // Verify stream opens and delivers events through Caddy proxy
-    await expect(sseLog).toContainText("[stream opened]", { timeout: 15_000 });
-    await expect(sseLog).toContainText("[chunk]", { timeout: 15_000 });
-    await expect(sseLog).toContainText("[done]", { timeout: 20_000 });
-  });
 });

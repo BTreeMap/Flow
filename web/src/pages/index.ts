@@ -4,7 +4,6 @@ export { Login } from "./Login";
 export { Dashboard } from "./Dashboard";
 export { Settings } from "./Settings";
 export { Admin } from "./Admin";
-export { DemoRealtime } from "./DemoRealtime";
 export { Activation } from "./Activation";
 export { Onboarding } from "./Onboarding";
 export { ChatThread } from "./ChatThread";

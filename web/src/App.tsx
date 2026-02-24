@@ -9,7 +9,6 @@ import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
 import { Updates } from "./pages/Updates";
-import { DemoRealtime } from "./pages/DemoRealtime";
 import { Activation } from "./pages/Activation";
 import { Onboarding } from "./pages/Onboarding";
 import { ChatThread } from "./pages/ChatThread";
@@ -29,14 +28,6 @@ export function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <Admin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/demo/realtime"
-          element={
-            <ProtectedRoute>
-              <DemoRealtime />
             </ProtectedRoute>
           }
         />
