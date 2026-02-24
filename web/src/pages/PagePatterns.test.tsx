@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Notifications } from "./Notifications";
 import { Admin } from "./Admin";
 import { DemoRealtime } from "./DemoRealtime";
@@ -31,9 +31,16 @@ function renderWithQuery(ui: React.ReactElement) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
+function expectSharedPageFrame(container: HTMLElement) {
+  const header = container.querySelector("header[data-testid]");
+  const main = container.querySelector("main");
+
+  expect(header).toHaveClass("sticky", "h-[var(--header-h)]", "border-b");
+  expect(main).toHaveClass("mx-auto", "w-full", "px-4", "py-4", "space-y-4");
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.spyOn(Date, "now").mockReturnValue(new Date("2026-03-03T21:14:00.000Z").valueOf());
 
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -87,12 +94,8 @@ beforeEach(() => {
   mockPost.mockResolvedValue({ data: {}, error: null });
 });
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
-describe("page pattern snapshots", () => {
-  it("notifications page uses compact header + card sections", async () => {
+describe("page pattern assertions", () => {
+  it("notifications page uses compact header, shared frame, and shared CTA button", async () => {
     const { container } = renderWithQuery(
       <MemoryRouter initialEntries={["/p/p123/notifications"]}>
         <Routes>
@@ -102,10 +105,15 @@ describe("page pattern snapshots", () => {
     );
 
     expect(await screen.findByTestId("notifications-heading")).toBeInTheDocument();
-    expect(container.firstChild).toMatchSnapshot();
+    expectSharedPageFrame(container);
+    expect(container.querySelector("main")).toHaveClass("max-w-3xl");
+    expect(screen.getByRole("button", { name: /enable notifications/i })).toHaveClass(
+      "rounded-2xl",
+      "bg-primary",
+    );
   });
 
-  it("admin page uses compact header + spacing tokens", async () => {
+  it("admin page uses compact header, shared frame, and shared primary CTAs", async () => {
     const { container } = renderWithQuery(
       <MemoryRouter>
         <Admin />
@@ -113,10 +121,16 @@ describe("page pattern snapshots", () => {
     );
 
     expect(await screen.findByTestId("admin-heading")).toBeInTheDocument();
-    expect(container.firstChild).toMatchSnapshot();
+    expectSharedPageFrame(container);
+    expect(container.querySelector("main")).toHaveClass("max-w-5xl");
+    expect(screen.getByRole("button", { name: /run test/i })).toHaveClass(
+      "rounded-2xl",
+      "bg-primary",
+    );
+    expect(screen.getByText(/loading…/i)).toBeInTheDocument();
   });
 
-  it("realtime demo uses shared button and input primitives", async () => {
+  it("realtime demo uses compact header, shared frame, and shared Button/Input styles", async () => {
     const { container } = renderWithQuery(
       <MemoryRouter>
         <DemoRealtime />
@@ -124,6 +138,10 @@ describe("page pattern snapshots", () => {
     );
 
     expect(await screen.findByTestId("realtime-heading")).toBeInTheDocument();
-    expect(container.firstChild).toMatchSnapshot();
+    expectSharedPageFrame(container);
+    expect(container.querySelector("main")).toHaveClass("max-w-5xl");
+    expect(screen.getByTestId("ws-input")).toHaveClass("rounded-xl", "border", "bg-surface");
+    expect(screen.getByTestId("ws-connect")).toHaveClass("rounded-2xl", "bg-primary");
+    expect(screen.getByTestId("ws-disconnect")).toHaveClass("rounded-2xl", "bg-danger");
   });
 });
