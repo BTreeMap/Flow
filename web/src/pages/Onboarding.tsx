@@ -45,7 +45,7 @@ export function Onboarding() {
         const body = await res.json().catch(() => null);
         throw new Error(body?.detail || `Onboarding failed (${res.status})`);
       }
-      navigate(`/p/${projectId}/chat`);
+      navigate(`/p/${projectId}/onboarding/notifications`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Onboarding failed");
     } finally {

@@ -1,6 +1,7 @@
 import { Outlet } from "react-router";
 import { NavRail } from "./NavRail";
 import { ChatListPane } from "../chats/ChatListPane";
+import { NotificationBanner } from "../NotificationBanner";
 
 /**
  * Side rail shell specifically for chat routes.
@@ -14,6 +15,7 @@ export function ChatShellSide() {
         <ChatListPane embedded />
       </div>
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <NotificationBanner />
         <Outlet />
       </main>
     </div>

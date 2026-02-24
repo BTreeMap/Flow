@@ -6,5 +6,6 @@ export { Settings } from "./Settings";
 export { Admin } from "./Admin";
 export { Activation } from "./Activation";
 export { Onboarding } from "./Onboarding";
+export { OnboardingNotifications } from "./OnboardingNotifications";
 export { ChatThread } from "./ChatThread";
 export { Notifications } from "./Notifications";

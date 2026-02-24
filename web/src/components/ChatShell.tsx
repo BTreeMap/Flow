@@ -1,4 +1,5 @@
 import { Outlet } from "react-router";
+import { NotificationBanner } from "./NotificationBanner";
 
 /**
  * Full-screen shell for immersive views like chat.
@@ -7,6 +8,7 @@ import { Outlet } from "react-router";
 export function ChatShell() {
   return (
     <div className="min-h-screen bg-bg flex flex-col">
+      <NotificationBanner />
       <Outlet />
     </div>
   );
