@@ -73,11 +73,12 @@ export function Dashboard() {
     },
   });
 
-  const memberships = data?.memberships ?? [];
+  const memberships = data?.memberships;
 
   const filtered = useMemo(() => {
-    const active = memberships.filter((m) => m.status === "active");
-    const ended = memberships.filter((m) => m.status !== "active");
+    const mbs = memberships ?? [];
+    const active = mbs.filter((m) => m.status === "active");
+    const ended = mbs.filter((m) => m.status !== "active");
 
     // Sort active memberships by last_message_at descending
     active.sort((a, b) => {
@@ -98,7 +99,7 @@ export function Dashboard() {
         (m.display_name ?? "").toLowerCase().includes(q),
       ),
     };
-  }, [data?.memberships, search]);
+  }, [memberships, search]);
 
   const handleJoinFromFab = () => {
     const code = inviteInput.trim();
@@ -182,7 +183,7 @@ export function Dashboard() {
           </div>
         )}
 
-        {!isLoading && memberships.length === 0 && !error && (
+        {!isLoading && (memberships?.length ?? 0) === 0 && !error && (
           <div className="flex flex-col items-center justify-center py-16 text-text-muted">
             <MessageSquare className="w-12 h-12 mb-3 opacity-30" />
             <p className="text-[15px]">No chats yet</p>
