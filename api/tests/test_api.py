@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, AsyncGenerator
 from unittest.mock import MagicMock

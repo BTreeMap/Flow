@@ -19,7 +19,7 @@ m.auth.passkeys.random_base32 = mock_random_base32
 
 # Now we can import the utils
 # We add api/ to sys.path if needed, but pytest usually handles it if run from api/
-from app.id_utils import generate_project_id, generate_server_msg_id
+from app.id_utils import generate_project_id, generate_server_msg_id  # noqa: E402
 
 def test_generate_project_id_format():
     """Test that project ID follows the custom scheme: 'p' + 31 lowercase base32 chars."""
