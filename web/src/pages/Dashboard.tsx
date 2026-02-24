@@ -73,11 +73,20 @@ export function Dashboard() {
     },
   });
 
-  const memberships = data?.memberships ?? [];
-  const active = memberships.filter((m) => m.status === "active");
-  const ended = memberships.filter((m) => m.status !== "active");
+  const memberships = data?.memberships;
 
   const filtered = useMemo(() => {
+    const mbs = memberships ?? [];
+    const active = mbs.filter((m) => m.status === "active");
+    const ended = mbs.filter((m) => m.status !== "active");
+
+    // Sort active memberships by last_message_at descending
+    active.sort((a, b) => {
+      const aT = a.last_message_at ?? "";
+      const bT = b.last_message_at ?? "";
+      return bT.localeCompare(aT);
+    });
+
     if (!search.trim()) return { active, ended };
     const q = search.toLowerCase();
     return {
@@ -90,7 +99,7 @@ export function Dashboard() {
         (m.display_name ?? "").toLowerCase().includes(q),
       ),
     };
-  }, [active, ended, search]);
+  }, [memberships, search]);
 
   const handleJoinFromFab = () => {
     const code = inviteInput.trim();
@@ -174,7 +183,7 @@ export function Dashboard() {
           </div>
         )}
 
-        {!isLoading && memberships.length === 0 && !error && (
+        {!isLoading && (memberships?.length ?? 0) === 0 && !error && (
           <div className="flex flex-col items-center justify-center py-16 text-text-muted">
             <MessageSquare className="w-12 h-12 mb-3 opacity-30" />
             <p className="text-[15px]">No chats yet</p>
@@ -185,13 +194,7 @@ export function Dashboard() {
         )}
 
         {filtered.active.length > 0 &&
-          filtered.active
-            .sort((a, b) => {
-              const aT = a.last_message_at ?? "";
-              const bT = b.last_message_at ?? "";
-              return bT.localeCompare(aT);
-            })
-            .map((m) => (
+          filtered.active.map((m) => (
               <Link key={m.project_id} to={`/p/${m.project_id}/chat`}>
                 <ListRow
                   avatar={<Avatar name={m.display_name ?? ""} />}
