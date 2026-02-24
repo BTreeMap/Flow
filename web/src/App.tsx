@@ -11,6 +11,7 @@ import { Settings } from "./pages/Settings";
 import { Updates } from "./pages/Updates";
 import { Activation } from "./pages/Activation";
 import { Onboarding } from "./pages/Onboarding";
+import { OnboardingNotifications } from "./pages/OnboardingNotifications";
 import { ChatThread } from "./pages/ChatThread";
 import { Notifications } from "./pages/Notifications";
 import { Admin } from "./pages/Admin";
@@ -44,6 +45,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <Onboarding />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/p/:projectId/onboarding/notifications"
+          element={
+            <ProtectedRoute>
+              <OnboardingNotifications />
             </ProtectedRoute>
           }
         />
