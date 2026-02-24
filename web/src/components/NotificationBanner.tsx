@@ -5,9 +5,6 @@ import { Button } from "./Button";
 
 export function NotificationBanner() {
   const { projectId } = useParams<{ projectId: string }>();
-  // If we are not in a project route, don't show the banner
-  if (!projectId) return null;
-
   const {
     permission,
     subscribed,
@@ -16,6 +13,9 @@ export function NotificationBanner() {
     subscribe,
     pushNotConfigured,
   } = usePushNotifications(projectId);
+
+  // If we are not in a project route, don't show the banner
+  if (!projectId) return null;
 
   // If initializing, already subscribed, or VAPID not configured, don't show
   if (initializing || subscribed || pushNotConfigured) return null;
