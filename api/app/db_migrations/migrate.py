@@ -26,7 +26,7 @@ def get_sync_url(async_url: str | None = None) -> str:
 
     Converts async driver prefixes to their sync equivalents:
     - ``sqlite+aiosqlite`` → ``sqlite``
-    - ``postgresql+asyncpg`` → ``postgresql``
+    - ``postgresql+asyncpg`` → ``postgresql+psycopg``
     """
     if async_url is None:
         async_url = os.environ.get(
@@ -34,7 +34,7 @@ def get_sync_url(async_url: str | None = None) -> str:
             "sqlite+aiosqlite:///./data/flow-app.db",
         )
     url = async_url.replace("sqlite+aiosqlite", "sqlite").replace(
-        "postgresql+asyncpg", "postgresql"
+        "postgresql+asyncpg", "postgresql+psycopg"
     )
     return url
 
