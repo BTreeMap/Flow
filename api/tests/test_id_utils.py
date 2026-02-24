@@ -1,31 +1,30 @@
-import sys
-import re
-from unittest.mock import MagicMock
-import secrets
 import base64
+import re
+import secrets
+import sys
+from unittest.mock import MagicMock
 
-# Mock h4ckath0n before importing app.id_utils
-m = MagicMock()
-sys.modules["h4ckath0n"] = m
-sys.modules["h4ckath0n.auth"] = m.auth
-sys.modules["h4ckath0n.auth.passkeys"] = m.auth.passkeys
-
-
-def mock_random_base32(nbytes=20):
-    data = secrets.token_bytes(nbytes)
-    # base32 encoding results in A-Z, 2-7. Lowercase makes it a-z, 2-7.
-    return base64.b32encode(data).decode("ascii").lower().replace("=", "")
-
-
-m.auth.passkeys.random_base32 = mock_random_base32
-
-# Now we can import the utils
-# We add api/ to sys.path if needed, but pytest usually handles it if run from api/
-from app.id_utils import generate_project_id, generate_server_msg_id  # noqa: E402
+# Only mock h4ckath0n if it's not already available.
+# This prevents breaking CI where h4ckath0n is available and used by other tests.
+try:
+    from h4ckath0n.auth.passkeys import random_base32  # noqa: F401
+except ImportError:
+    m = MagicMock()
+    sys.modules["h4ckath0n"] = m
+    sys.modules["h4ckath0n.auth"] = m.auth
+    sys.modules["h4ckath0n.auth.passkeys"] = m.auth.passkeys
+    sys.modules["h4ckath0n.auth.passkeys"].random_base32 = (
+        lambda nbytes=20: base64.b32encode(secrets.token_bytes(nbytes))
+        .decode("ascii")
+        .lower()
+        .replace("=", "")
+    )
 
 
 def test_generate_project_id_format():
     """Test that project ID follows the custom scheme: 'p' + 31 lowercase base32 chars."""
+    from app.id_utils import generate_project_id
+
     pid = generate_project_id()
     assert len(pid) == 32
     assert pid.startswith("p")
@@ -35,6 +34,8 @@ def test_generate_project_id_format():
 
 def test_generate_server_msg_id_format():
     """Test that server message ID is 36 chars and starts with 'm'."""
+    from app.id_utils import generate_server_msg_id
+
     sid = generate_server_msg_id()
     assert len(sid) == 36
     assert sid.startswith("m")
@@ -43,11 +44,15 @@ def test_generate_server_msg_id_format():
 
 def test_generate_project_id_uniqueness():
     """Test that generated project IDs are unique."""
+    from app.id_utils import generate_project_id
+
     ids = {generate_project_id() for _ in range(100)}
     assert len(ids) == 100
 
 
 def test_generate_server_msg_id_uniqueness():
     """Test that generated server message IDs are unique."""
+    from app.id_utils import generate_server_msg_id
+
     ids = {generate_server_msg_id() for _ in range(100)}
     assert len(ids) == 100
