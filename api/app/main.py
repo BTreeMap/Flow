@@ -35,8 +35,8 @@ _h4ckath0n_lifespan = _base_app.router.lifespan_context
 
 def _is_in_memory_sqlite(url: str) -> bool:
     """Return *True* when *url* points at an in-memory SQLite database."""
-    normalised = url.replace("sqlite+aiosqlite", "sqlite")
-    return normalised in ("sqlite://", "sqlite:///:memory:") or ":memory:" in normalised
+    normalized = url.replace("sqlite+aiosqlite", "sqlite")
+    return normalized in ("sqlite://", "sqlite:///:memory:") or ":memory:" in normalized
 
 
 @asynccontextmanager

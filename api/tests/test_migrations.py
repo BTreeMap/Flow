@@ -125,7 +125,8 @@ class TestMigrationSmokePostgres:
     """Run Alembic upgrade head on Postgres (CI only)."""
 
     def test_upgrade_creates_expected_tables(self) -> None:
-        sync_url = get_sync_url()
+        async_url = os.environ["H4CKATH0N_DATABASE_URL"]
+        sync_url = get_sync_url(async_url)
         upgrade_to_head(sync_url=sync_url)
 
         engine = create_engine(sync_url)
