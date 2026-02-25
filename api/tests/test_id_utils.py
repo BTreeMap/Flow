@@ -3,18 +3,20 @@ import re
 import secrets
 import sys
 from unittest.mock import MagicMock
+import logging
 
 # Only mock h4ckath0n if it's not already available.
 # This prevents breaking CI where h4ckath0n is available and used by other tests.
 try:
     from h4ckath0n.auth.passkeys import random_base32  # noqa: F401
 except ImportError:
+    logging.warning("h4ckath0n not found, mocking it for id_utils tests.")
     m = MagicMock()
     sys.modules["h4ckath0n"] = m
     sys.modules["h4ckath0n.auth"] = m.auth
     sys.modules["h4ckath0n.auth.passkeys"] = m.auth.passkeys
-    sys.modules["h4ckath0n.auth.passkeys"].random_base32 = (
-        lambda nbytes=20: base64.b32encode(secrets.token_bytes(nbytes))
+    sys.modules["h4ckath0n.auth.passkeys"].random_base32 = lambda nbytes=20: (
+        base64.b32encode(secrets.token_bytes(nbytes))
         .decode("ascii")
         .lower()
         .replace("=", "")
