@@ -279,11 +279,19 @@ def _create_specialist_agent(
     llm: BaseChatModel,
     tools: list,
     prompt_name: str,
+    prompt_args: dict[str, str] | None = None,
 ) -> object:
     """Build a LangGraph agent for a specialist using a prompt loaded from file."""
     from langchain.agents import create_agent
 
-    return create_agent(llm, tools=tools, system_prompt=load_prompt(prompt_name))
+    text = load_prompt(prompt_name)
+    if prompt_args:
+        try:
+            text = text.format(**prompt_args)
+        except KeyError:
+            pass  # Prompt might not use all args, or args might be missing
+
+    return create_agent(llm, tools=tools, system_prompt=text)
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +303,7 @@ async def process_turn(
     db: AsyncSession,
     conversation: Conversation,
     membership_id: int,
-    user_msg: Message,
+    user_msg: Message | None,
     user_text: str,
     llm: BaseChatModel | None = None,
     router_llm: BaseChatModel | None = None,
@@ -354,17 +362,24 @@ async def process_turn(
         proposal_tools = make_proposal_tools(collector, source_bot=decision.route)
 
         chat_history: list[HumanMessage | AIMessage] = []
-        for msg in recent_msgs[:-1]:  # exclude the just-added user message
+        # When creating history, exclude the just-added user message (which is last)
+        # IF user_msg is present. If user_msg is None (system trigger), use all history.
+        history_msgs = recent_msgs[:-1] if user_msg else recent_msgs
+        for msg in history_msgs:
             if msg.role == "user":
                 chat_history.append(HumanMessage(content=msg.content))
             elif msg.role == "assistant":
                 chat_history.append(AIMessage(content=msg.content))
 
+        prompt_args = {"display_name": profile.display_name or "there"}
+
         if decision.route == "INTAKE":
             from app.agents.intake import run_intake
 
             assistant_text = run_intake(
-                _create_specialist_agent(llm, proposal_tools, "intake_system"),
+                _create_specialist_agent(
+                    llm, proposal_tools, "intake_system", prompt_args
+                ),
                 user_text,
                 chat_history,
             )
@@ -372,7 +387,9 @@ async def process_turn(
             from app.agents.feedback import run_feedback
 
             assistant_text = run_feedback(
-                _create_specialist_agent(llm, proposal_tools, "feedback_system"),
+                _create_specialist_agent(
+                    llm, proposal_tools, "feedback_system", prompt_args
+                ),
                 user_text,
                 chat_history,
             )
@@ -380,7 +397,9 @@ async def process_turn(
             from app.agents.coach import run_coach
 
             assistant_text = run_coach(
-                _create_specialist_agent(llm, proposal_tools, "coach_system"),
+                _create_specialist_agent(
+                    llm, proposal_tools, "coach_system", prompt_args
+                ),
                 user_text,
                 chat_history,
             )
@@ -395,7 +414,7 @@ async def process_turn(
         profile,
         collector,
         recent_message_ids,
-        latest_user_message_id=user_msg.id,
+        latest_user_message_id=user_msg.id if user_msg else None,
     )
 
     return assistant_text, decision
