@@ -28,7 +28,7 @@ jobs:
         env:
           POSTGRES_USER: flow
           POSTGRES_PASSWORD: flow
-          POSTGRES_DB: flow_test
+          POSTGRES_DB: flow
         ports:
           - 5432:5432
         options: >-
@@ -41,7 +41,7 @@ jobs:
       H4CKATH0N_RP_ID: localhost
       H4CKATH0N_ORIGIN: http://localhost:5173
       H4CKATH0N_DATABASE_URL: ${{ matrix.db == 'postgres'
-        && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
+        && 'postgresql+asyncpg://flow:flow@localhost:5432/flow'
         || 'sqlite+aiosqlite:///./data/test.db' }}
     steps:
       - uses: actions/checkout@v6
@@ -137,7 +137,7 @@ jobs:
         env:
           POSTGRES_USER: flow
           POSTGRES_PASSWORD: flow
-          POSTGRES_DB: flow_test
+          POSTGRES_DB: flow
         ports:
           - 5432:5432
         options: >-
@@ -150,7 +150,7 @@ jobs:
       H4CKATH0N_RP_ID: localhost
       H4CKATH0N_ORIGIN: http://localhost:5173
       H4CKATH0N_DATABASE_URL: ${{ matrix.db == 'postgres'
-        && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
+        && 'postgresql+asyncpg://flow:flow@localhost:5432/flow'
         || 'sqlite+aiosqlite:///./data/test.db' }}
     steps:
       - uses: actions/checkout@v6
