@@ -39,6 +39,41 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
+export function sortMemberships(memberships: MembershipInfo[] | undefined) {
+  const mbs = memberships ?? [];
+  const active = mbs.filter((m) => m.status === "active");
+  const ended = mbs.filter((m) => m.status !== "active");
+
+  // Sort active memberships by last_message_at descending
+  active.sort((a, b) => {
+    const aT = a.last_message_at ?? "";
+    const bT = b.last_message_at ?? "";
+    return bT.localeCompare(aT);
+  });
+
+  return { active, ended };
+}
+
+export function filterMemberships(
+  sorted: { active: MembershipInfo[]; ended: MembershipInfo[] },
+  search: string,
+) {
+  const { active, ended } = sorted;
+
+  if (!search.trim()) return { active, ended };
+  const q = search.toLowerCase();
+  return {
+    active: active.filter(
+      (m) =>
+        (m.display_name ?? "").toLowerCase().includes(q) ||
+        (m.last_message_preview ?? "").toLowerCase().includes(q),
+    ),
+    ended: ended.filter((m) =>
+      (m.display_name ?? "").toLowerCase().includes(q),
+    ),
+  };
+}
+
 function Avatar({ name }: { name: string }) {
   const initials = (name || "?")
     .split(/\s+/)
@@ -75,31 +110,18 @@ export function Dashboard() {
 
   const memberships = data?.memberships;
 
-  const filtered = useMemo(() => {
-    const mbs = memberships ?? [];
-    const active = mbs.filter((m) => m.status === "active");
-    const ended = mbs.filter((m) => m.status !== "active");
+  // Split memoization into two levels:
+  // 1. Sort and group (expensive, depends only on memberships)
+  // 2. Filter by search query (cheap, depends on sorted list + search)
+  const sortedMemberships = useMemo(
+    () => sortMemberships(memberships),
+    [memberships],
+  );
 
-    // Sort active memberships by last_message_at descending
-    active.sort((a, b) => {
-      const aT = a.last_message_at ?? "";
-      const bT = b.last_message_at ?? "";
-      return bT.localeCompare(aT);
-    });
-
-    if (!search.trim()) return { active, ended };
-    const q = search.toLowerCase();
-    return {
-      active: active.filter(
-        (m) =>
-          (m.display_name ?? "").toLowerCase().includes(q) ||
-          (m.last_message_preview ?? "").toLowerCase().includes(q),
-      ),
-      ended: ended.filter((m) =>
-        (m.display_name ?? "").toLowerCase().includes(q),
-      ),
-    };
-  }, [memberships, search]);
+  const filtered = useMemo(
+    () => filterMemberships(sortedMemberships, search),
+    [sortedMemberships, search],
+  );
 
   const handleJoinFromFab = () => {
     const code = inviteInput.trim();
