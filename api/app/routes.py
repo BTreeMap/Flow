@@ -795,6 +795,68 @@ async def claim_invite(
     await db.refresh(membership)
     await db.refresh(conv)
 
+    # --- Trigger initial greeting if conversation is empty ---
+    try:
+        msg_count_res = await db.execute(
+            select(func.count(Message.id)).where(Message.conversation_id == conv.id)
+        )
+        msg_count = msg_count_res.scalar() or 0
+
+        if msg_count == 0:
+            llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
+                "OPENAI_API_KEY"
+            )
+            if llm_key:
+                llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key)
+
+                from app.agents.engine import process_turn as engine_process_turn
+
+                # Run engine with system trigger
+                assistant_content, _decision = await engine_process_turn(
+                    db=db,
+                    conversation=conv,
+                    membership_id=membership.id,
+                    user_msg=None,
+                    user_text="[USER_JOINED]",
+                    llm=llm,
+                    router_llm=llm,
+                )
+
+                # Persist assistant message
+                assistant_msg = Message(
+                    conversation_id=conv.id,
+                    role="assistant",
+                    content=assistant_content,
+                    server_msg_id=generate_server_msg_id(),
+                )
+                db.add(assistant_msg)
+                await db.flush()
+
+                # Build SSE payload
+                _route_to_prompt = {
+                    "INTAKE": "intake_system",
+                    "FEEDBACK": "feedback_system",
+                    "COACH": "coach_system",
+                }
+                _prompt_name = _route_to_prompt.get(_decision.route, "coach_system")
+                sse_payload = {
+                    "message_id": assistant_msg.id,
+                    "server_msg_id": assistant_msg.server_msg_id,
+                    "role": "assistant",
+                    "content": assistant_content,
+                    "created_at": assistant_msg.created_at.isoformat()
+                    if assistant_msg.created_at
+                    else datetime.now(UTC).isoformat(),
+                    "prompt_versions": prompt_version(_prompt_name),
+                }
+
+                await persist_event(db, conv.id, "message.final", sse_payload)
+                await db.commit()
+
+    except Exception:
+        logger.exception("Failed to generate initial greeting")
+        # Don't fail the claim request
+
     return ClaimResponse(
         project_id=project_id,
         membership_status=membership.status,

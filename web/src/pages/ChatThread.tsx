@@ -45,8 +45,9 @@ export function ChatThread() {
   const [loading, setLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<
     "online" | "reconnecting" | "offline"
-  >("offline");
+  >("online");
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<string | null>(null);
@@ -70,17 +71,23 @@ export function ChatThread() {
   }, []);
 
   useEffect(() => {
-    if (isNearBottom()) {
+    if (!showJumpToBottom) {
       scrollToBottom();
+    } else {
+      setHasNewMessages(true);
     }
-  }, [messages, scrollToBottom, isNearBottom]);
+  }, [messages, showJumpToBottom, scrollToBottom]);
 
   // Track scroll position for jump-to-bottom
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
     const handleScroll = () => {
-      setShowJumpToBottom(!isNearBottom());
+      const nearBottom = isNearBottom();
+      setShowJumpToBottom(!nearBottom);
+      if (nearBottom) {
+        setHasNewMessages(false);
+      }
     };
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
@@ -192,7 +199,9 @@ export function ChatThread() {
       while (active && !ctrl.signal.aborted) {
         try {
           const token = await getOrMintToken("sse");
-          setConnectionStatus("reconnecting");
+          if (retryCount > 0) {
+            setConnectionStatus("reconnecting");
+          }
           await fetchEventSource(`${API_BASE}/p/${projectId}/events`, {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -275,6 +284,11 @@ export function ChatThread() {
       created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, userMsg]);
+    setTimeout(() => {
+      scrollToBottom();
+      setShowJumpToBottom(false);
+      setHasNewMessages(false);
+    }, 0);
 
     try {
       const token = await getOrMintToken("http");
@@ -387,7 +401,11 @@ export function ChatThread() {
       {showJumpToBottom && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-[calc(var(--composer-h)+env(safe-area-inset-bottom,0px)+20px)] right-4 w-10 h-10 rounded-full bg-surface shadow-md flex items-center justify-center text-text-muted hover:bg-surface-2 transition-colors z-30"
+          className={`absolute bottom-[calc(var(--composer-h)+env(safe-area-inset-bottom,0px)+20px)] right-4 w-10 h-10 rounded-full shadow-md flex items-center justify-center transition-colors z-30 ${
+            hasNewMessages
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "bg-surface text-text-muted hover:bg-surface-2"
+          }`}
           aria-label="Jump to bottom"
           data-testid="jump-to-bottom"
         >

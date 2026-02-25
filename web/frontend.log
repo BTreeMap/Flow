@@ -1,0 +1,12 @@
+
+> flow-app-web@0.0.0 dev
+> vite --port 5173
+
+
+  VITE v7.3.1  ready in 392 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+12:57:25 AM [vite] (client) hmr update /src/auth/AuthContext.tsx, /src/pages/Activation.tsx, /src/components/ProtectedRoute.tsx, /src/components/Layout.tsx, /src/pages/Register.tsx, /src/pages/Login.tsx, /src/pages/Landing.tsx, /src/pages/Settings.tsx, /src/pages/ChatThread.tsx, /src/pages/Admin.tsx, /src/components/shell/NavRail.tsx, /src/pages/Updates.tsx, /src/pages/Dashboard.tsx, /src/pages/Onboarding.tsx, /src/pages/OnboardingNotifications.tsx, /src/pages/Notifications.tsx, /src/components/NotificationBanner.tsx, /src/components/chats/ChatListPane.tsx, /src/index.css
+12:58:43 AM [vite] (client) hmr update /src/auth/AuthContext.tsx, /src/index.css
+12:58:47 AM [vite] (client) hmr update /src/auth/AuthContext.tsx, /src/pages/Activation.tsx, /src/components/ProtectedRoute.tsx, /src/components/Layout.tsx, /src/pages/Register.tsx, /src/pages/Login.tsx, /src/pages/Landing.tsx, /src/pages/Settings.tsx, /src/pages/ChatThread.tsx, /src/pages/Admin.tsx, /src/components/shell/NavRail.tsx, /src/pages/Updates.tsx, /src/pages/Dashboard.tsx, /src/pages/Onboarding.tsx, /src/pages/OnboardingNotifications.tsx, /src/pages/Notifications.tsx, /src/components/NotificationBanner.tsx, /src/components/chats/ChatListPane.tsx, /src/index.css
