@@ -81,7 +81,7 @@ export function Updates() {
           </div>
         ) : (
           active.map((m) => (
-            <Link key={m.project_id} to={`/p/${m.project_id}/notifications`}>
+            <Link key={m.project_id} to={`/p/${m.project_id}/updates`}>
               <ListRow
                 avatar={
                   <div className="w-10 h-10 rounded-full bg-surface-2 flex items-center justify-center">
@@ -89,7 +89,7 @@ export function Updates() {
                   </div>
                 }
                 primary={m.display_name ?? m.project_id}
-                secondary="Tap to manage notifications"
+                secondary="View daily nudges"
                 trailing={
                   <NotificationIndicator />
                 }
