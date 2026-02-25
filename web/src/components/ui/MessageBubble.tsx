@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AssistantMarkdown } from "../chat/AssistantMarkdown";
 
 interface MessageBubbleProps {
@@ -8,7 +9,7 @@ interface MessageBubbleProps {
   isStreaming?: boolean;
 }
 
-export function MessageBubble({
+export const MessageBubble = memo(function MessageBubble({
   role,
   content,
   timestamp,
@@ -63,4 +64,4 @@ export function MessageBubble({
       </div>
     </div>
   );
-}
+});
