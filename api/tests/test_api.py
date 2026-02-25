@@ -17,6 +17,7 @@ from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.id_utils import generate_project_id
+from app.vapid_utils import clear_vapid_cache
 from app.models import (
     Base,
     FlowUserProfile,
@@ -756,6 +757,7 @@ async def test_admin_debug_endpoints(
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("VAPID_PUBLIC_KEY", "public")
     monkeypatch.delenv("VAPID_PRIVATE_KEY", raising=False)
+    clear_vapid_cache()
 
     status_resp = await client.get("/admin/debug/status")
     assert status_resp.status_code == 200
@@ -766,6 +768,7 @@ async def test_admin_debug_endpoints(
     assert payload["vapid_private_key_configured"] is False
     assert "OpenAI API key missing: chat runs in stub mode" in payload["warnings"]
     assert "VAPID keys missing: push notifications disabled" in payload["warnings"]
+    clear_vapid_cache()
 
     llm_resp = await client.post(
         "/admin/debug/llm-connectivity",
