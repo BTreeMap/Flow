@@ -2,7 +2,7 @@
 FROM python:3.14.3-slim-bookworm AS builder
 
 # Install uv (pinned)
-COPY --from=ghcr.io/astral-sh/uv:0.10.5 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.10.6 /uv /usr/local/bin/uv
 
 WORKDIR /build
 
