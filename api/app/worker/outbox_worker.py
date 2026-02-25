@@ -269,11 +269,13 @@ async def _handle_scheduled_nudge(db, event: OutboxEvent) -> None:
         membership_id=event.membership_id,
         title=topic,
         body=content,
-        payload_json=json.dumps({
-            "schedule_id": schedule_id,
-            "server_msg_id": server_msg_id,
-            "project_id": project_id
-        }),
+        payload_json=json.dumps(
+            {
+                "schedule_id": schedule_id,
+                "server_msg_id": server_msg_id,
+                "project_id": project_id,
+            }
+        ),
     )
     db.add(notification)
     await db.flush()
