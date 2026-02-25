@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import re
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Annotated
 
 from langchain_core.tools import tool
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import async_session_factory
 from app.models import NudgeSchedule, ProjectMembership
@@ -21,7 +19,7 @@ async def list_schedules(
         result = await db.execute(
             select(NudgeSchedule).where(
                 NudgeSchedule.membership_id == membership_id,
-                NudgeSchedule.is_active == True
+                NudgeSchedule.is_active
             )
         )
         schedules = result.scalars().all()

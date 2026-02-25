@@ -2,19 +2,17 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any, AsyncGenerator
+from typing import AsyncGenerator
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.id_utils import generate_project_id
 from app.models import (
     Base,
     FlowUserProfile,
-    Notification,
     OutboxEvent,
     Project,
     ProjectMembership,

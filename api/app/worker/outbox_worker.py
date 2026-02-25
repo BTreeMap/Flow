@@ -162,7 +162,7 @@ async def _send_push_notifications(
 async def _handle_read_receipt(db, event: OutboxEvent) -> None:
     payload = json.loads(event.payload_json)
     notification_id = payload.get("notification_id")
-    project_id = payload.get("project_id", event.project_id)
+    payload.get("project_id", event.project_id)
 
     if notification_id:
         await _send_push_notifications(

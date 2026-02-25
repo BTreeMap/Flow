@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
-from typing import Any, AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from typing import AsyncGenerator
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -19,7 +19,6 @@ from app.models import (
     OutboxEvent,
     Project,
     ProjectMembership,
-    PushSubscription,
 )
 from app.worker.outbox_worker import _handle_scheduled_nudge
 
@@ -143,8 +142,8 @@ async def test_handle_scheduled_nudge_inactive_schedule(db_session: AsyncSession
     db_session.add(event)
     await db_session.commit()
 
-    with patch("app.worker.outbox_worker._generate_custom_prompt", new_callable=AsyncMock) as mock_llm, \
-         patch("app.worker.outbox_worker._send_push_notifications", new_callable=AsyncMock) as mock_push:
+    with patch("app.worker.outbox_worker._generate_custom_prompt", new_callable=AsyncMock), \
+         patch("app.worker.outbox_worker._send_push_notifications", new_callable=AsyncMock):
 
         await _handle_scheduled_nudge(db_session, event)
 

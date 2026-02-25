@@ -30,7 +30,6 @@ from app.models import (
     FlowUserProfile,
     MemoryItem,
     Notification,
-    NudgeSchedule,
     OutboxEvent,
     PatchAuditLog,
     Conversation,
