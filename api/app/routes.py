@@ -1748,9 +1748,9 @@ async def admin_push_test(
         }
     )
 
-    results: list[AdminPushTestResultItem] = []
     now = datetime.now(UTC)
-    for sub in subscriptions:
+
+    async def _send_one(sub: PushSubscription) -> AdminPushTestResultItem:
         try:
             await asyncio.wait_for(
                 asyncio.to_thread(
@@ -1766,14 +1766,14 @@ async def admin_push_test(
                 timeout=10,
             )
             sub.last_success_at = now
-            results.append(AdminPushTestResultItem(subscription_id=sub.id, ok=True))
+            return AdminPushTestResultItem(subscription_id=sub.id, ok=True)
         except Exception as exc:
             sub.last_failure_at = now
-            results.append(
-                AdminPushTestResultItem(
-                    subscription_id=sub.id, ok=False, error=str(exc)[:500]
-                )
+            return AdminPushTestResultItem(
+                subscription_id=sub.id, ok=False, error=str(exc)[:500]
             )
+
+    results = await asyncio.gather(*[_send_one(sub) for sub in subscriptions])
 
     await db.commit()
     return AdminPushTestResponse(results=results)
