@@ -7,6 +7,7 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.config import clear_config_cache
 from app.models import (
     Base,
     Conversation,
@@ -200,6 +201,7 @@ async def test_slow_push_times_out_without_duplicate_messages(
 
     monkeypatch.setenv("VAPID_PRIVATE_KEY", "test-private")
     monkeypatch.setenv("VAPID_PUBLIC_KEY", "test-public")
+    clear_config_cache()
     monkeypatch.setattr("app.worker.outbox_worker.PUSH_TIMEOUT_SECONDS", 0.01)
     monkeypatch.setattr("app.worker.outbox_worker.webpush", fake_slow_webpush)
     monkeypatch.setattr(

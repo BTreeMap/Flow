@@ -3,8 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
-import socket
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -13,7 +11,7 @@ from langchain_openai import ChatOpenAI
 from pywebpush import WebPushException, webpush
 from sqlalchemy import Select, delete, or_, select, update
 
-from app import vapid_utils
+from app import config, vapid_utils
 from app.db import async_session_factory
 from app.id_utils import generate_server_msg_id
 from app.models import (
@@ -44,7 +42,12 @@ MAX_QUEUE_SIZE = WORKER_POOL_SIZE * 2
 
 
 def _make_worker_id() -> str:
-    base = os.environ.get("FLOW_WORKER_ID") or socket.gethostname()
+    base = config.get_worker_id()
+    # Note: socket.gethostname() is handled in config.get_worker_id()
+    # But wait, config.get_worker_id() handles FLOW_WORKER_ID or socket.gethostname()
+    # But here we want pid and uuid as well?
+    # Actually, let's keep the pid and uuid part here, but use config for the base.
+    import os
     return f"{base}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
 
 
@@ -176,9 +179,7 @@ async def _handle_read_receipt(db, event: OutboxEvent) -> None:
 
 
 async def _generate_custom_prompt(db, membership_id: int, topic: str) -> str:
-    llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
-        "OPENAI_API_KEY"
-    )
+    llm_key = config.get_openai_api_key()
     if not llm_key:
         return f"{topic} (LLM not configured)"
 
@@ -196,7 +197,7 @@ async def _generate_custom_prompt(db, membership_id: int, topic: str) -> str:
 
     try:
         llm = ChatOpenAI(
-            model=os.environ.get("LLM_MODEL", "gpt-4o-mini"), api_key=llm_key
+            model=config.get_llm_model(), api_key=llm_key
         )
         chain = prompt | llm
         res = await asyncio.wait_for(

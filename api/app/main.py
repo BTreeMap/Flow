@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from app import config
 from app.db import init_db, engine as app_engine
 from app.db_migrations.migrate import upgrade_to_head
 from app.middleware import add_csp_middleware
@@ -43,9 +44,7 @@ def _is_in_memory_sqlite(url: str) -> bool:
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Combined lifespan: h4ckath0n tables + application tables."""
     async with _h4ckath0n_lifespan(app):
-        db_url = os.environ.get(
-            "H4CKATH0N_DATABASE_URL", "sqlite+aiosqlite:///./data/flow-app.db"
-        )
+        db_url = config.get_database_url()
         try:
             upgrade_to_head()
         except Exception:
@@ -80,9 +79,7 @@ app.include_router(router)
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     """Readiness check for E2E and deployment probes."""
-    llm_configured = bool(
-        os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
-    )
+    llm_configured = bool(config.get_openai_api_key())
     return {
         "status": "ok",
         "llm_mode": "openai" if llm_configured else "stub",

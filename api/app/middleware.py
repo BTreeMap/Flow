@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import os
-
 from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
-ENV_VAR = "H4CKATH0N_ENV"
+from app import config
 
 
 def add_csp_middleware(app: FastAPI) -> None:
@@ -24,7 +22,7 @@ class CSPMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         response = await call_next(request)
-        env = os.getenv(ENV_VAR, "development")
+        env = config.get_env()
         if env == "production":
             csp = (
                 "default-src 'self'; "

@@ -10,11 +10,12 @@ Public helpers
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+
+from app import config
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +30,7 @@ def get_sync_url(async_url: str | None = None) -> str:
     - ``postgresql+asyncpg`` → ``postgresql+psycopg``
     """
     if async_url is None:
-        async_url = os.environ.get(
-            "H4CKATH0N_DATABASE_URL",
-            "sqlite+aiosqlite:///./data/flow-app.db",
-        )
+        async_url = config.get_database_url()
     url = async_url.replace("sqlite+aiosqlite", "sqlite").replace(
         "postgresql+asyncpg", "postgresql+psycopg"
     )
