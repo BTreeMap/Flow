@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload, selectinload
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -378,7 +379,12 @@ async def dashboard(
 ) -> DashboardResponse:
     """Return all memberships with project info for the current user."""
     result = await db.execute(
-        select(ProjectMembership).where(ProjectMembership.user_id == user.id)
+        select(ProjectMembership)
+        .where(ProjectMembership.user_id == user.id)
+        .options(
+            joinedload(ProjectMembership.project),
+            selectinload(ProjectMembership.conversations),
+        )
     )
     memberships = result.scalars().all()
 
@@ -408,16 +414,10 @@ async def dashboard(
     items: list[MembershipInfo] = []
     for m in memberships:
         # Fetch project display name
-        proj_result = await db.execute(
-            select(Project).where(Project.id == m.project_id)
-        )
-        project = proj_result.scalar_one_or_none()
+        project = m.project
 
         # Fetch conversation id
-        conv_result = await db.execute(
-            select(Conversation).where(Conversation.membership_id == m.id)
-        )
-        conv = conv_result.scalar_one_or_none()
+        conv = m.conversations[0] if m.conversations else None
 
         last_msg = last_msg_map.get(m.id)
 
