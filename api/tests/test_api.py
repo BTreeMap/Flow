@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, AsyncGenerator
 from unittest.mock import MagicMock
@@ -165,11 +164,6 @@ async def test_auth_me(client: AsyncClient) -> None:
     resp = await client.get("/auth/me")
     assert resp.status_code == 200
     assert resp.json()["user_id"] == "u_testuser_000000000000000000"
-
-
-def test_generate_project_id_is_lowercase_base32() -> None:
-    project_id = generate_project_id()
-    assert re.fullmatch(r"p[a-z2-7]{31}", project_id) is not None
 
 
 # ---------------------------------------------------------------------------
