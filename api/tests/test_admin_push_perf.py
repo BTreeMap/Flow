@@ -1,4 +1,3 @@
-
 import time
 import pytest
 import pytest_asyncio
@@ -17,9 +16,11 @@ from app.main import app
 _test_engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 _test_session_factory = async_sessionmaker(_test_engine, expire_on_commit=False)
 
+
 async def _override_get_db():
     async with _test_session_factory() as session:
         yield session
+
 
 def _make_fake_user(user_id="u_admin", role="admin"):
     user = MagicMock()
@@ -28,8 +29,10 @@ def _make_fake_user(user_id="u_admin", role="admin"):
     user.email = "admin@example.com"
     return user
 
+
 def _override_require_admin():
     return _make_fake_user(role="admin")
+
 
 @pytest_asyncio.fixture
 async def client():
@@ -57,6 +60,7 @@ async def client():
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(H4ckath0nBase.metadata.drop_all)
 
+
 @pytest.mark.asyncio
 async def test_admin_push_test_performance(client, monkeypatch):
     # Mock vapid keys
@@ -72,7 +76,7 @@ async def test_admin_push_test_performance(client, monkeypatch):
     # Since asyncio.to_thread runs in a separate thread, we can just make the mock sleep.
 
     def slow_webpush(*args, **kwargs):
-        time.sleep(0.1) # Simulate 100ms latency
+        time.sleep(0.1)  # Simulate 100ms latency
         return "ok"
 
     mock_webpush.side_effect = slow_webpush
@@ -82,6 +86,7 @@ async def test_admin_push_test_performance(client, monkeypatch):
     # So we need to patch sys.modules or similar, or mock pywebpush before the function is called.
 
     import pywebpush
+
     monkeypatch.setattr(pywebpush, "webpush", slow_webpush)
 
     # Setup data: 10 subscriptions
@@ -95,7 +100,9 @@ async def test_admin_push_test_performance(client, monkeypatch):
 
         sub_ids = []
         for i in range(num_subs):
-            membership = ProjectMembership(project_id=project_id, user_id=f"u_user_{i}", status="active")
+            membership = ProjectMembership(
+                project_id=project_id, user_id=f"u_user_{i}", status="active"
+            )
             db.add(membership)
             await db.flush()
 
@@ -104,7 +111,7 @@ async def test_admin_push_test_performance(client, monkeypatch):
                 endpoint=f"https://example.com/push/{i}",
                 p256dh="key",
                 auth="auth",
-                user_agent="TestAgent"
+                user_agent="TestAgent",
             )
             db.add(sub)
             await db.flush()
@@ -114,12 +121,15 @@ async def test_admin_push_test_performance(client, monkeypatch):
 
     # Run the test
     start_time = time.time()
-    resp = await client.post("/admin/push/test", json={
-        "project_id": project_id,
-        "subscription_ids": sub_ids,
-        "title": "Test",
-        "body": "Body"
-    })
+    resp = await client.post(
+        "/admin/push/test",
+        json={
+            "project_id": project_id,
+            "subscription_ids": sub_ids,
+            "title": "Test",
+            "body": "Body",
+        },
+    )
     end_time = time.time()
 
     assert resp.status_code == 200, f"Response: {resp.text}"
