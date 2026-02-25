@@ -373,7 +373,7 @@ class AdminDebugStatusResponse(BaseModel):
 class AdminLLMConnectivityRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    model: str = "gpt-4o-mini"
+    model: str = Field(default_factory=lambda: os.environ.get("LLM_MODEL", "gpt-4o-mini"))
     prompt: str = "Reply with exactly: OK"
     max_tokens: int = 128
     temperature: float = 0.0
@@ -827,7 +827,9 @@ async def claim_invite(
                 "OPENAI_API_KEY"
             )
             if llm_key:
-                llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key)
+                llm = ChatOpenAI(
+                    model=os.environ.get("LLM_MODEL", "gpt-4o-mini"), api_key=llm_key
+                )
 
                 from app.agents.engine import process_turn as engine_process_turn
 
@@ -1101,7 +1103,13 @@ async def send_message(
         llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
             "OPENAI_API_KEY"
         )
-        llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key) if llm_key else None
+        llm = (
+            ChatOpenAI(
+                model=os.environ.get("LLM_MODEL", "gpt-4o-mini"), api_key=llm_key
+            )
+            if llm_key
+            else None
+        )
 
         # Persist user message
         user_msg = Message(

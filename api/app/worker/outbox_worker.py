@@ -195,7 +195,9 @@ async def _generate_custom_prompt(db, membership_id: int, topic: str) -> str:
     )
 
     try:
-        llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key)
+        llm = ChatOpenAI(
+            model=os.environ.get("LLM_MODEL", "gpt-4o-mini"), api_key=llm_key
+        )
         chain = prompt | llm
         res = await asyncio.wait_for(
             chain.ainvoke({"topic": topic, "profile_json": profile.model_dump_json()}),
