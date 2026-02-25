@@ -29,6 +29,8 @@ from app.models import (
     ConversationTurn,
     FlowUserProfile,
     MemoryItem,
+    Notification,
+    NudgeSchedule,
     OutboxEvent,
     PatchAuditLog,
     Conversation,
@@ -42,7 +44,10 @@ from app.models import (
 )
 from app.schemas.patches import UserProfileData
 from app.services.event_service import load_events_since, persist_event
-from app.services.outbox_service import replace_next_scheduled_prompt
+from app.services.outbox_service import (
+    enqueue_outbox_event,
+    replace_next_scheduled_prompt,
+)
 from app.services.profile_service import load_user_profile, save_user_profile
 from app import vapid_utils
 from h4ckath0n.auth import require_user
@@ -202,6 +207,22 @@ class PushUnsubscribeRequest(BaseModel):
 
 class PushUnsubscribeResponse(BaseModel):
     ok: bool
+
+
+class NotificationItem(BaseModel):
+    id: int
+    title: str
+    body: str
+    created_at: str
+    read_at: str | None
+
+
+class NotificationListResponse(BaseModel):
+    notifications: list[NotificationItem]
+
+
+class NotificationUnreadCountResponse(BaseModel):
+    count: int
 
 
 class VapidPublicKeyResponse(BaseModel):
@@ -1387,6 +1408,97 @@ async def push_unsubscribe(
     await db.commit()
 
     return PushUnsubscribeResponse(ok=True)
+
+
+# ---------------------------------------------------------------------------
+# 9. Notifications
+# ---------------------------------------------------------------------------
+
+
+@router.get("/p/{project_id}/notifications", tags=["notifications"])
+async def list_notifications(
+    project_id: str,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> NotificationListResponse:
+    """List notifications for the current membership."""
+    membership = await _get_membership(db, project_id, user.id)
+    result = await db.execute(
+        select(Notification)
+        .where(Notification.membership_id == membership.id)
+        .order_by(Notification.created_at.desc())
+        .limit(50)
+    )
+    notifications = result.scalars().all()
+    return NotificationListResponse(
+        notifications=[
+            NotificationItem(
+                id=n.id,
+                title=n.title,
+                body=n.body,
+                created_at=n.created_at.isoformat(),
+                read_at=n.read_at.isoformat() if n.read_at else None,
+            )
+            for n in notifications
+        ]
+    )
+
+
+@router.get("/p/{project_id}/notifications/unread-count", tags=["notifications"])
+async def get_unread_count(
+    project_id: str,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> NotificationUnreadCountResponse:
+    """Get count of unread notifications."""
+    membership = await _get_membership(db, project_id, user.id)
+    result = await db.execute(
+        select(func.count(Notification.id)).where(
+            Notification.membership_id == membership.id, Notification.read_at.is_(None)
+        )
+    )
+    count = result.scalar() or 0
+    return NotificationUnreadCountResponse(count=count)
+
+
+@router.post(
+    "/p/{project_id}/notifications/{notification_id}/read", tags=["notifications"]
+)
+async def mark_notification_read(
+    project_id: str,
+    notification_id: int,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Mark a notification as read."""
+    membership = await _get_membership(db, project_id, user.id)
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            Notification.membership_id == membership.id,
+        )
+    )
+    notification = result.scalar_one_or_none()
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    if not notification.read_at:
+        notification.read_at = datetime.now(UTC)
+
+        # Enqueue read receipt sync to other devices
+        await enqueue_outbox_event(
+            db,
+            project_id=project_id,
+            membership_id=membership.id,
+            event_type="notification_read_receipt",
+            payload={"notification_id": notification_id, "project_id": project_id},
+            dedupe_key=f"read_receipt:{notification_id}",
+            available_at=datetime.now(UTC),
+        )
+
+        await db.commit()
+
+    return {"ok": True}
 
 
 @router.post("/admin/projects", tags=["admin"])

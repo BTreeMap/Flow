@@ -8,21 +8,29 @@ import socket
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
 from pywebpush import WebPushException, webpush
 from sqlalchemy import Select, delete, or_, select, update
 
+from app import vapid_utils
 from app.db import async_session_factory
 from app.id_utils import generate_server_msg_id
 from app.models import (
     Conversation,
     Message,
+    Notification,
+    NudgeSchedule,
     OutboxEvent,
     ProjectMembership,
     PushSubscription,
 )
-from app.services.outbox_service import enqueue_next_scheduled_prompt
+from app.services.outbox_service import (
+    enqueue_next_scheduled_prompt,
+    enqueue_outbox_event,
+    next_run_at,
+)
 from app.services.profile_service import load_user_profile
-from app import vapid_utils
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +39,8 @@ MAX_ATTEMPTS = 5
 FAILED_EVENT_POSTPONE_DAYS = 3650
 LOCK_DURATION_SECONDS = 300
 PUSH_TIMEOUT_SECONDS = 10
+WORKER_POOL_SIZE = 5
+MAX_QUEUE_SIZE = WORKER_POOL_SIZE * 2
 
 
 def _make_worker_id() -> str:
@@ -90,13 +100,17 @@ def _push_enabled() -> bool:
     )
 
 
-async def _send_push_for_membership(
+async def _send_push_notifications(
     db,
     membership_id: int,
-    project_id: str,
+    title: str,
+    body: str,
+    url: str,
+    data: dict | None = None,
 ) -> None:
     if not _push_enabled():
         return
+
     result = await db.execute(
         select(PushSubscription).where(
             PushSubscription.membership_id == membership_id,
@@ -104,14 +118,22 @@ async def _send_push_for_membership(
         )
     )
     subscriptions = result.scalars().all()
-    for sub in subscriptions:
-        payload = json.dumps(
-            {
-                "title": "Flow",
-                "body": SCHEDULED_PROMPT_TEXT,
-                "url": f"/p/{project_id}/chat",
-            }
-        )
+    if not subscriptions:
+        return
+
+    payload = json.dumps(
+        {
+            "title": title,
+            "body": body,
+            "url": url,
+            "data": data or {},
+        }
+    )
+
+    vapid_private_key = vapid_utils.get_vapid_private_key()
+    vapid_claims = vapid_utils.get_vapid_claims()
+
+    async def _send_single(sub: PushSubscription):
         try:
             await asyncio.wait_for(
                 asyncio.to_thread(
@@ -121,8 +143,8 @@ async def _send_push_for_membership(
                         "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
                     },
                     data=payload,
-                    vapid_private_key=vapid_utils.get_vapid_private_key(),
-                    vapid_claims=vapid_utils.get_vapid_claims(),
+                    vapid_private_key=vapid_private_key,
+                    vapid_claims=vapid_claims,
                 ),
                 timeout=PUSH_TIMEOUT_SECONDS,
             )
@@ -134,8 +156,117 @@ async def _send_push_for_membership(
             sub.last_failure_at = datetime.now(UTC)
             logger.warning("Push send failed for subscription %s: %s", sub.id, exc)
 
+    await asyncio.gather(*[_send_single(sub) for sub in subscriptions])
+
+
+async def _handle_read_receipt(db, event: OutboxEvent) -> None:
+    payload = json.loads(event.payload_json)
+    notification_id = payload.get("notification_id")
+    project_id = payload.get("project_id", event.project_id)
+
+    if notification_id:
+        await _send_push_notifications(
+            db,
+            event.membership_id,
+            title="", # Silent push
+            body="",
+            url="",
+            data={"action": "dismiss", "notification_id": notification_id}
+        )
+
+
+async def _generate_custom_prompt(db, membership_id: int, topic: str) -> str:
+    llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
+        "OPENAI_API_KEY"
+    )
+    if not llm_key:
+        return f"{topic} (LLM not configured)"
+
+    profile = await load_user_profile(db, membership_id)
+    # Simple prompt
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are a helpful coach. Generate a short, encouraging daily nudge for the user about: {topic}. User profile: {profile_json}",
+            ),
+            ("human", "Generate the nudge."),
+        ]
+    )
+
+    try:
+        llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key)
+        chain = prompt | llm
+        res = await asyncio.wait_for(
+            chain.ainvoke(
+                {"topic": topic, "profile_json": profile.model_dump_json()}
+            ),
+            timeout=15,
+        )
+        return str(res.content)
+    except Exception as exc:
+        logger.error("LLM generation failed: %s", exc)
+        return f"{topic} (Generation failed)"
+
+
+async def _handle_scheduled_nudge(db, event: OutboxEvent) -> None:
+    payload = json.loads(event.payload_json)
+    schedule_id = payload.get("schedule_id")
+    topic = payload.get("topic", "Daily Nudge")
+    project_id = payload.get("project_id", event.project_id)
+
+    # Check schedule active
+    if schedule_id:
+        sched_result = await db.execute(
+            select(NudgeSchedule).where(NudgeSchedule.id == schedule_id)
+        )
+        schedule = sched_result.scalar_one_or_none()
+        if not schedule or not schedule.is_active:
+            logger.info("Schedule %s inactive, stopping recurrence.", schedule_id)
+            return
+
+        # Enqueue next recurrence
+        run_at = next_run_at(schedule.cron_rule, datetime.now(UTC))
+        next_dedupe_key = f"nudge:{schedule.id}:{run_at.date().isoformat()}"
+
+        await enqueue_outbox_event(
+            db,
+            project_id=project_id,
+            membership_id=event.membership_id,
+            event_type="scheduled_nudge",
+            payload=payload,
+            dedupe_key=next_dedupe_key,
+            available_at=run_at,
+        )
+
+    # Generate Content
+    content = await _generate_custom_prompt(db, event.membership_id, topic)
+
+    # Persist Notification
+    notification = Notification(
+        membership_id=event.membership_id,
+        title=topic,
+        body=content,
+        payload_json=json.dumps({"schedule_id": schedule_id}),
+    )
+    db.add(notification)
+    await db.flush()
+
+    # Send Push
+    await _send_push_notifications(
+        db,
+        event.membership_id,
+        title=topic,
+        body=content,
+        url=f"/p/{project_id}/updates",
+        data={"notification_id": notification.id},
+    )
+
+    await db.commit()
+
 
 async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
+    # Legacy handler for "scheduled_prompt"
     membership_result = await db.execute(
         select(ProjectMembership).where(ProjectMembership.id == event.membership_id)
     )
@@ -176,16 +307,14 @@ async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
     await db.flush()
     await db.commit()
 
-    # Push is best-effort: failures/timeouts must NOT retry the whole event.
-    try:
-        await _send_push_for_membership(db, membership.id, membership.project_id)
-        await db.flush()
-    except Exception:  # noqa: BLE001
-        logger.warning(
-            "Push delivery failed for event %s (best-effort, not retrying event)",
-            event.dedupe_key,
-            exc_info=True,
-        )
+    # Reuse the new push function
+    await _send_push_notifications(
+        db,
+        membership.id,
+        title="Flow",
+        body=SCHEDULED_PROMPT_TEXT,
+        url=f"/p/{membership.project_id}/chat",
+    )
 
 
 async def _process_event(event: OutboxEvent, worker_id: str) -> None:
@@ -202,6 +331,10 @@ async def _process_event(event: OutboxEvent, worker_id: str) -> None:
         try:
             if row.type == "scheduled_prompt":
                 await _handle_scheduled_prompt(db, row)
+            elif row.type == "scheduled_nudge":
+                await _handle_scheduled_nudge(db, row)
+            elif row.type == "notification_read_receipt":
+                await _handle_read_receipt(db, row)
             else:
                 raise ValueError(f"Unsupported event type: {row.type}")
             await db.execute(
@@ -236,15 +369,42 @@ async def _process_event(event: OutboxEvent, worker_id: str) -> None:
             await db.commit()
 
 
+async def _consumer_task(queue: asyncio.Queue, worker_id: str) -> None:
+    """Continuously processes events from the queue."""
+    while True:
+        event = await queue.get()
+        try:
+            await _process_event(event, worker_id)
+        except Exception as exc:
+            logger.error("Failed processing event %s: %s", event.id, exc)
+        finally:
+            queue.task_done()
+
+
 async def run_worker_loop(poll_seconds: int = 5) -> None:
     worker_id = _make_worker_id()
-    while True:
-        events = await _claim_due_events(worker_id=worker_id)
-        if not events:
+    queue: asyncio.Queue[OutboxEvent] = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
+
+    consumers = [
+        asyncio.create_task(_consumer_task(queue, worker_id))
+        for _ in range(WORKER_POOL_SIZE)
+    ]
+
+    try:
+        while True:
+            if queue.qsize() < WORKER_POOL_SIZE:
+                fetch_limit = MAX_QUEUE_SIZE - queue.qsize()
+                if fetch_limit > 0:
+                    events = await _claim_due_events(
+                        worker_id=worker_id, limit=fetch_limit
+                    )
+                    for event in events:
+                        await queue.put(event)
             await asyncio.sleep(poll_seconds)
-            continue
-        for event in events:
-            await _process_event(event, worker_id=worker_id)
+    finally:
+        for c in consumers:
+            c.cancel()
+        await asyncio.gather(*consumers, return_exceptions=True)
 
 
 def main() -> None:

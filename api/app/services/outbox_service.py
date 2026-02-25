@@ -27,7 +27,7 @@ def _parse_preferred_time(preferred_time: str) -> tuple[int, int]:
     return 9, 0
 
 
-def _next_run_at(preferred_time: str, now: datetime) -> datetime:
+def next_run_at(preferred_time: str, now: datetime) -> datetime:
     hour, minute = _parse_preferred_time(preferred_time)
     candidate = now.astimezone(UTC).replace(
         hour=hour, minute=minute, second=0, microsecond=0
@@ -74,7 +74,7 @@ async def enqueue_next_scheduled_prompt(
     now: datetime | None = None,
 ) -> OutboxEvent:
     run_now = now or datetime.now(UTC)
-    run_at = _next_run_at(preferred_time, run_now)
+    run_at = next_run_at(preferred_time, run_now)
     dedupe_key = f"scheduled_prompt:{membership.id}:{run_at.date().isoformat()}"
     return await enqueue_outbox_event(
         db,

@@ -1,0 +1,57 @@
+INFO:     Will watch for changes in these directories: ['/app/api']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [7639] using WatchFiles
+INFO:     Started server process [7657]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial Flow schema.
+WARNING:  WatchFiles detected changes in 'app/services/outbox_service.py'. Reloading...
+INFO:     Started server process [11783]
+INFO:     Waiting for application startup.
+database appears initialized without alembic versioning; run h4ckath0n db migrate stamp --to <baseline> --yes (for current releases, use <baseline>=head), then h4ckath0n db migrate upgrade --to head --yes
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial Flow schema.
+WARNING:  WatchFiles detected changes in 'app/worker/outbox_worker.py'. Reloading...
+INFO:     Started server process [11803]
+INFO:     Waiting for application startup.
+database appears initialized without alembic versioning; run h4ckath0n db migrate stamp --to <baseline> --yes (for current releases, use <baseline>=head), then h4ckath0n db migrate upgrade --to head --yes
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial Flow schema.
+WARNING:  WatchFiles detected changes in 'app/tools/scheduler_tools.py'. Reloading...
+INFO:     Started server process [11822]
+INFO:     Waiting for application startup.
+database appears initialized without alembic versioning; run h4ckath0n db migrate stamp --to <baseline> --yes (for current releases, use <baseline>=head), then h4ckath0n db migrate upgrade --to head --yes
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial Flow schema.
+WARNING:  WatchFiles detected changes in 'app/routes.py'. Reloading...
+INFO:     Started server process [12195]
+INFO:     Waiting for application startup.
+database appears initialized without alembic versioning; run h4ckath0n db migrate stamp --to <baseline> --yes (for current releases, use <baseline>=head), then h4ckath0n db migrate upgrade --to head --yes
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial Flow schema.
+WARNING:  WatchFiles detected changes in 'app/worker/outbox_worker.py'. Reloading...
+INFO:     Started server process [12215]
+INFO:     Waiting for application startup.
+database appears initialized without alembic versioning; run h4ckath0n db migrate stamp --to <baseline> --yes (for current releases, use <baseline>=head), then h4ckath0n db migrate upgrade --to head --yes
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial Flow schema.
+WARNING:  WatchFiles detected changes in 'tests/test_read_receipt_logic.py'. Reloading...
+INFO:     Started server process [12229]
+INFO:     Waiting for application startup.
+database appears initialized without alembic versioning; run h4ckath0n db migrate stamp --to <baseline> --yes (for current releases, use <baseline>=head), then h4ckath0n db migrate upgrade --to head --yes
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial Flow schema.
+WARNING:  WatchFiles detected changes in 'tests/test_outbox_worker.py'. Reloading...
+INFO:     Started server process [12956]
+INFO:     Waiting for application startup.
+database appears initialized without alembic versioning; run h4ckath0n db migrate stamp --to <baseline> --yes (for current releases, use <baseline>=head), then h4ckath0n db migrate upgrade --to head --yes
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001, Initial Flow schema.

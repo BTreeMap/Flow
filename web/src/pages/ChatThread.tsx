@@ -363,7 +363,11 @@ export function ChatThread() {
         connectionStatus={connectionStatus}
         menuItems={[
           {
-            label: "Notifications",
+            label: "Updates",
+            onClick: () => navigate(`/p/${projectId}/updates`),
+          },
+          {
+            label: "Notification Settings",
             onClick: () => navigate(`/p/${projectId}/notifications`),
           },
         ]}

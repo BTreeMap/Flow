@@ -112,7 +112,7 @@ async def test_worker_processes_scheduled_prompt_and_push_mock(
     async def fake_push(*args, **kwargs):  # type: ignore[no-untyped-def]
         return None
 
-    monkeypatch.setattr("app.worker.outbox_worker._send_push_for_membership", fake_push)
+    monkeypatch.setattr("app.worker.outbox_worker._send_push_notifications", fake_push)
     monkeypatch.setattr(
         "app.worker.outbox_worker.async_session_factory", _session_factory
     )
