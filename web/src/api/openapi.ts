@@ -832,11 +832,8 @@ export interface components {
              * @default 128
              */
             max_tokens: number;
-            /**
-             * Model
-             * @default gpt-4o-mini
-             */
-            model: string;
+            /** Model */
+            model?: string;
             /**
              * Prompt
              * @default Reply with exactly: OK

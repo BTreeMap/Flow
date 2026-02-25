@@ -130,7 +130,6 @@
             "type": "integer"
           },
           "model": {
-            "default": "gpt-4o-mini",
             "title": "Model",
             "type": "string"
           },

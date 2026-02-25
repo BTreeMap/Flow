@@ -373,7 +373,9 @@ class AdminDebugStatusResponse(BaseModel):
 class AdminLLMConnectivityRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    model: str = Field(default_factory=lambda: os.environ.get("LLM_MODEL", "gpt-4o-mini"))
+    model: str = Field(
+        default_factory=lambda: os.environ.get("LLM_MODEL", "gpt-4o-mini")
+    )
     prompt: str = "Reply with exactly: OK"
     max_tokens: int = 128
     temperature: float = 0.0
