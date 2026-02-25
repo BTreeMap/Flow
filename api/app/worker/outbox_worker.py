@@ -168,10 +168,10 @@ async def _handle_read_receipt(db, event: OutboxEvent) -> None:
         await _send_push_notifications(
             db,
             event.membership_id,
-            title="", # Silent push
+            title="",  # Silent push
             body="",
             url="",
-            data={"action": "dismiss", "notification_id": notification_id}
+            data={"action": "dismiss", "notification_id": notification_id},
         )
 
 
@@ -198,9 +198,7 @@ async def _generate_custom_prompt(db, membership_id: int, topic: str) -> str:
         llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key)
         chain = prompt | llm
         res = await asyncio.wait_for(
-            chain.ainvoke(
-                {"topic": topic, "profile_json": profile.model_dump_json()}
-            ),
+            chain.ainvoke({"topic": topic, "profile_json": profile.model_dump_json()}),
             timeout=15,
         )
         return str(res.content)

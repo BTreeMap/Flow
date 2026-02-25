@@ -392,9 +392,7 @@ class NudgeSchedule(Base):
     )
     topic: Mapped[str] = mapped_column(String(255), nullable=False)
     cron_rule: Mapped[str] = mapped_column(String(50), nullable=False)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default="1"
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

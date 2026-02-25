@@ -26,27 +26,41 @@ from h4ckath0n.realtime import AuthContext
 _test_engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 _test_session_factory = async_sessionmaker(_test_engine, expire_on_commit=False)
 
+
 async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
     async with _test_session_factory() as session:
         yield session
 
-def _make_fake_user(user_id: str = "u_testuser_000000000000000000", role: str = "user") -> MagicMock:
+
+def _make_fake_user(
+    user_id: str = "u_testuser_000000000000000000", role: str = "user"
+) -> MagicMock:
     user = MagicMock()
     user.id = user_id
     user.role = role
     user.email = "test@example.com"
     return user
 
-def _override_require_user(user_id: str = "u_testuser_000000000000000000", role: str = "user") -> Any:
+
+def _override_require_user(
+    user_id: str = "u_testuser_000000000000000000", role: str = "user"
+) -> Any:
     fake = _make_fake_user(user_id, role=role)
+
     async def _dep() -> Any:
         return fake
+
     return _dep
 
-def _override_auth_context(user_id: str = "u_testuser_000000000000000000", device_id: str = "d_test") -> Any:
+
+def _override_auth_context(
+    user_id: str = "u_testuser_000000000000000000", device_id: str = "d_test"
+) -> Any:
     async def _dep() -> AuthContext:
         return AuthContext(user_id=user_id, device_id=device_id)
+
     return _dep
+
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
@@ -72,6 +86,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(H4ckath0nBase.metadata.drop_all)
 
+
 @pytest_asyncio.fixture
 async def seeded_project(client: AsyncClient) -> dict[str, Any]:
     project_id = generate_project_id()
@@ -87,13 +102,20 @@ async def seeded_project(client: AsyncClient) -> dict[str, Any]:
             expires_at=datetime.now(UTC) + timedelta(days=1),
         )
         db.add(invite)
-        db.add(FlowUserProfile(user_id="u_testuser_000000000000000000", email_raw="test@example.com"))
+        db.add(
+            FlowUserProfile(
+                user_id="u_testuser_000000000000000000", email_raw="test@example.com"
+            )
+        )
         await db.commit()
 
     # Activate
-    await client.post(f"/p/{project_id}/activate/claim", json={"invite_code": invite_code})
+    await client.post(
+        f"/p/{project_id}/activate/claim", json={"invite_code": invite_code}
+    )
 
     return {"project_id": project_id, "client": client}
+
 
 @pytest.mark.asyncio
 async def test_notifications_lifecycle(seeded_project: dict[str, Any]) -> None:
@@ -102,14 +124,16 @@ async def test_notifications_lifecycle(seeded_project: dict[str, Any]) -> None:
 
     # 1. Create a notification manually in DB (simulating worker)
     async with _test_session_factory() as db:
-        membership_result = await db.execute(select(ProjectMembership).where(ProjectMembership.project_id == project_id))
+        membership_result = await db.execute(
+            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+        )
         membership = membership_result.scalar_one()
 
         notif = Notification(
             membership_id=membership.id,
             title="Test Notification",
             body="This is a test.",
-            payload_json="{}"
+            payload_json="{}",
         )
         db.add(notif)
         await db.commit()
@@ -140,11 +164,16 @@ async def test_notifications_lifecycle(seeded_project: dict[str, Any]) -> None:
     resp = await client.get(f"/p/{project_id}/notifications/unread-count")
     assert resp.json()["count"] == 0
 
+
 @pytest.mark.asyncio
 async def test_scheduler_tools(seeded_project: dict[str, Any]) -> None:
 
     import app.tools.scheduler_tools as scheduler_tools_module
-    from app.tools.scheduler_tools import schedule_nudge, list_schedules, delete_schedule
+    from app.tools.scheduler_tools import (
+        schedule_nudge,
+        list_schedules,
+        delete_schedule,
+    )
 
     # Monkeypatch the session factory in the tools module
     old_factory = scheduler_tools_module.async_session_factory
@@ -153,12 +182,18 @@ async def test_scheduler_tools(seeded_project: dict[str, Any]) -> None:
     try:
         project_id = seeded_project["project_id"]
         async with _test_session_factory() as db:
-            membership_result = await db.execute(select(ProjectMembership).where(ProjectMembership.project_id == project_id))
+            membership_result = await db.execute(
+                select(ProjectMembership).where(
+                    ProjectMembership.project_id == project_id
+                )
+            )
             membership = membership_result.scalar_one()
             membership_id = membership.id
 
         # Schedule
-        res = await schedule_nudge.ainvoke({"membership_id": membership_id, "topic": "Test Nudge", "time": "09:00"})
+        res = await schedule_nudge.ainvoke(
+            {"membership_id": membership_id, "topic": "Test Nudge", "time": "09:00"}
+        )
         assert "Scheduled nudge ID" in res
 
         # List
@@ -169,6 +204,7 @@ async def test_scheduler_tools(seeded_project: dict[str, Any]) -> None:
         # Parse ID from list
         # "ID: 1, Topic: ..."
         import re
+
         match = re.search(r"ID: (\d+)", res)
         schedule_id = int(match.group(1))
 

@@ -26,6 +26,7 @@ from app.worker.outbox_worker import _handle_scheduled_nudge
 _test_engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 _test_session_factory = async_sessionmaker(_test_engine, expire_on_commit=False)
 
+
 @pytest_asyncio.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     async with _test_engine.begin() as conn:
@@ -37,6 +38,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
+
 @pytest.mark.asyncio
 async def test_handle_scheduled_nudge(db_session: AsyncSession) -> None:
     # Setup data
@@ -44,7 +46,9 @@ async def test_handle_scheduled_nudge(db_session: AsyncSession) -> None:
     project = Project(id=project_id, display_name="Test Project")
     db_session.add(project)
 
-    membership = ProjectMembership(project_id=project_id, user_id="u_test", status="active")
+    membership = ProjectMembership(
+        project_id=project_id, user_id="u_test", status="active"
+    )
     db_session.add(membership)
     db_session.add(FlowUserProfile(user_id="u_test", email_raw="test@example.com"))
     await db_session.flush()
@@ -53,7 +57,7 @@ async def test_handle_scheduled_nudge(db_session: AsyncSession) -> None:
         membership_id=membership.id,
         topic="Test Topic",
         cron_rule="09:00",
-        is_active=True
+        is_active=True,
     )
     db_session.add(schedule)
     await db_session.flush()
@@ -62,27 +66,36 @@ async def test_handle_scheduled_nudge(db_session: AsyncSession) -> None:
         project_id=project_id,
         membership_id=membership.id,
         type="scheduled_nudge",
-        payload_json=json.dumps({
-            "schedule_id": schedule.id,
-            "topic": "Test Topic",
-            "project_id": project_id
-        }),
+        payload_json=json.dumps(
+            {
+                "schedule_id": schedule.id,
+                "topic": "Test Topic",
+                "project_id": project_id,
+            }
+        ),
         dedupe_key="test-dedupe",
-        available_at=datetime.now(UTC)
+        available_at=datetime.now(UTC),
     )
     db_session.add(event)
     await db_session.commit()
 
     # Mock LLM and Push
-    with patch("app.worker.outbox_worker._generate_custom_prompt", new_callable=AsyncMock) as mock_llm, \
-         patch("app.worker.outbox_worker._send_push_notifications", new_callable=AsyncMock) as mock_push:
-
+    with (
+        patch(
+            "app.worker.outbox_worker._generate_custom_prompt", new_callable=AsyncMock
+        ) as mock_llm,
+        patch(
+            "app.worker.outbox_worker._send_push_notifications", new_callable=AsyncMock
+        ) as mock_push,
+    ):
         mock_llm.return_value = "Generated Nudge Content"
 
         await _handle_scheduled_nudge(db_session, event)
 
         # Verify Notification created
-        result = await db_session.execute(select(Notification).where(Notification.membership_id == membership.id))
+        result = await db_session.execute(
+            select(Notification).where(Notification.membership_id == membership.id)
+        )
         notif = result.scalar_one()
         assert notif.title == "Test Topic"
         assert notif.body == "Generated Nudge Content"
@@ -90,8 +103,7 @@ async def test_handle_scheduled_nudge(db_session: AsyncSession) -> None:
         # Verify Next Event Enqueued
         result = await db_session.execute(
             select(OutboxEvent).where(
-                OutboxEvent.type == "scheduled_nudge",
-                OutboxEvent.id != event.id
+                OutboxEvent.type == "scheduled_nudge", OutboxEvent.id != event.id
             )
         )
         next_event = result.scalar_one()
@@ -106,14 +118,19 @@ async def test_handle_scheduled_nudge(db_session: AsyncSession) -> None:
         assert kwargs["body"] == "Generated Nudge Content"
         assert kwargs["url"] == f"/p/{project_id}/updates"
 
+
 @pytest.mark.asyncio
-async def test_handle_scheduled_nudge_inactive_schedule(db_session: AsyncSession) -> None:
+async def test_handle_scheduled_nudge_inactive_schedule(
+    db_session: AsyncSession,
+) -> None:
     # Setup data
     project_id = generate_project_id()
     project = Project(id=project_id, display_name="Test Project")
     db_session.add(project)
 
-    membership = ProjectMembership(project_id=project_id, user_id="u_test", status="active")
+    membership = ProjectMembership(
+        project_id=project_id, user_id="u_test", status="active"
+    )
     db_session.add(membership)
     db_session.add(FlowUserProfile(user_id="u_test", email_raw="test@example.com"))
     await db_session.flush()
@@ -122,7 +139,7 @@ async def test_handle_scheduled_nudge_inactive_schedule(db_session: AsyncSession
         membership_id=membership.id,
         topic="Test Topic",
         cron_rule="09:00",
-        is_active=False # Inactive
+        is_active=False,  # Inactive
     )
     db_session.add(schedule)
     await db_session.flush()
@@ -131,20 +148,27 @@ async def test_handle_scheduled_nudge_inactive_schedule(db_session: AsyncSession
         project_id=project_id,
         membership_id=membership.id,
         type="scheduled_nudge",
-        payload_json=json.dumps({
-            "schedule_id": schedule.id,
-            "topic": "Test Topic",
-            "project_id": project_id
-        }),
+        payload_json=json.dumps(
+            {
+                "schedule_id": schedule.id,
+                "topic": "Test Topic",
+                "project_id": project_id,
+            }
+        ),
         dedupe_key="test-dedupe",
-        available_at=datetime.now(UTC)
+        available_at=datetime.now(UTC),
     )
     db_session.add(event)
     await db_session.commit()
 
-    with patch("app.worker.outbox_worker._generate_custom_prompt", new_callable=AsyncMock), \
-         patch("app.worker.outbox_worker._send_push_notifications", new_callable=AsyncMock):
-
+    with (
+        patch(
+            "app.worker.outbox_worker._generate_custom_prompt", new_callable=AsyncMock
+        ),
+        patch(
+            "app.worker.outbox_worker._send_push_notifications", new_callable=AsyncMock
+        ),
+    ):
         await _handle_scheduled_nudge(db_session, event)
 
         # Verify NO Notification created (assuming inactive schedule stops everything? Or just recurrence?)
@@ -152,14 +176,15 @@ async def test_handle_scheduled_nudge_inactive_schedule(db_session: AsyncSession
         # if not schedule or not schedule.is_active: return
         # So it returns immediately.
 
-        result = await db_session.execute(select(Notification).where(Notification.membership_id == membership.id))
+        result = await db_session.execute(
+            select(Notification).where(Notification.membership_id == membership.id)
+        )
         assert result.scalar_one_or_none() is None
 
         # Verify NO Next Event
         result = await db_session.execute(
             select(OutboxEvent).where(
-                OutboxEvent.type == "scheduled_nudge",
-                OutboxEvent.id != event.id
+                OutboxEvent.type == "scheduled_nudge", OutboxEvent.id != event.id
             )
         )
         assert result.scalar_one_or_none() is None

@@ -8,6 +8,7 @@ sys.path.append(os.getcwd())
 from sqlalchemy import text
 from app.db import init_db, engine
 
+
 async def main():
     print("Initializing DB...")
     await init_db()
@@ -30,6 +31,7 @@ async def main():
         else:
             print("FAILURE: New tables missing.")
             sys.exit(1)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
