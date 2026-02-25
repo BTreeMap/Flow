@@ -1675,24 +1675,19 @@ async def admin_push_channels(
     db: AsyncSession = Depends(get_db),
 ) -> AdminPushChannelsResponse:
     result = await db.execute(
-        select(PushSubscription, ProjectMembership)
+        select(PushSubscription, ProjectMembership, User, FlowUserProfile)
         .join(ProjectMembership, PushSubscription.membership_id == ProjectMembership.id)
+        .outerjoin(User, User.id == ProjectMembership.user_id)
+        .outerjoin(
+            FlowUserProfile, FlowUserProfile.user_id == ProjectMembership.user_id
+        )
         .where(
             ProjectMembership.project_id == project_id,
             PushSubscription.revoked_at.is_(None),
         )
     )
     channels = []
-    for sub, membership in result.all():
-        user_result = await db.execute(
-            select(User).where(User.id == membership.user_id)
-        )
-        user = user_result.scalar_one_or_none()
-        profile_result = await db.execute(
-            select(FlowUserProfile).where(FlowUserProfile.user_id == membership.user_id)
-        )
-        profile = profile_result.scalar_one_or_none()
-
+    for sub, membership, user, profile in result.all():
         endpoint_hint = (
             sub.endpoint[:80] + "..." if len(sub.endpoint) > 80 else sub.endpoint
         )
