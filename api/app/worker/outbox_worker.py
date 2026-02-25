@@ -48,6 +48,7 @@ def _make_worker_id() -> str:
     # But here we want pid and uuid as well?
     # Actually, let's keep the pid and uuid part here, but use config for the base.
     import os
+
     return f"{base}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
 
 
@@ -196,9 +197,7 @@ async def _generate_custom_prompt(db, membership_id: int, topic: str) -> str:
     )
 
     try:
-        llm = ChatOpenAI(
-            model=config.get_llm_model(), api_key=llm_key
-        )
+        llm = ChatOpenAI(model=config.get_llm_model(), api_key=llm_key)
         chain = prompt | llm
         res = await asyncio.wait_for(
             chain.ainvoke({"topic": topic, "profile_json": profile.model_dump_json()}),

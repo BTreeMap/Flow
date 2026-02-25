@@ -4,7 +4,6 @@ import asyncio
 import contextlib
 import json
 import logging
-import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
