@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { Alert } from "../components/Alert";
 import { getOrMintToken } from "../auth/token";
@@ -37,6 +37,7 @@ function shouldGroup(prev: Message | undefined, curr: Message): boolean {
 export function ChatThread() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   useAuth();
   const layoutMode = useLayoutMode();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,6 +60,30 @@ export function ChatThread() {
       localStorage.setItem(`chat-opened:${projectId}`, new Date().toISOString());
     }
   }, [projectId]);
+
+  // Handle push notification interaction (nid param)
+  useEffect(() => {
+    const nid = searchParams.get("nid");
+    if (nid && projectId) {
+      // Clear param immediately so we don't re-trigger
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("nid");
+      setSearchParams(newParams, { replace: true });
+
+      // Call mark-read
+      (async () => {
+        try {
+          const token = await getOrMintToken("http");
+          await fetch(`${API_BASE}/p/${projectId}/notifications/${nid}/read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        } catch (err) {
+          console.error("Failed to mark notification read", err);
+        }
+      })();
+    }
+  }, [projectId, searchParams, setSearchParams]);
 
   const isNearBottom = useCallback(() => {
     const el = scrollContainerRef.current;

@@ -240,23 +240,53 @@ async def _handle_scheduled_nudge(db, event: OutboxEvent) -> None:
     # Generate Content
     content = await _generate_custom_prompt(db, event.membership_id, topic)
 
-    # Persist Notification
+    # Get conversation
+    conversation_result = await db.execute(
+        select(Conversation).where(Conversation.membership_id == event.membership_id)
+    )
+    conversation = conversation_result.scalar_one_or_none()
+    if not conversation:
+        # Create if missing (edge case)
+        conversation = Conversation(membership_id=event.membership_id)
+        db.add(conversation)
+        await db.flush()
+
+    # Persist Message (Chat History)
+    server_msg_id = generate_server_msg_id()
+    message = Message(
+        conversation_id=conversation.id,
+        role="assistant",
+        content=content,
+        server_msg_id=server_msg_id,
+        client_msg_id=event.dedupe_key,
+    )
+    db.add(message)
+    await db.flush()
+
+    # Persist Notification (Updates Tab)
+    # Link to chat with notification_id param for read-sync
     notification = Notification(
         membership_id=event.membership_id,
         title=topic,
         body=content,
-        payload_json=json.dumps({"schedule_id": schedule_id}),
+        payload_json=json.dumps({
+            "schedule_id": schedule_id,
+            "server_msg_id": server_msg_id,
+            "project_id": project_id
+        }),
     )
     db.add(notification)
     await db.flush()
 
-    # Send Push
+    # Send Push (Browser Notification)
+    # Clicking goes to chat, passing nid to mark it read on open
+    chat_url = f"/p/{project_id}/chat?nid={notification.id}"
     await _send_push_notifications(
         db,
         event.membership_id,
         title=topic,
         body=content,
-        url=f"/p/{project_id}/updates",
+        url=chat_url,
         data={"notification_id": notification.id},
     )
 

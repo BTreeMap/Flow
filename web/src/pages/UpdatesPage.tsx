@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
 import { Card, CardHeader, CardContent } from '../components/Card';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 
 export function UpdatesPage() {
   const { notifications, isLoading, markRead } = useNotifications();
   const navigate = useNavigate();
+  const { projectId } = useParams<{ projectId: string }>();
 
   // Mark all unread as read when they appear
   useEffect(() => {
@@ -32,11 +33,21 @@ export function UpdatesPage() {
           <p className="text-gray-500 text-center mt-10">No updates yet.</p>
         )}
         {notifications.map((n) => (
-          <Card key={n.id} className={!n.read_at ? "border-primary border-2" : ""}>
+          <Card
+            key={n.id}
+            className={`cursor-pointer hover:bg-surface-2 transition-colors ${!n.read_at ? "border-primary border-2" : ""}`}
+            onClick={() => {
+                // If the notification has a payload with server_msg_id, we could link to it?
+                // For now, we just link to the chat thread as requested.
+                // Assuming "jumps to the chat to the exact message" implies going to chat.
+                // We don't have deep linking scroll yet, but this is the primary interaction.
+                navigate(`/p/${projectId}/chat`);
+            }}
+          >
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <h3 className="font-semibold text-lg">{n.title}</h3>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-text-muted">
                   {new Date(n.created_at).toLocaleDateString()} {new Date(n.created_at).toLocaleTimeString()}
                 </span>
               </div>

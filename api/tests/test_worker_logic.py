@@ -116,7 +116,7 @@ async def test_handle_scheduled_nudge(db_session: AsyncSession) -> None:
         args, kwargs = mock_push.call_args
         assert kwargs["title"] == "Test Topic"
         assert kwargs["body"] == "Generated Nudge Content"
-        assert kwargs["url"] == f"/p/{project_id}/updates"
+        assert kwargs["url"] == f"/p/{project_id}/chat?nid={notif.id}"
 
 
 @pytest.mark.asyncio
