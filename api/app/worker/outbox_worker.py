@@ -11,7 +11,7 @@ from langchain_openai import ChatOpenAI
 from pywebpush import WebPushException, webpush
 from sqlalchemy import Select, delete, or_, select, update
 
-from app import config, vapid_utils
+from app import config
 from app.db import async_session_factory
 from app.id_utils import generate_server_msg_id
 from app.models import (
@@ -99,9 +99,7 @@ async def _claim_due_events(worker_id: str, limit: int = 20) -> list[OutboxEvent
 
 
 def _push_enabled() -> bool:
-    return bool(
-        vapid_utils.get_vapid_private_key() and vapid_utils.get_vapid_public_key()
-    )
+    return bool(config.get_vapid_private_key() and config.get_vapid_public_key())
 
 
 async def _send_push_notifications(
@@ -134,8 +132,9 @@ async def _send_push_notifications(
         }
     )
 
-    vapid_private_key = vapid_utils.get_vapid_private_key()
-    vapid_claims = vapid_utils.get_vapid_claims()
+    vapid_private_key = config.get_vapid_private_key()
+    # vapid_utils.get_vapid_claims() was just {"sub": get_vapid_sub()}
+    vapid_claims = {"sub": config.get_vapid_sub()}
 
     async def _send_single(sub: PushSubscription):
         try:

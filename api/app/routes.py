@@ -48,7 +48,7 @@ from app.services.outbox_service import (
     replace_next_scheduled_prompt,
 )
 from app.services.profile_service import load_user_profile, save_user_profile
-from app import vapid_utils
+from app import config
 from h4ckath0n.auth import require_user
 from h4ckath0n.auth.dependencies import require_admin
 from h4ckath0n.auth.models import Device, User
@@ -589,11 +589,9 @@ async def revoke_auth_session(
 async def admin_debug_status(
     _admin_user: User = require_admin(),
 ) -> AdminDebugStatusResponse:
-    llm_key_present = bool(
-        os.environ.get("OPENAI_API_KEY") or os.environ.get("H4CKATH0N_OPENAI_API_KEY")
-    )
-    vapid_public_present = bool(vapid_utils.get_vapid_public_key())
-    vapid_private_present = bool(vapid_utils.get_vapid_private_key())
+    llm_key_present = bool(config.get_openai_api_key())
+    vapid_public_present = bool(config.get_vapid_public_key())
+    vapid_private_present = bool(config.get_vapid_private_key())
     warnings: list[str] = []
     if not llm_key_present:
         warnings.append("OpenAI API key missing: chat runs in stub mode")
@@ -1325,7 +1323,7 @@ async def vapid_public_key(
     # Verify membership exists
     await _get_membership(db, project_id, user.id)
 
-    key = vapid_utils.get_vapid_public_key()
+    key = config.get_vapid_public_key()
     if not key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -1903,8 +1901,8 @@ async def admin_push_test(
 ) -> AdminPushTestResponse:
     from pywebpush import webpush
 
-    vapid_private_key = vapid_utils.get_vapid_private_key()
-    vapid_claims = vapid_utils.get_vapid_claims()
+    vapid_private_key = config.get_vapid_private_key()
+    vapid_claims = {"sub": config.get_vapid_sub()}
 
     if not vapid_private_key:
         raise HTTPException(status_code=503, detail="VAPID private key not configured")
