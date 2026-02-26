@@ -35,6 +35,9 @@ services:
       H4CKATH0N_RP_ID: ${H4CKATH0N_RP_ID:-localhost}
       H4CKATH0N_ORIGIN: ${H4CKATH0N_ORIGIN:-http://localhost:8080}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      FLOW_DATA_DIR: /app/data
 
       # Default is Postgres (production-shaped). Override to sqlite in CI/local if desired.
       H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-postgresql+asyncpg://flow:flow@postgres:5432/flow}
@@ -62,7 +65,12 @@ services:
       H4CKATH0N_RP_ID: ${H4CKATH0N_RP_ID:-localhost}
       H4CKATH0N_ORIGIN: ${H4CKATH0N_ORIGIN:-http://localhost:8080}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      FLOW_DATA_DIR: /app/data
       H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-postgresql+asyncpg://flow:flow@postgres:5432/flow}
+    volumes:
+      - flow-data:/app/data
     depends_on:
       postgres:
         condition: service_healthy

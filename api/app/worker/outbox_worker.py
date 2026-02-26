@@ -14,6 +14,7 @@ from sqlalchemy import Select, delete, or_, select, update
 from app import config
 from app.db import async_session_factory
 from app.id_utils import generate_server_msg_id
+from app.logging_conf import LLMLoggingCallbackHandler, configure_logging
 from app.models import (
     Conversation,
     Message,
@@ -196,7 +197,11 @@ async def _generate_custom_prompt(db, membership_id: int, topic: str) -> str:
     )
 
     try:
-        llm = ChatOpenAI(model=config.get_llm_model(), api_key=llm_key)
+        llm = ChatOpenAI(
+            model=config.get_llm_model(),
+            api_key=llm_key,
+            callbacks=[LLMLoggingCallbackHandler()],
+        )
         chain = prompt | llm
         res = await asyncio.wait_for(
             chain.ainvoke({"topic": topic, "profile_json": profile.model_dump_json()}),
@@ -439,7 +444,7 @@ async def run_worker_loop(poll_seconds: int = 5) -> None:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO)
+    configure_logging()
     asyncio.run(run_worker_loop())
 
 

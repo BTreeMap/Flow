@@ -11,11 +11,27 @@ from functools import cache
 
 
 @cache
+def get_data_dir() -> str:
+    """Return the data directory for persistent storage."""
+    # Priority:
+    # 1. Environment variable
+    # 2. Container path (/app/data) if it exists
+    # 3. Local fallback (./data)
+    env_val = os.environ.get("FLOW_DATA_DIR")
+    if env_val:
+        return env_val
+    if os.path.isdir("/app/data"):
+        return "/app/data"
+    return os.path.abspath("data")
+
+
+@cache
 def get_database_url() -> str:
     """Return the database URL from environment."""
+    default_db = f"sqlite+aiosqlite:///{get_data_dir()}/flow-app.db"
     return os.environ.get(
         "H4CKATH0N_DATABASE_URL",
-        "sqlite+aiosqlite:///./data/flow-app.db",
+        default_db,
     )
 
 
@@ -68,6 +84,7 @@ def get_vapid_sub() -> str:
 
 def clear_config_cache() -> None:
     """Clear all configuration caches (useful for testing)."""
+    get_data_dir.cache_clear()
     get_database_url.cache_clear()
     get_env.cache_clear()
     get_worker_id.cache_clear()
