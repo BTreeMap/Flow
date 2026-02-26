@@ -98,7 +98,8 @@ def route_turn_llm(
     user_text: str,
 ) -> RouteDecision:
     """Use LLM with structured output for routing."""
-    structured = llm.with_structured_output(RouteDecision)
+    # Pass schema dict to get a dict back, avoiding Pydantic serialization issues in LangChain
+    structured = llm.with_structured_output(RouteDecision.model_json_schema())
     result = (_router_prompt | structured).invoke(
         {
             "profile_summary": profile_summary,
@@ -107,8 +108,15 @@ def route_turn_llm(
             "user_text": user_text,
         }
     )
+    if isinstance(result, dict):
+        try:
+            return RouteDecision.model_validate(result)
+        except Exception:
+            logger.warning("Failed to parse RouteDecision from dict: %s", result)
+
     if isinstance(result, RouteDecision):
         return result
+
     return RouteDecision(route="COACH", reason="LLM fallback")
 
 
