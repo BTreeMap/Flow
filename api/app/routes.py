@@ -667,6 +667,24 @@ async def claim_invite(
     db: AsyncSession = Depends(get_db),
 ) -> ClaimResponse:
     """Validate invite code, create membership and conversation."""
+    try:
+        return await _claim_invite_impl(project_id, body, user, db)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Claim invite failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        )
+
+
+async def _claim_invite_impl(
+    project_id: str,
+    body: ClaimRequest,
+    user: User,
+    db: AsyncSession,
+) -> ClaimResponse:
     # Verify project exists
     proj_result = await db.execute(select(Project).where(Project.id == project_id))
     project = proj_result.scalar_one_or_none()
@@ -1130,15 +1148,19 @@ async def send_message(
         # Run new architecture engine turn (Router + specialist)
         from app.agents.engine import process_turn as engine_process_turn
 
-        assistant_content, _decision = await engine_process_turn(
-            db=db,
-            conversation=conv,
-            membership_id=membership_id,
-            user_msg=user_msg,
-            user_text=body.text,
-            llm=llm,
-            router_llm=llm,
-        )
+        try:
+            assistant_content, _decision = await engine_process_turn(
+                db=db,
+                conversation=conv,
+                membership_id=membership_id,
+                user_msg=user_msg,
+                user_text=body.text,
+                llm=llm,
+                router_llm=llm,
+            )
+        except Exception:
+            logger.exception("Engine process_turn failed")
+            raise
 
         assistant_msg = Message(
             conversation_id=conv_id,
@@ -1300,6 +1322,9 @@ async def event_stream(
                     else:
                         # Send keepalive comment
                         yield {"comment": "keepalive"}
+        except Exception:
+            logger.exception("Event stream failed for project %s", project_id)
+            raise
         finally:
             _sse_queues[conversation_id].discard(queue)
             if not _sse_queues[conversation_id]:
@@ -1345,6 +1370,21 @@ async def push_subscribe(
     db: AsyncSession = Depends(get_db),
 ) -> PushSubscribeResponse:
     """Store a push subscription for the current membership."""
+    try:
+        return await _push_subscribe_impl(project_id, body, user, db)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Push subscription failed")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+async def _push_subscribe_impl(
+    project_id: str,
+    body: PushSubscribeRequest,
+    user: User,
+    db: AsyncSession,
+) -> PushSubscribeResponse:
     membership = await _get_membership(db, project_id, user.id)
 
     # Check for existing subscription with same endpoint
