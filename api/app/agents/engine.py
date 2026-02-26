@@ -100,14 +100,19 @@ def route_turn_llm(
     """Use LLM with structured output for routing."""
     # Pass schema dict to get a dict back, avoiding Pydantic serialization issues in LangChain
     structured = llm.with_structured_output(RouteDecision.model_json_schema())
-    result = (_router_prompt | structured).invoke(
-        {
-            "profile_summary": profile_summary,
-            "memory_summary": memory_summary,
-            "conv_state": conv_state,
-            "user_text": user_text,
-        }
-    )
+    try:
+        result = (_router_prompt | structured).invoke(
+            {
+                "profile_summary": profile_summary,
+                "memory_summary": memory_summary,
+                "conv_state": conv_state,
+                "user_text": user_text,
+            }
+        )
+    except Exception:
+        logger.exception("Router LLM invocation failed")
+        return RouteDecision(route="COACH", reason="LLM invocation failed")
+
     if isinstance(result, dict):
         try:
             return RouteDecision.model_validate(result)
@@ -179,99 +184,111 @@ async def _process_proposals(
 
     # Process profile proposals
     for raw in collector.profile_proposals:
-        if latest_user_message_id and isinstance(raw, dict):
-            evidence = raw.get("evidence", {})
-            message_ids = (
-                evidence.get("message_ids", []) if isinstance(evidence, dict) else []
-            )
-            patch = raw.get("patch", {})
-            source_bot = raw.get("source_bot")
-            allowed_fields = (
-                INTAKE_ALLOWED_FIELDS
-                if source_bot == "INTAKE"
-                else FEEDBACK_ALLOWED_FIELDS
-                if source_bot == "FEEDBACK"
-                else set()
-            )
-            if (
-                not message_ids
-                and isinstance(patch, dict)
-                and set(patch).issubset(allowed_fields)
-            ):
-                raw["evidence"] = {
-                    "message_ids": [latest_user_message_id],
-                    "quotes": evidence.get("quotes", [])
-                    if isinstance(evidence, dict)
-                    else [],
-                }
         try:
-            proposal = ProfilePatchProposal.model_validate(raw)
+            if latest_user_message_id and isinstance(raw, dict):
+                evidence = raw.get("evidence", {})
+                message_ids = (
+                    evidence.get("message_ids", [])
+                    if isinstance(evidence, dict)
+                    else []
+                )
+                patch = raw.get("patch", {})
+                source_bot = raw.get("source_bot")
+                allowed_fields = (
+                    INTAKE_ALLOWED_FIELDS
+                    if source_bot == "INTAKE"
+                    else FEEDBACK_ALLOWED_FIELDS
+                    if source_bot == "FEEDBACK"
+                    else set()
+                )
+                if (
+                    not message_ids
+                    and isinstance(patch, dict)
+                    and set(patch).issubset(allowed_fields)
+                ):
+                    raw["evidence"] = {
+                        "message_ids": [latest_user_message_id],
+                        "quotes": evidence.get("quotes", [])
+                        if isinstance(evidence, dict)
+                        else [],
+                    }
+            try:
+                proposal = ProfilePatchProposal.model_validate(raw)
+            except Exception:
+                logger.warning("Invalid profile proposal: %s", raw)
+                continue
+
+            valid, reason = validate_profile_patch(proposal, recent_message_ids)
+
+            await log_patch_audit(
+                db=db,
+                membership_id=membership_id,
+                proposal_type="profile",
+                source_bot=proposal.source_bot,
+                patch_json=json.dumps(proposal.patch),
+                confidence=proposal.confidence,
+                evidence_json=proposal.evidence.model_dump_json(),
+                decision="committed" if valid else f"ignored: {reason}",
+                committed_at=now if valid else None,
+            )
+
+            if valid:
+                profile = apply_profile_patch(profile, proposal.patch)
+                await save_user_profile(db, membership_id, profile)
+                logger.info("Committed profile patch from %s", proposal.source_bot)
         except Exception:
-            logger.warning("Invalid profile proposal: %s", raw)
-            continue
-
-        valid, reason = validate_profile_patch(proposal, recent_message_ids)
-
-        await log_patch_audit(
-            db=db,
-            membership_id=membership_id,
-            proposal_type="profile",
-            source_bot=proposal.source_bot,
-            patch_json=json.dumps(proposal.patch),
-            confidence=proposal.confidence,
-            evidence_json=proposal.evidence.model_dump_json(),
-            decision="committed" if valid else f"ignored: {reason}",
-            committed_at=now if valid else None,
-        )
-
-        if valid:
-            profile = apply_profile_patch(profile, proposal.patch)
-            await save_user_profile(db, membership_id, profile)
-            logger.info("Committed profile patch from %s", proposal.source_bot)
+            logger.exception("Failed to process profile proposal: %s", raw)
 
     # Process memory proposals
     for raw in collector.memory_proposals:
-        if latest_user_message_id and isinstance(raw, dict):
-            evidence = raw.get("evidence", {})
-            message_ids = (
-                evidence.get("message_ids", []) if isinstance(evidence, dict) else []
-            )
-            source_bot = raw.get("source_bot")
-            if not message_ids and source_bot in {"INTAKE", "FEEDBACK"}:
-                raw["evidence"] = {
-                    "message_ids": [latest_user_message_id],
-                    "quotes": evidence.get("quotes", [])
-                    if isinstance(evidence, dict)
-                    else [],
-                }
         try:
-            proposal = MemoryPatchProposal.model_validate(raw)
-        except Exception:
-            logger.warning("Invalid memory proposal: %s", raw)
-            continue
+            if latest_user_message_id and isinstance(raw, dict):
+                evidence = raw.get("evidence", {})
+                message_ids = (
+                    evidence.get("message_ids", [])
+                    if isinstance(evidence, dict)
+                    else []
+                )
+                source_bot = raw.get("source_bot")
+                if not message_ids and source_bot in {"INTAKE", "FEEDBACK"}:
+                    raw["evidence"] = {
+                        "message_ids": [latest_user_message_id],
+                        "quotes": evidence.get("quotes", [])
+                        if isinstance(evidence, dict)
+                        else [],
+                    }
+            try:
+                proposal = MemoryPatchProposal.model_validate(raw)
+            except Exception:
+                logger.warning("Invalid memory proposal: %s", raw)
+                continue
 
-        valid, reason = validate_memory_patch(proposal, recent_message_ids)
+            valid, reason = validate_memory_patch(proposal, recent_message_ids)
 
-        await log_patch_audit(
-            db=db,
-            membership_id=membership_id,
-            proposal_type="memory",
-            source_bot=proposal.source_bot,
-            patch_json=json.dumps([i.model_dump(mode="json") for i in proposal.items]),
-            confidence=proposal.confidence,
-            evidence_json=proposal.evidence.model_dump_json(),
-            decision="committed" if valid else f"ignored: {reason}",
-            committed_at=now if valid else None,
-        )
-
-        if valid:
-            for item in proposal.items:
-                await add_memory_item(db, membership_id, item)
-            logger.info(
-                "Committed %d memory items from %s",
-                len(proposal.items),
-                proposal.source_bot,
+            await log_patch_audit(
+                db=db,
+                membership_id=membership_id,
+                proposal_type="memory",
+                source_bot=proposal.source_bot,
+                patch_json=json.dumps(
+                    [i.model_dump(mode="json") for i in proposal.items]
+                ),
+                confidence=proposal.confidence,
+                evidence_json=proposal.evidence.model_dump_json(),
+                decision="committed" if valid else f"ignored: {reason}",
+                committed_at=now if valid else None,
             )
+
+            if valid:
+                for item in proposal.items:
+                    await add_memory_item(db, membership_id, item)
+                logger.info(
+                    "Committed %d memory items from %s",
+                    len(proposal.items),
+                    proposal.source_bot,
+                )
+        except Exception:
+            logger.exception("Failed to process memory proposal: %s", raw)
 
     return profile
 
