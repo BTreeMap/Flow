@@ -1,4 +1,6 @@
+import os
 import pytest
+from unittest.mock import patch
 from app import config
 
 
@@ -46,3 +48,37 @@ def test_get_vapid_sub(monkeypatch):
     monkeypatch.setenv("VAPID_CLAIM_SUB", "mailto:test@example.com")
     config.clear_config_cache()
     assert config.get_vapid_sub() == "mailto:test@example.com"
+
+
+def test_get_data_dir_env_var(monkeypatch):
+    monkeypatch.setenv("FLOW_DATA_DIR", "/custom/data")
+    config.clear_config_cache()
+    assert config.get_data_dir() == "/custom/data"
+
+
+def test_get_data_dir_container_exists(monkeypatch):
+    monkeypatch.delenv("FLOW_DATA_DIR", raising=False)
+    config.clear_config_cache()
+
+    with patch("os.path.isdir") as mock_isdir:
+        mock_isdir.side_effect = lambda p: p == "/app/data"
+        assert config.get_data_dir() == "/app/data"
+
+
+def test_get_data_dir_local_fallback(monkeypatch):
+    monkeypatch.delenv("FLOW_DATA_DIR", raising=False)
+    config.clear_config_cache()
+
+    with patch("os.path.isdir") as mock_isdir:
+        mock_isdir.return_value = False
+        expected = os.path.abspath("data")
+        assert config.get_data_dir() == expected
+
+
+def test_get_database_url_uses_data_dir(monkeypatch):
+    monkeypatch.delenv("H4CKATH0N_DATABASE_URL", raising=False)
+    monkeypatch.setenv("FLOW_DATA_DIR", "/tmp/flow")
+    config.clear_config_cache()
+
+    expected = "sqlite+aiosqlite:////tmp/flow/flow-app.db"
+    assert config.get_database_url() == expected
