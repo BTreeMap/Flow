@@ -1130,15 +1130,19 @@ async def send_message(
         # Run new architecture engine turn (Router + specialist)
         from app.agents.engine import process_turn as engine_process_turn
 
-        assistant_content, _decision = await engine_process_turn(
-            db=db,
-            conversation=conv,
-            membership_id=membership_id,
-            user_msg=user_msg,
-            user_text=body.text,
-            llm=llm,
-            router_llm=llm,
-        )
+        try:
+            assistant_content, _decision = await engine_process_turn(
+                db=db,
+                conversation=conv,
+                membership_id=membership_id,
+                user_msg=user_msg,
+                user_text=body.text,
+                llm=llm,
+                router_llm=llm,
+            )
+        except Exception:
+            logger.exception("Engine process_turn failed")
+            raise
 
         assistant_msg = Message(
             conversation_id=conv_id,
