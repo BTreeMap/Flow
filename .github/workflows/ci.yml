@@ -78,7 +78,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: backend-test-results-${{ matrix.db }}
           path: api/junit-results.xml
@@ -211,7 +211,7 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ matrix.db }}
           path: |
@@ -277,7 +277,7 @@ jobs:
 
       - name: Upload Trivy report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-ci-report
           path: trivy-report.txt
@@ -293,7 +293,7 @@ jobs:
 
       - name: Upload SARIF report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-sarif-report
           path: trivy-results.sarif
@@ -369,7 +369,7 @@ jobs:
 
       - name: Upload Trivy report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-web-ci-report
           path: trivy-web-report.txt
@@ -385,7 +385,7 @@ jobs:
 
       - name: Upload SARIF report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-web-sarif-report
           path: trivy-web-results.sarif
@@ -518,7 +518,7 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-compose-report-${{ matrix.db }}
           path: |
