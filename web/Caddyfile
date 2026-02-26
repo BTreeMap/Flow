@@ -2,6 +2,15 @@
 	auto_https off
 	admin off
 	persist_config off
+
+	servers {
+		timeouts {
+			read_header 30s
+			read_body   5m
+			write       0		# 0 = no timeout (required for SSE streams)
+			idle        30m		# default 5m — raised for long-lived connections
+		}
+	}
 }
 
 :8080 {
@@ -11,6 +20,13 @@
 	handle_path /api/* {
 		reverse_proxy {$BACKEND_UPSTREAM:flow:8000} {
 			flush_interval -1
+
+			transport http {
+				dial_timeout             30s	# default 10s  — connect to upstream
+				response_header_timeout  0		# 0 = no timeout — wait for upstream headers
+				keepalive                120s	# keep upstream conns alive
+				keepalive_idle_conns     64
+			}
 		}
 	}
 
