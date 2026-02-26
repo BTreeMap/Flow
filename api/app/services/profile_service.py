@@ -39,7 +39,10 @@ async def load_user_profile(db: AsyncSession, membership_id: int) -> UserProfile
 
 
 async def save_user_profile(
-    db: AsyncSession, membership_id: int, profile: UserProfileData
+    db: AsyncSession,
+    membership_id: int,
+    profile: UserProfileData,
+    flush: bool = True,
 ) -> None:
     """Upsert the user profile (Router-only write path)."""
     result = await db.execute(
@@ -55,7 +58,9 @@ async def save_user_profile(
         db.add(row)
     else:
         row.profile_json = profile_json
-    await db.flush()
+
+    if flush:
+        await db.flush()
 
 
 async def load_memory_items(
@@ -88,7 +93,10 @@ async def load_memory_items(
 
 
 async def add_memory_item(
-    db: AsyncSession, membership_id: int, item: MemoryItemData
+    db: AsyncSession,
+    membership_id: int,
+    item: MemoryItemData,
+    flush: bool = True,
 ) -> None:
     """Add a single memory item (Router-only write path)."""
     row = MemoryItem(
@@ -98,7 +106,8 @@ async def add_memory_item(
         tags=",".join(item.tags) if item.tags else None,
     )
     db.add(row)
-    await db.flush()
+    if flush:
+        await db.flush()
 
 
 async def log_patch_audit(
@@ -111,6 +120,7 @@ async def log_patch_audit(
     evidence_json: str,
     decision: str,
     committed_at: datetime | None = None,
+    flush: bool = True,
 ) -> None:
     """Record a patch proposal and its decision in the audit log."""
     row = PatchAuditLog(
@@ -124,7 +134,8 @@ async def log_patch_audit(
         committed_at=committed_at,
     )
     db.add(row)
-    await db.flush()
+    if flush:
+        await db.flush()
 
 
 def get_allowed_fields(source_bot: str) -> set[str]:

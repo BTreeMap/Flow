@@ -178,6 +178,7 @@ async def _process_proposals(
     now = datetime.now(timezone.utc)
 
     # Process profile proposals
+    profile_updated = False
     for raw in collector.profile_proposals:
         if latest_user_message_id and isinstance(raw, dict):
             evidence = raw.get("evidence", {})
@@ -222,12 +223,16 @@ async def _process_proposals(
             evidence_json=proposal.evidence.model_dump_json(),
             decision="committed" if valid else f"ignored: {reason}",
             committed_at=now if valid else None,
+            flush=False,
         )
 
         if valid:
             profile = apply_profile_patch(profile, proposal.patch)
-            await save_user_profile(db, membership_id, profile)
+            profile_updated = True
             logger.info("Committed profile patch from %s", proposal.source_bot)
+
+    if profile_updated:
+        await save_user_profile(db, membership_id, profile, flush=False)
 
     # Process memory proposals
     for raw in collector.memory_proposals:
@@ -262,17 +267,19 @@ async def _process_proposals(
             evidence_json=proposal.evidence.model_dump_json(),
             decision="committed" if valid else f"ignored: {reason}",
             committed_at=now if valid else None,
+            flush=False,
         )
 
         if valid:
             for item in proposal.items:
-                await add_memory_item(db, membership_id, item)
+                await add_memory_item(db, membership_id, item, flush=False)
             logger.info(
                 "Committed %d memory items from %s",
                 len(proposal.items),
                 proposal.source_bot,
             )
 
+    await db.flush()
     return profile
 
 
