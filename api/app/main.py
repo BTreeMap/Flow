@@ -16,6 +16,7 @@ from starlette.responses import JSONResponse
 from app import config
 from app.db import init_db, engine as app_engine
 from app.db_migrations.migrate import upgrade_to_head
+from app.logging_conf import configure_logging
 from app.middleware import add_csp_middleware
 from app.routes import router
 from h4ckath0n import create_app
@@ -26,6 +27,7 @@ from h4ckath0n.realtime import (
     sse_response,
 )
 
+configure_logging()
 _logger = logging.getLogger(__name__)
 
 # Create the h4ckath0n app (handles its own DB tables via lifespan)

@@ -13,7 +13,16 @@ from functools import cache
 @cache
 def get_data_dir() -> str:
     """Return the data directory for persistent storage."""
-    return os.environ.get("FLOW_DATA_DIR", "/app/data")
+    # Priority:
+    # 1. Environment variable
+    # 2. Container path (/app/data) if it exists
+    # 3. Local fallback (./data)
+    env_val = os.environ.get("FLOW_DATA_DIR")
+    if env_val:
+        return env_val
+    if os.path.isdir("/app/data"):
+        return "/app/data"
+    return os.path.abspath("data")
 
 
 @cache
