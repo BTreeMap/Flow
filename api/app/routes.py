@@ -29,6 +29,7 @@ from app.models import (
     ConversationTurn,
     FlowUserProfile,
     MemoryItem,
+    Notification,
     OutboxEvent,
     PatchAuditLog,
     Conversation,
@@ -42,9 +43,12 @@ from app.models import (
 )
 from app.schemas.patches import UserProfileData
 from app.services.event_service import load_events_since, persist_event
-from app.services.outbox_service import replace_next_scheduled_prompt
+from app.services.outbox_service import (
+    enqueue_outbox_event,
+    replace_next_scheduled_prompt,
+)
 from app.services.profile_service import load_user_profile, save_user_profile
-from app import vapid_utils
+from app import config
 from h4ckath0n.auth import require_user
 from h4ckath0n.auth.dependencies import require_admin
 from h4ckath0n.auth.models import Device, User
@@ -204,6 +208,22 @@ class PushUnsubscribeResponse(BaseModel):
     ok: bool
 
 
+class NotificationItem(BaseModel):
+    id: int
+    title: str
+    body: str
+    created_at: str
+    read_at: str | None
+
+
+class NotificationListResponse(BaseModel):
+    notifications: list[NotificationItem]
+
+
+class NotificationUnreadCountResponse(BaseModel):
+    count: int
+
+
 class VapidPublicKeyResponse(BaseModel):
     public_key: str
 
@@ -353,7 +373,9 @@ class AdminDebugStatusResponse(BaseModel):
 class AdminLLMConnectivityRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    model: str = "gpt-4o-mini"
+    model: str = Field(
+        default_factory=lambda: os.environ.get("LLM_MODEL", "gpt-4o-mini")
+    )
     prompt: str = "Reply with exactly: OK"
     max_tokens: int = 128
     temperature: float = 0.0
@@ -567,11 +589,9 @@ async def revoke_auth_session(
 async def admin_debug_status(
     _admin_user: User = require_admin(),
 ) -> AdminDebugStatusResponse:
-    llm_key_present = bool(
-        os.environ.get("OPENAI_API_KEY") or os.environ.get("H4CKATH0N_OPENAI_API_KEY")
-    )
-    vapid_public_present = bool(vapid_utils.get_vapid_public_key())
-    vapid_private_present = bool(vapid_utils.get_vapid_private_key())
+    llm_key_present = bool(config.get_openai_api_key())
+    vapid_public_present = bool(config.get_vapid_public_key())
+    vapid_private_present = bool(config.get_vapid_private_key())
     warnings: list[str] = []
     if not llm_key_present:
         warnings.append("OpenAI API key missing: chat runs in stub mode")
@@ -807,7 +827,9 @@ async def claim_invite(
                 "OPENAI_API_KEY"
             )
             if llm_key:
-                llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key)
+                llm = ChatOpenAI(
+                    model=os.environ.get("LLM_MODEL", "gpt-4o-mini"), api_key=llm_key
+                )
 
                 from app.agents.engine import process_turn as engine_process_turn
 
@@ -1081,7 +1103,13 @@ async def send_message(
         llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
             "OPENAI_API_KEY"
         )
-        llm = ChatOpenAI(model="gpt-4o-mini", api_key=llm_key) if llm_key else None
+        llm = (
+            ChatOpenAI(
+                model=os.environ.get("LLM_MODEL", "gpt-4o-mini"), api_key=llm_key
+            )
+            if llm_key
+            else None
+        )
 
         # Persist user message
         user_msg = Message(
@@ -1295,7 +1323,7 @@ async def vapid_public_key(
     # Verify membership exists
     await _get_membership(db, project_id, user.id)
 
-    key = vapid_utils.get_vapid_public_key()
+    key = config.get_vapid_public_key()
     if not key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -1387,6 +1415,97 @@ async def push_unsubscribe(
     await db.commit()
 
     return PushUnsubscribeResponse(ok=True)
+
+
+# ---------------------------------------------------------------------------
+# 9. Notifications
+# ---------------------------------------------------------------------------
+
+
+@router.get("/p/{project_id}/notifications", tags=["notifications"])
+async def list_notifications(
+    project_id: str,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> NotificationListResponse:
+    """List notifications for the current membership."""
+    membership = await _get_membership(db, project_id, user.id)
+    result = await db.execute(
+        select(Notification)
+        .where(Notification.membership_id == membership.id)
+        .order_by(Notification.created_at.desc())
+        .limit(50)
+    )
+    notifications = result.scalars().all()
+    return NotificationListResponse(
+        notifications=[
+            NotificationItem(
+                id=n.id,
+                title=n.title,
+                body=n.body,
+                created_at=n.created_at.isoformat(),
+                read_at=n.read_at.isoformat() if n.read_at else None,
+            )
+            for n in notifications
+        ]
+    )
+
+
+@router.get("/p/{project_id}/notifications/unread-count", tags=["notifications"])
+async def get_unread_count(
+    project_id: str,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> NotificationUnreadCountResponse:
+    """Get count of unread notifications."""
+    membership = await _get_membership(db, project_id, user.id)
+    result = await db.execute(
+        select(func.count(Notification.id)).where(
+            Notification.membership_id == membership.id, Notification.read_at.is_(None)
+        )
+    )
+    count = result.scalar() or 0
+    return NotificationUnreadCountResponse(count=count)
+
+
+@router.post(
+    "/p/{project_id}/notifications/{notification_id}/read", tags=["notifications"]
+)
+async def mark_notification_read(
+    project_id: str,
+    notification_id: int,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Mark a notification as read."""
+    membership = await _get_membership(db, project_id, user.id)
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            Notification.membership_id == membership.id,
+        )
+    )
+    notification = result.scalar_one_or_none()
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    if not notification.read_at:
+        notification.read_at = datetime.now(UTC)
+
+        # Enqueue read receipt sync to other devices
+        await enqueue_outbox_event(
+            db,
+            project_id=project_id,
+            membership_id=membership.id,
+            event_type="notification_read_receipt",
+            payload={"notification_id": notification_id, "project_id": project_id},
+            dedupe_key=f"read_receipt:{notification_id}",
+            available_at=datetime.now(UTC),
+        )
+
+        await db.commit()
+
+    return {"ok": True}
 
 
 @router.post("/admin/projects", tags=["admin"])
@@ -1782,8 +1901,8 @@ async def admin_push_test(
 ) -> AdminPushTestResponse:
     from pywebpush import webpush
 
-    vapid_private_key = vapid_utils.get_vapid_private_key()
-    vapid_claims = vapid_utils.get_vapid_claims()
+    vapid_private_key = config.get_vapid_private_key()
+    vapid_claims = {"sub": config.get_vapid_sub()}
 
     if not vapid_private_key:
         raise HTTPException(status_code=503, detail="VAPID private key not configured")

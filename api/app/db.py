@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app import config
 from app.models import Base
 
-_DATABASE_URL = os.environ.get(
-    "H4CKATH0N_DATABASE_URL",
-    "sqlite+aiosqlite:///./data/flow-app.db",
-)
+_DATABASE_URL = config.get_database_url()
 
 # Ensure the data directory exists for SQLite
 if "sqlite" in _DATABASE_URL:

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.models import Base, PushSubscription, ProjectMembership, Project
 from app.db import get_db
 from app.id_utils import generate_project_id
-from app.vapid_utils import clear_vapid_cache
+from app.config import clear_config_cache
 from h4ckath0n.auth.dependencies import _get_current_user
 from h4ckath0n.auth.models import Base as H4ckath0nBase
 from app.main import app
@@ -37,7 +37,7 @@ def _override_require_admin():
 @pytest_asyncio.fixture
 async def client():
     # Clear VAPID cache before and after test
-    clear_vapid_cache()
+    clear_config_cache()
 
     # Override dependencies
     app.dependency_overrides[get_db] = _override_get_db
@@ -55,7 +55,7 @@ async def client():
         yield ac
 
     app.dependency_overrides.clear()
-    clear_vapid_cache()
+    clear_config_cache()
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(H4ckath0nBase.metadata.drop_all)

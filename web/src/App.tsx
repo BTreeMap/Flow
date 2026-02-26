@@ -9,6 +9,7 @@ import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
 import { Updates } from "./pages/Updates";
+import { UpdatesPage } from "./pages/UpdatesPage";
 import { Activation } from "./pages/Activation";
 import { Onboarding } from "./pages/Onboarding";
 import { OnboardingNotifications } from "./pages/OnboardingNotifications";
@@ -61,6 +62,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <Notifications />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/p/:projectId/updates"
+          element={
+            <ProtectedRoute>
+              <UpdatesPage />
             </ProtectedRoute>
           }
         />
