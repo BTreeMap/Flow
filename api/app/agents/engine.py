@@ -332,11 +332,11 @@ async def _process_proposals(
                     reason = "Missing schedule_id"
 
             if valid and proposal.source_bot != "COACH":
-                 # Assuming only Coach should really be messing with schedules for now,
-                 # or at least that's where we exposed the tools.
-                 # But technically any bot could if we let it.
-                 # Let's keep it open but log it.
-                 pass
+                # Assuming only Coach should really be messing with schedules for now,
+                # or at least that's where we exposed the tools.
+                # But technically any bot could if we let it.
+                # Let's keep it open but log it.
+                pass
 
             await log_patch_audit(
                 db=db,
@@ -344,12 +344,12 @@ async def _process_proposals(
                 proposal_type="schedule",
                 source_bot=proposal.source_bot,
                 patch_json=json.dumps(
-                     {
-                         "action": proposal.action,
-                         "topic": proposal.topic,
-                         "time": proposal.time,
-                         "schedule_id": proposal.schedule_id
-                     }
+                    {
+                        "action": proposal.action,
+                        "topic": proposal.topic,
+                        "time": proposal.time,
+                        "schedule_id": proposal.schedule_id,
+                    }
                 ),
                 confidence=proposal.confidence,
                 evidence_json=proposal.evidence.model_dump_json(),
@@ -363,13 +363,17 @@ async def _process_proposals(
                     await create_nudge_schedule(
                         db, membership_id, proposal.topic, proposal.time
                     )
-                    logger.info("Committed schedule creation from %s", proposal.source_bot)
+                    logger.info(
+                        "Committed schedule creation from %s", proposal.source_bot
+                    )
                 elif proposal.action == "delete":
                     await deactivate_schedule(db, proposal.schedule_id)
-                    logger.info("Committed schedule deletion from %s", proposal.source_bot)
+                    logger.info(
+                        "Committed schedule deletion from %s", proposal.source_bot
+                    )
 
         except Exception:
-             logger.exception("Failed to process schedule proposal: %s", raw)
+            logger.exception("Failed to process schedule proposal: %s", raw)
 
     if profile_changed:
         await save_user_profile(db, membership_id, profile, flush=False)
@@ -479,6 +483,7 @@ async def process_turn(
         # Add scheduler tools for COACH
         if decision.route == "COACH":
             from app.tools.scheduler_tools import list_schedules
+
             # COACH gets list_schedules + proposal tools (which now include schedule proposals)
             proposal_tools.append(list_schedules)
 
@@ -533,7 +538,7 @@ async def process_turn(
     else:
         # Stub mode (no LLM)
         assistant_text, collector = _run_specialist_stub(decision.route, user_text)
-        tool_names = ["stub_tools"] # simplified for stub
+        tool_names = ["stub_tools"]  # simplified for stub
 
     # Step 4: Process proposals through Router validator
     await _process_proposals(
@@ -545,9 +550,6 @@ async def process_turn(
         latest_user_message_id=user_msg.id if user_msg else None,
     )
 
-    debug_info = {
-        "agent": decision.route,
-        "tools": tool_names
-    }
+    debug_info = {"agent": decision.route, "tools": tool_names}
 
     return assistant_text, decision, debug_info

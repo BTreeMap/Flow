@@ -1,7 +1,5 @@
 """Integration tests for the conversation engine."""
 
-import json
-from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import select
@@ -9,11 +7,9 @@ from sqlalchemy import select
 from app.agents.engine import process_turn
 from app.id_utils import generate_server_msg_id
 from app.models import (
-    Conversation,
     ConversationRuntimeState,
     Message,
     PatchAuditLog,
-    ProjectMembership,
 )
 from app.schemas.patches import UserProfileData
 from app.services.profile_service import load_memory_items, save_user_profile
@@ -148,10 +144,6 @@ class TestAuditLog:
     @pytest.mark.asyncio
     async def test_proposals_are_logged(self, seeded_db: dict) -> None:
         """Verify patch proposals are written to the audit log."""
-        db = seeded_db["db"]
-        conv = seeded_db["conversation"]
-        mid = seeded_db["membership_id"]
-
         # Stub engine produces patches in INTAKE mode
         # (Assuming _run_specialist_stub returns empty collector in stub mode for now,
         # but let's check if we can verify empty audit log or inject behavior)
@@ -187,14 +179,18 @@ class TestAuditLog:
 
         # Check audit log
         audit = (
-            await db.execute(select(PatchAuditLog).where(PatchAuditLog.membership_id == mid))
+            await db.execute(
+                select(PatchAuditLog).where(PatchAuditLog.membership_id == mid)
+            )
         ).scalar_one()
         assert audit.proposal_type == "profile"
         assert audit.decision == "committed"
         assert audit.source_bot == "INTAKE"
 
     @pytest.mark.asyncio
-    async def test_process_proposals_ignores_invalid_field(self, seeded_db: dict) -> None:
+    async def test_process_proposals_ignores_invalid_field(
+        self, seeded_db: dict
+    ) -> None:
         """Coach cannot change prompt_anchor."""
         db = seeded_db["db"]
         mid = seeded_db["membership_id"]
@@ -216,7 +212,9 @@ class TestAuditLog:
         assert updated_profile.prompt_anchor == "old"
 
         audit = (
-            await db.execute(select(PatchAuditLog).where(PatchAuditLog.membership_id == mid))
+            await db.execute(
+                select(PatchAuditLog).where(PatchAuditLog.membership_id == mid)
+            )
         ).scalar_one()
         assert "ignored" in audit.decision
 
@@ -246,7 +244,9 @@ class TestAuditLog:
         assert items[0].content == "User likes cats"
 
         audit = (
-            await db.execute(select(PatchAuditLog).where(PatchAuditLog.membership_id == mid))
+            await db.execute(
+                select(PatchAuditLog).where(PatchAuditLog.membership_id == mid)
+            )
         ).scalar_one()
         assert audit.proposal_type == "memory"
         assert audit.decision == "committed"

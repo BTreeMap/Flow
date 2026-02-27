@@ -35,8 +35,8 @@ export function ChatHeader({
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { me } = useAuth();
-  const isAdmin = me?.role === "admin";
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
 
   useEffect(() => {
     if (!menuOpen) return;
