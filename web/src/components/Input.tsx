@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from "react";
+import { type InputHTMLAttributes, useId } from "react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -12,7 +12,10 @@ export function Input({
   id,
   ...props
 }: InputProps) {
-  const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
+  const generatedId = useId();
+  const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : generatedId);
+  const errorId = useId();
+
   return (
     <div className="space-y-1.5">
       {label && (
@@ -25,12 +28,18 @@ export function Input({
       )}
       <input
         id={inputId}
+        aria-invalid={!!error}
+        aria-describedby={error ? errorId : undefined}
         className={`w-full px-3 py-2 bg-surface border border-border rounded-xl text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors ${
           error ? "border-danger" : ""
         } ${className}`}
         {...props}
       />
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p id={errorId} role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
