@@ -1748,7 +1748,7 @@
   "info": {
     "description": "Hackathon app powered by h4ckath0n",
     "title": "h4ckath0n",
-    "version": "0.1.9.dev20260223"
+    "version": "0.1.9"
   },
   "openapi": "3.1.0",
   "paths": {

@@ -287,13 +287,6 @@ export function ChatThread() {
     };
   }, [projectId]);
 
-  const appendMessage = useCallback((message: Message) => {
-    setMessages((prev) => {
-      if (prev.some((m) => m.serverMsgId === message.serverMsgId)) return prev;
-      return [...prev, message];
-    });
-  }, []);
-
   const handleSend = async (text: string) => {
     if (!text || sending) return;
 
@@ -339,11 +332,23 @@ export function ChatThread() {
         role: "user" | "assistant";
         content: string;
       };
-      appendMessage({
-        id: String(data.message_id),
-        serverMsgId: data.server_msg_id,
-        role: data.role,
-        content: data.content,
+      setMessages((prev) => {
+        // Remove the temporary message and add the real one
+        const filtered = prev.filter((m) => m.id !== tempId);
+        // Avoid duplicate if serverMsgId is already present
+        if (filtered.some((m) => m.serverMsgId === data.server_msg_id)) {
+          return filtered;
+        }
+        return [
+          ...filtered,
+          {
+            id: String(data.message_id),
+            serverMsgId: data.server_msg_id,
+            role: data.role,
+            content: data.content,
+            created_at: new Date().toISOString(), // Use client time for immediate display or data.created_at if available
+          },
+        ];
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
