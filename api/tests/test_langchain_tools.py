@@ -68,7 +68,6 @@ class TestProfilePatchTool:
                 "patch": {"prompt_anchor": "after coffee"},
                 "confidence": 0.9,
                 "message_ids": [1],
-                "source_bot": "INTAKE",
             }
         )
         assert result["status"] == "proposal_recorded"
@@ -76,6 +75,8 @@ class TestProfilePatchTool:
         assert (
             collector.profile_proposals[0]["patch"]["prompt_anchor"] == "after coffee"
         )
+        # Verify source_bot is correctly injected
+        assert collector.profile_proposals[0]["source_bot"] == "INTAKE"
 
     def test_empty_message_ids_allowed(self) -> None:
         collector = ProposalCollector()
@@ -86,11 +87,11 @@ class TestProfilePatchTool:
                 "patch": {"last_barrier": "evening fatigue"},
                 "confidence": 0.8,
                 "message_ids": [],
-                "source_bot": "FEEDBACK",
             }
         )
         assert result["status"] == "proposal_recorded"
         assert len(collector.profile_proposals) == 1
+        assert collector.profile_proposals[0]["source_bot"] == "FEEDBACK"
 
     def test_multiple_proposals_accumulated(self) -> None:
         collector = ProposalCollector()
@@ -101,7 +102,6 @@ class TestProfilePatchTool:
                 "patch": {"prompt_anchor": "a"},
                 "confidence": 0.9,
                 "message_ids": [1],
-                "source_bot": "INTAKE",
             }
         )
         tool.invoke(
@@ -109,7 +109,6 @@ class TestProfilePatchTool:
                 "patch": {"preferred_time": "8am"},
                 "confidence": 0.9,
                 "message_ids": [2],
-                "source_bot": "INTAKE",
             }
         )
         assert len(collector.profile_proposals) == 2
@@ -130,7 +129,6 @@ class TestMemoryPatchTool:
                 "items": [{"content": "User prefers mornings"}],
                 "confidence": 0.85,
                 "message_ids": [5],
-                "source_bot": "FEEDBACK",
             }
         )
         assert result["status"] == "proposal_recorded"
@@ -139,6 +137,7 @@ class TestMemoryPatchTool:
             collector.memory_proposals[0]["items"][0]["content"]
             == "User prefers mornings"
         )
+        assert collector.memory_proposals[0]["source_bot"] == "FEEDBACK"
 
     def test_with_quotes(self) -> None:
         collector = ProposalCollector()
@@ -150,9 +149,9 @@ class TestMemoryPatchTool:
                 "confidence": 0.7,
                 "message_ids": [10],
                 "quotes": ["my knee has been bothering me"],
-                "source_bot": "COACH",
             }
         )
         assert result["status"] == "proposal_recorded"
         evidence = collector.memory_proposals[0]["evidence"]
         assert "my knee" in evidence["quotes"][0]
+        assert collector.memory_proposals[0]["source_bot"] == "COACH"

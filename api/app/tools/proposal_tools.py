@@ -16,13 +16,12 @@ from pydantic import BaseModel, Field
 class ProposeProfilePatchArgs(BaseModel):
     """Arguments for the propose_profile_patch tool."""
 
-    patch: dict = Field(..., description="Partial profile patch (key-value pairs)")
+    patch: dict = Field(..., description="Dictionary of profile fields to update")
     confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
     message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
     quotes: list[str] = Field(
         default_factory=list, description="Short verbatim snippets"
     )
-    source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
 
 
 class ProposeMemoryPatchArgs(BaseModel):
@@ -36,7 +35,6 @@ class ProposeMemoryPatchArgs(BaseModel):
     quotes: list[str] = Field(
         default_factory=list, description="Short verbatim snippets"
     )
-    source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
 
 
 class ProposeScheduleNudgeArgs(BaseModel):
@@ -46,7 +44,6 @@ class ProposeScheduleNudgeArgs(BaseModel):
     time: str = Field(..., description="The time of day in HH:MM format (24h)")
     confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
     message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
-    source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
 
 
 class ProposeDeleteScheduleArgs(BaseModel):
@@ -55,7 +52,6 @@ class ProposeDeleteScheduleArgs(BaseModel):
     schedule_id: int = Field(..., description="The ID of the schedule to delete")
     confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
     message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
-    source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
 
 
 # ---------------------------------------------------------------------------
