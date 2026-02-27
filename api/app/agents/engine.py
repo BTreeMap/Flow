@@ -480,11 +480,10 @@ async def process_turn(
 
         proposal_tools = make_proposal_tools(collector, source_bot=decision.route)
 
-        # Add scheduler tools for COACH
-        if decision.route == "COACH":
+        # Add scheduler tools for COACH and INTAKE
+        if decision.route in ("COACH", "INTAKE"):
             from app.tools.scheduler_tools import list_schedules
 
-            # COACH gets list_schedules + proposal tools (which now include schedule proposals)
             proposal_tools.append(list_schedules)
 
         # Collect tool names for debug info

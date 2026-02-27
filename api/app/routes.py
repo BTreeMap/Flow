@@ -45,7 +45,6 @@ from app.schemas.patches import UserProfileData
 from app.services.event_service import load_events_since, persist_event
 from app.services.outbox_service import (
     enqueue_outbox_event,
-    replace_next_scheduled_prompt,
 )
 from app.services.profile_service import load_user_profile, save_user_profile
 from app import config
@@ -967,11 +966,6 @@ async def put_profile(
     merged.update(body.model_dump())
     profile = UserProfileData.model_validate(merged)
     await save_user_profile(db, membership.id, profile)
-    await replace_next_scheduled_prompt(
-        db,
-        membership=membership,
-        preferred_time=profile.preferred_time,
-    )
     await db.commit()
     return profile
 

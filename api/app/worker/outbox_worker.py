@@ -21,11 +21,9 @@ from app.models import (
     Notification,
     NudgeSchedule,
     OutboxEvent,
-    ProjectMembership,
     PushSubscription,
 )
 from app.services.outbox_service import (
-    enqueue_next_scheduled_prompt,
     enqueue_outbox_event,
     next_run_at,
 )
@@ -33,7 +31,6 @@ from app.services.profile_service import load_user_profile
 
 logger = logging.getLogger(__name__)
 
-SCHEDULED_PROMPT_TEXT = "Daily check-in: how did it go today?"
 MAX_ATTEMPTS = 5
 FAILED_EVENT_POSTPONE_DAYS = 3650
 LOCK_DURATION_SECONDS = 300
@@ -301,58 +298,6 @@ async def _handle_scheduled_nudge(db, event: OutboxEvent) -> None:
     await db.commit()
 
 
-async def _handle_scheduled_prompt(db, event: OutboxEvent) -> None:
-    # Legacy handler for "scheduled_prompt"
-    membership_result = await db.execute(
-        select(ProjectMembership).where(ProjectMembership.id == event.membership_id)
-    )
-    membership = membership_result.scalar_one_or_none()
-    if membership is None:
-        return
-    conversation_result = await db.execute(
-        select(Conversation).where(Conversation.membership_id == membership.id)
-    )
-    conversation = conversation_result.scalar_one_or_none()
-    if conversation is None:
-        return
-
-    existing_message_result = await db.execute(
-        select(Message).where(
-            Message.conversation_id == conversation.id,
-            Message.role == "assistant",
-            Message.client_msg_id == event.dedupe_key,
-        )
-    )
-    if existing_message_result.scalar_one_or_none() is None:
-        db.add(
-            Message(
-                conversation_id=conversation.id,
-                role="assistant",
-                content=SCHEDULED_PROMPT_TEXT,
-                server_msg_id=generate_server_msg_id(),
-                client_msg_id=event.dedupe_key,
-            )
-        )
-
-    profile = await load_user_profile(db, membership.id)
-    await enqueue_next_scheduled_prompt(
-        db,
-        membership=membership,
-        preferred_time=profile.preferred_time,
-    )
-    await db.flush()
-    await db.commit()
-
-    # Reuse the new push function
-    await _send_push_notifications(
-        db,
-        membership.id,
-        title="Flow",
-        body=SCHEDULED_PROMPT_TEXT,
-        url=f"/p/{membership.project_id}/chat",
-    )
-
-
 async def _process_event(event: OutboxEvent, worker_id: str) -> None:
     async with async_session_factory() as db:
         row_result = await db.execute(
@@ -366,7 +311,10 @@ async def _process_event(event: OutboxEvent, worker_id: str) -> None:
             return
         try:
             if row.type == "scheduled_prompt":
-                await _handle_scheduled_prompt(db, row)
+                # Legacy event type — noop, delete, and log.
+                logger.info(
+                    "Ignoring legacy scheduled_prompt event %s, deleting.", row.id
+                )
             elif row.type == "scheduled_nudge":
                 await _handle_scheduled_nudge(db, row)
             elif row.type == "notification_read_receipt":

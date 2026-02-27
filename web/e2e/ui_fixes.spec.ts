@@ -73,17 +73,8 @@ test.describe("Chat UI and Debugging", () => {
     // The click triggers an API call then navigation
     await joinButton.click();
 
-    // Check if we hit an error or succeeded
-    // We expect to navigate to onboarding
-    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding`), { timeout: 15000 });
-
-    // Fill Onboarding Form
-    await page.getByPlaceholder("After my morning coffee").fill("Now");
-    await page.getByPlaceholder("08:00 or 8am").fill("09:00");
-    await page.getByRole("button", { name: "Continue to chat" }).click();
-
-    // Explicitly wait for notifications page
-    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding/notifications`));
+    // After claim, user lands on notifications onboarding
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding/notifications`), { timeout: 15000 });
 
     // Wait for "Skip for now" to be visible and clickable
     const skipButton = page.getByRole("button", { name: "Skip for now" });

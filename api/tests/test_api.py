@@ -607,13 +607,13 @@ async def test_profile_put_enables_non_intake_route(
         == "I'm here to support your habit journey. How can I help you today?"
     )
 
+    # Profile PUT no longer enqueues outbox events
     async with _test_session_factory() as db:
         outbox_result = await db.execute(
             select(OutboxEvent).where(OutboxEvent.project_id == project_id)
         )
         events = outbox_result.scalars().all()
-        assert len(events) == 1
-        first_available_at = events[0].available_at
+        assert len(events) == 0
 
     second_put_resp = await client.put(
         f"/p/{project_id}/profile",
@@ -626,8 +626,7 @@ async def test_profile_put_enables_non_intake_route(
             select(OutboxEvent).where(OutboxEvent.project_id == project_id)
         )
         events = outbox_result.scalars().all()
-        assert len(events) == 1
-        assert events[0].available_at != first_available_at
+        assert len(events) == 0
 
 
 @pytest.mark.asyncio
@@ -709,9 +708,9 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
             OutboxEvent(
                 project_id=project_id,
                 membership_id=membership.id,
-                type="scheduled_prompt",
-                payload_json='{"project_id":"%s"}' % project_id,
-                dedupe_key=f"scheduled_prompt:{membership.id}:2099-01-01",
+                type="scheduled_nudge",
+                payload_json='{"project_id":"%s","topic":"Walk"}' % project_id,
+                dedupe_key=f"nudge:{membership.id}:2099-01-01",
                 available_at=datetime.now(UTC),
             )
         )

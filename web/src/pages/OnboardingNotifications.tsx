@@ -40,8 +40,8 @@ export function OnboardingNotifications() {
         <CardContent className="space-y-4">
           <p className="text-text-muted">
             To get the most out of this experiment, please enable push
-            notifications. This ensures you receive your daily nudges at your
-            preferred time.
+            notifications. This ensures you receive nudges at the times you set
+            in chat.
           </p>
 
           {showsIOSGuide && (

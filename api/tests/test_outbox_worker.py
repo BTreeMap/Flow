@@ -12,6 +12,8 @@ from app.models import (
     Base,
     Conversation,
     Message,
+    Notification,
+    NudgeSchedule,
     OutboxEvent,
     Project,
     ProjectMembership,
@@ -69,18 +71,18 @@ async def test_enqueue_outbox_dedupe(
         db,
         project_id=str(project_id),
         membership_id=int(membership_id),
-        event_type="scheduled_prompt",
-        payload={"project_id": project_id},
-        dedupe_key=f"scheduled_prompt:{membership_id}:2099-01-01",
+        event_type="scheduled_nudge",
+        payload={"project_id": project_id, "topic": "Daily Nudge"},
+        dedupe_key=f"nudge:{membership_id}:2099-01-01",
         available_at=now,
     )
     await enqueue_outbox_event(
         db,
         project_id=str(project_id),
         membership_id=int(membership_id),
-        event_type="scheduled_prompt",
-        payload={"project_id": project_id},
-        dedupe_key=f"scheduled_prompt:{membership_id}:2099-01-01",
+        event_type="scheduled_nudge",
+        payload={"project_id": project_id, "topic": "Daily Nudge"},
+        dedupe_key=f"nudge:{membership_id}:2099-01-01",
         available_at=now,
     )
     await db.commit()
@@ -90,9 +92,83 @@ async def test_enqueue_outbox_dedupe(
 
 
 @pytest.mark.asyncio
-async def test_worker_processes_scheduled_prompt_and_push_mock(
+async def test_worker_processes_scheduled_nudge(
     db: AsyncSession, seeded: dict[str, int | str], monkeypatch
 ) -> None:
+    """scheduled_nudge processing persists one assistant message and one notification."""
+    project_id = str(seeded["project_id"])
+    membership_id = int(seeded["membership_id"])
+
+    # Create a nudge schedule so recurrence gets enqueued
+    schedule = NudgeSchedule(
+        membership_id=membership_id, topic="Walk", cron_rule="08:00", is_active=True
+    )
+    db.add(schedule)
+    await db.flush()
+
+    import json
+
+    event = OutboxEvent(
+        project_id=project_id,
+        membership_id=membership_id,
+        type="scheduled_nudge",
+        payload_json=json.dumps(
+            {
+                "project_id": project_id,
+                "schedule_id": schedule.id,
+                "topic": "Walk",
+            }
+        ),
+        dedupe_key=f"nudge:{schedule.id}:2099-01-01",
+        available_at=datetime.now(UTC),
+        locked_by="worker-1",
+        claimed_at=datetime.now(UTC),
+        locked_until=datetime.now(UTC) + timedelta(minutes=1),
+    )
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+
+    async def fake_push(*args, **kwargs):  # type: ignore[no-untyped-def]
+        return None
+
+    monkeypatch.setattr("app.worker.outbox_worker._send_push_notifications", fake_push)
+    monkeypatch.setattr(
+        "app.worker.outbox_worker._generate_custom_prompt", fake_generate
+    )
+    monkeypatch.setattr(
+        "app.worker.outbox_worker.async_session_factory", _session_factory
+    )
+    await _process_event(event, worker_id="worker-1")
+
+    async with _session_factory() as verify_db:
+        message_result = await verify_db.execute(
+            select(Message).where(Message.role == "assistant")
+        )
+        messages = message_result.scalars().all()
+        assert len(messages) == 1
+
+        notification_result = await verify_db.execute(select(Notification))
+        notifications = notification_result.scalars().all()
+        assert len(notifications) == 1
+
+        # Recurrence event should have been enqueued
+        outbox_result = await verify_db.execute(select(OutboxEvent))
+        remaining = outbox_result.scalars().all()
+        assert len(remaining) == 1
+        assert remaining[0].type == "scheduled_nudge"
+        assert remaining[0].dedupe_key != event.dedupe_key
+
+
+async def fake_generate(db, membership_id: int, topic: str) -> str:
+    return f"Nudge: {topic}"
+
+
+@pytest.mark.asyncio
+async def test_legacy_scheduled_prompt_is_noop(
+    db: AsyncSession, seeded: dict[str, int | str], monkeypatch
+) -> None:
+    """A legacy scheduled_prompt event is silently deleted as a noop."""
     project_id = str(seeded["project_id"])
     membership_id = int(seeded["membership_id"])
     event = OutboxEvent(
@@ -110,26 +186,23 @@ async def test_worker_processes_scheduled_prompt_and_push_mock(
     await db.commit()
     await db.refresh(event)
 
-    async def fake_push(*args, **kwargs):  # type: ignore[no-untyped-def]
-        return None
-
-    monkeypatch.setattr("app.worker.outbox_worker._send_push_notifications", fake_push)
     monkeypatch.setattr(
         "app.worker.outbox_worker.async_session_factory", _session_factory
     )
     await _process_event(event, worker_id="worker-1")
 
     async with _session_factory() as verify_db:
+        # No messages should have been created
         message_result = await verify_db.execute(
             select(Message).where(Message.role == "assistant")
         )
-        messages = message_result.scalars().all()
-        assert len(messages) == 1
-        assert "Daily check-in" in messages[0].content
+        assert message_result.scalars().all() == []
 
-        outbox_result = await verify_db.execute(select(OutboxEvent))
-        remaining = outbox_result.scalars().all()
-        assert any(item.dedupe_key != event.dedupe_key for item in remaining)
+        # Event should be deleted
+        event_result = await verify_db.execute(
+            select(OutboxEvent).where(OutboxEvent.id == event.id)
+        )
+        assert event_result.scalar_one_or_none() is None
 
 
 @pytest.mark.asyncio
@@ -142,9 +215,9 @@ async def test_claim_due_events_prevents_double_claim(
         OutboxEvent(
             project_id=project_id,
             membership_id=membership_id,
-            type="scheduled_prompt",
-            payload_json='{"project_id":"%s"}' % project_id,
-            dedupe_key=f"scheduled_prompt:{membership_id}:2099-01-02",
+            type="scheduled_nudge",
+            payload_json='{"project_id":"%s","topic":"Walk"}' % project_id,
+            dedupe_key=f"nudge:{membership_id}:2099-01-02",
             available_at=datetime.now(UTC),
         )
     )
@@ -167,12 +240,27 @@ async def test_slow_push_times_out_without_duplicate_messages(
     """Push timeout must not cause the outbox event to retry."""
     project_id = str(seeded["project_id"])
     membership_id = int(seeded["membership_id"])
+
+    schedule = NudgeSchedule(
+        membership_id=membership_id, topic="Walk", cron_rule="08:00", is_active=True
+    )
+    db.add(schedule)
+    await db.flush()
+
+    import json
+
     event = OutboxEvent(
         project_id=project_id,
         membership_id=membership_id,
-        type="scheduled_prompt",
-        payload_json='{"project_id":"%s"}' % project_id,
-        dedupe_key=f"scheduled_prompt:{membership_id}:2099-01-03",
+        type="scheduled_nudge",
+        payload_json=json.dumps(
+            {
+                "project_id": project_id,
+                "schedule_id": schedule.id,
+                "topic": "Walk",
+            }
+        ),
+        dedupe_key=f"nudge:{schedule.id}:2099-01-03",
         available_at=datetime.now(UTC),
         locked_by="worker-timeout",
         claimed_at=datetime.now(UTC),
@@ -204,6 +292,9 @@ async def test_slow_push_times_out_without_duplicate_messages(
     clear_config_cache()
     monkeypatch.setattr("app.worker.outbox_worker.PUSH_TIMEOUT_SECONDS", 0.01)
     monkeypatch.setattr("app.worker.outbox_worker.webpush", fake_slow_webpush)
+    monkeypatch.setattr(
+        "app.worker.outbox_worker._generate_custom_prompt", fake_generate
+    )
     monkeypatch.setattr(
         "app.worker.outbox_worker.async_session_factory", _session_factory
     )
