@@ -45,6 +45,7 @@ class UserProfileData(BaseModel):
     tone_scores: dict[str, float] = Field(default_factory=dict)
     total_prompts: int = 0
     success_count: int = 0
+    display_name: str | None = None
 
 
 # ---------------------------------------------------------------------------

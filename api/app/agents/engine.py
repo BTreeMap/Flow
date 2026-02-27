@@ -307,7 +307,7 @@ def _create_specialist_agent(
     prompt_args: dict[str, str] | None = None,
 ) -> object:
     """Build a LangGraph agent for a specialist using a prompt loaded from file."""
-    from langchain.agents import create_agent
+    from langgraph.prebuilt import create_react_agent
 
     text = load_prompt(prompt_name)
     if prompt_args:
@@ -316,7 +316,7 @@ def _create_specialist_agent(
         except KeyError:
             pass  # Prompt might not use all args, or args might be missing
 
-    return create_agent(llm, tools=tools, system_prompt=text)
+    return create_react_agent(llm, tools=tools, prompt=text)
 
 
 # ---------------------------------------------------------------------------

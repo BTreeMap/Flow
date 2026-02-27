@@ -1610,6 +1610,17 @@
       "UserProfileData": {
         "description": "Structured user profile fields (Store A). Pydantic validated.",
         "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "habit_domain": {
             "default": "",
             "title": "Habit Domain",
@@ -1748,7 +1759,7 @@
   "info": {
     "description": "Hackathon app powered by h4ckath0n",
     "title": "h4ckath0n",
-    "version": "0.1.9.dev20260223"
+    "version": "0.1.9"
   },
   "openapi": "3.1.0",
   "paths": {

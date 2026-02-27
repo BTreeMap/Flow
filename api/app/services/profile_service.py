@@ -10,7 +10,14 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import MemoryItem, PatchAuditLog, UserProfileStore
+from app.models import (
+    FlowUserProfile,
+    MemoryItem,
+    ParticipantContact,
+    PatchAuditLog,
+    ProjectMembership,
+    UserProfileStore,
+)
 from app.schemas.patches import (
     COACH_ALLOWED_FIELDS,
     CONFIDENCE_THRESHOLDS,
@@ -28,14 +35,48 @@ MAX_MEMORY_ITEM_LENGTH = 500
 
 
 async def load_user_profile(db: AsyncSession, membership_id: int) -> UserProfileData:
-    """Load the user profile for a membership, or return defaults."""
+    """Load the user profile for a membership, or return defaults.
+
+    Merges structured JSON profile (Store A) with display name from
+    FlowUserProfile or ParticipantContact.
+    """
+    # Load JSON profile
     result = await db.execute(
         select(UserProfileStore).where(UserProfileStore.membership_id == membership_id)
     )
-    row = result.scalar_one_or_none()
-    if row is None:
-        return UserProfileData()
-    return UserProfileData.model_validate_json(row.profile_json)
+    if (row := result.scalar_one_or_none()) is None:
+        profile = UserProfileData()
+    else:
+        profile = UserProfileData.model_validate_json(row.profile_json)
+
+    # Fetch display name
+    # Priority: ParticipantContact (latest) > FlowUserProfile (global)
+    contact_res = await db.execute(
+        select(ParticipantContact)
+        .where(ParticipantContact.membership_id == membership_id)
+        .order_by(ParticipantContact.created_at.desc())
+        .limit(1)
+    )
+    if (contact := contact_res.scalar_one_or_none()) and contact.email_raw:
+        # If we had a display name in contact, we'd use it, but we don't.
+        # So we look up FlowUserProfile via membership.
+        pass
+
+    # Join membership to get user_id
+    mem_res = await db.execute(
+        select(ProjectMembership.user_id).where(ProjectMembership.id == membership_id)
+    )
+    user_id = mem_res.scalar_one_or_none()
+
+    if user_id:
+        user_res = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id == user_id)
+        )
+        user_profile = user_res.scalar_one_or_none()
+        if user_profile and user_profile.display_name:
+            profile.display_name = user_profile.display_name
+
+    return profile
 
 
 async def save_user_profile(
@@ -46,7 +87,8 @@ async def save_user_profile(
         select(UserProfileStore).where(UserProfileStore.membership_id == membership_id)
     )
     row = result.scalar_one_or_none()
-    profile_json = profile.model_dump_json()
+    # Exclude display_name from persistence in JSON store as it's transient/derived
+    profile_json = profile.model_dump_json(exclude={"display_name"})
     if row is None:
         row = UserProfileStore(
             membership_id=membership_id,
