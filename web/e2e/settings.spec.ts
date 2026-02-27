@@ -72,6 +72,7 @@ test.describe("Settings & Profile Walkthrough", () => {
     await page.getByRole("button", { name: "Notification Settings" }).click();
 
     // Wait for settings page
+    // There are two headings "Notifications" and "Push Notifications", so be specific
     await expect(page.getByRole("heading", { name: "Notifications", exact: true })).toBeVisible();
 
     // Go to global settings for profile editing
