@@ -82,7 +82,7 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        text, decision, _ = await process_turn(
+        text, decision, debug_info = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,
@@ -91,6 +91,33 @@ class TestEngineTurnPipeline:
         )
         assert text != ""
         assert decision.route in ["INTAKE", "FEEDBACK", "COACH"]
+
+    @pytest.mark.asyncio
+    async def test_stub_debug_info_contains_tool_calls(self, seeded_db: dict) -> None:
+        """Stub engine turn debug_info includes tool_calls key (empty list)."""
+        db = seeded_db["db"]
+        conv = seeded_db["conversation"]
+        mid = seeded_db["membership_id"]
+
+        user_msg = Message(
+            conversation_id=conv.id,
+            role="user",
+            content="Hello!",
+            server_msg_id=generate_server_msg_id(),
+        )
+        db.add(user_msg)
+        await db.flush()
+
+        _text, _decision, debug_info = await process_turn(
+            db=db,
+            conversation=conv,
+            membership_id=mid,
+            user_msg=user_msg,
+            user_text="Hello!",
+        )
+        assert "tool_calls" in debug_info
+        assert isinstance(debug_info["tool_calls"], list)
+        assert debug_info["tool_calls"] == []
 
     @pytest.mark.asyncio
     async def test_empty_profile_routes_to_intake(self, seeded_db: dict) -> None:

@@ -504,7 +504,7 @@ async def process_turn(
         if decision.route == "INTAKE":
             from app.agents.intake import run_intake
 
-            assistant_text = await run_intake(
+            assistant_text, tool_calls = await run_intake(
                 _create_specialist_agent(
                     llm, proposal_tools, "intake_system", prompt_args
                 ),
@@ -515,7 +515,7 @@ async def process_turn(
         elif decision.route == "FEEDBACK":
             from app.agents.feedback import run_feedback
 
-            assistant_text = await run_feedback(
+            assistant_text, tool_calls = await run_feedback(
                 _create_specialist_agent(
                     llm, proposal_tools, "feedback_system", prompt_args
                 ),
@@ -526,7 +526,7 @@ async def process_turn(
         else:
             from app.agents.coach import run_coach
 
-            assistant_text = await run_coach(
+            assistant_text, tool_calls = await run_coach(
                 _create_specialist_agent(
                     llm, proposal_tools, "coach_system", prompt_args
                 ),
@@ -538,6 +538,7 @@ async def process_turn(
         # Stub mode (no LLM)
         assistant_text, collector = _run_specialist_stub(decision.route, user_text)
         tool_names = ["stub_tools"]  # simplified for stub
+        tool_calls: list[dict] = []
 
     # Step 4: Process proposals through Router validator
     await _process_proposals(
@@ -549,6 +550,10 @@ async def process_turn(
         latest_user_message_id=user_msg.id if user_msg else None,
     )
 
-    debug_info = {"agent": decision.route, "tools": tool_names}
+    debug_info = {
+        "agent": decision.route,
+        "tools": tool_names,
+        "tool_calls": tool_calls,
+    }
 
     return assistant_text, decision, debug_info

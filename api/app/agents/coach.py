@@ -25,8 +25,8 @@ async def run_coach(
     user_text: str,
     chat_history: list[Any],
     on_token: Callable[[str], Coroutine[None, None, None]] | None = None,
-) -> str:
-    """Invoke the coach agent and return the assistant text."""
+) -> tuple[str, list[dict[str, Any]]]:
+    """Invoke the coach agent and return (assistant_text, tool_calls)."""
     return await run_agent(
         agent=agent,
         user_text=user_text,

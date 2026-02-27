@@ -1,13 +1,31 @@
 import { memo } from "react";
 import { AssistantMarkdown } from "../chat/AssistantMarkdown";
 
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 interface MessageBubbleProps {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp?: string;
   isGroupContinuation?: boolean;
   isStreaming?: boolean;
-  debugInfo?: { agent?: string; tools?: string[] };
+  debugInfo?: {
+    agent?: string;
+    tools?: string[];
+    tool_calls?: Array<{
+      tool: string;
+      args?: unknown;
+      output?: unknown;
+      error?: string;
+      run_id?: string;
+    }>;
+  };
   showDebug?: boolean;
 }
 
@@ -72,6 +90,28 @@ export const MessageBubble = memo(function MessageBubble({
           <span className="font-semibold">{debugInfo.agent}</span>
           {debugInfo.tools && debugInfo.tools.length > 0 && (
             <span className="opacity-75"> using {debugInfo.tools.join(", ")}</span>
+          )}
+          {debugInfo.tool_calls && debugInfo.tool_calls.length > 0 && (
+            <details className="mt-1">
+              <summary className="cursor-pointer opacity-75">
+                tool calls ({debugInfo.tool_calls.length})
+              </summary>
+              <ul className="mt-0.5 space-y-1 list-none pl-0">
+                {debugInfo.tool_calls.map((tc, i) => (
+                  <li key={tc.run_id ?? i} className="border-l border-text-subtle pl-1.5">
+                    <span className="font-semibold">{tc.tool}</span>
+                    {tc.args !== undefined && (
+                      <pre className="whitespace-pre-wrap break-all opacity-75 mt-0.5">
+                        {safeStringify(tc.args)}
+                      </pre>
+                    )}
+                    {tc.error && (
+                      <span className="text-red-500 block">error: {tc.error}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
           )}
         </div>
       )}
