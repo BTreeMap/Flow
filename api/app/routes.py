@@ -1041,8 +1041,7 @@ async def send_message(
                     ConversationTurn.client_msg_id == body.client_msg_id,
                 )
             )
-            turn = existing.scalars().first()
-            if turn is None:
+            if (turn := existing.scalars().first()) is None:
                 raise HTTPException(status_code=500, detail="Turn conflict")
             if turn.status == "completed" and turn.assistant_message_id is not None:
                 asst_result = await db.execute(
@@ -1068,8 +1067,7 @@ async def send_message(
                             ConversationTurn.id == turn_id,
                         )
                     )
-                    turn = re_result.scalars().first()
-                    if turn is None:
+                    if (turn := re_result.scalars().first()) is None:
                         break
                     if (
                         turn.status == "completed"
@@ -1595,8 +1593,7 @@ async def admin_update_project(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if project is None:
+    if (project := result.scalar_one_or_none()) is None:
         raise HTTPException(status_code=404, detail="Project not found")
     if body.display_name is not None:
         project.display_name = body.display_name.strip()

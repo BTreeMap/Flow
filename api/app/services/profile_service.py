@@ -66,14 +66,14 @@ async def load_user_profile(db: AsyncSession, membership_id: int) -> UserProfile
     mem_res = await db.execute(
         select(ProjectMembership.user_id).where(ProjectMembership.id == membership_id)
     )
-    user_id = mem_res.scalar_one_or_none()
 
-    if user_id:
+    if user_id := mem_res.scalar_one_or_none():
         user_res = await db.execute(
             select(FlowUserProfile).where(FlowUserProfile.user_id == user_id)
         )
-        user_profile = user_res.scalar_one_or_none()
-        if user_profile and user_profile.display_name:
+        if (
+            user_profile := user_res.scalar_one_or_none()
+        ) and user_profile.display_name:
             profile.display_name = user_profile.display_name
 
     return profile
@@ -86,10 +86,9 @@ async def save_user_profile(
     result = await db.execute(
         select(UserProfileStore).where(UserProfileStore.membership_id == membership_id)
     )
-    row = result.scalar_one_or_none()
     # Exclude display_name from persistence in JSON store as it's transient/derived
     profile_json = profile.model_dump_json(exclude={"display_name"})
-    if row is None:
+    if (row := result.scalar_one_or_none()) is None:
         row = UserProfileStore(
             membership_id=membership_id,
             profile_json=profile_json,
