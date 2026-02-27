@@ -116,11 +116,15 @@ test.describe("Chat Experience Walkthrough (Real Backend)", () => {
     // Now we definitely expect a response from the backend (Stub or LLM).
     // Stub response is usually immediate.
     // We look for ANY assistant message.
+    // Note: With streaming, we might see partial content, but eventually full content.
     await expect(page.getByTestId("assistant-markdown")).toBeVisible({ timeout: 30000 });
 
     // -----------------------------------------------------------------------
     // STEP 8: Verify Persistence (Reload)
     // -----------------------------------------------------------------------
+    // Ensure the user message is still there (fix verification)
+    await expect(page.getByText("Hello Real Backend")).toBeVisible();
+
     await page.reload();
     await expect(page.getByText("Hello Real Backend")).toBeVisible();
     await expect(page.getByRole("heading", { name: "E2E Project" })).toBeVisible();

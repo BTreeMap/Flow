@@ -6,6 +6,7 @@ system prompt.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Coroutine
 from typing import Any
 
 from langchain_core.messages import HumanMessage
@@ -23,23 +24,40 @@ FEEDBACK_FALLBACK = (
 _RECURSION_LIMIT = 22
 
 
-def run_feedback(
+async def run_feedback(
     agent: CompiledStateGraph,
     user_text: str,
     chat_history: list[Any],
+    on_token: Callable[[str], Coroutine[None, None, None]] | None = None,
 ) -> str:
     """Invoke the feedback agent and return the assistant text.
 
     Falls back to ``FEEDBACK_FALLBACK`` if the agent produces no output.
     """
     messages = list(chat_history) + [HumanMessage(content=user_text)]
-    result = agent.invoke(
-        {"messages": messages},
-        config={"recursion_limit": _RECURSION_LIMIT},
-    )
-    output_messages = result.get("messages", [])
-    if output_messages:
-        last = output_messages[-1]
-        if hasattr(last, "content") and last.content:
-            return str(last.content)
-    return FEEDBACK_FALLBACK
+
+    final_content = ""
+
+    if on_token:
+        async for event in agent.astream_events(
+            {"messages": messages},
+            version="v2",
+            config={"recursion_limit": _RECURSION_LIMIT},
+        ):
+            if event["event"] == "on_chat_model_stream":
+                chunk = event["data"].get("chunk")
+                if chunk and hasattr(chunk, "content") and chunk.content:
+                    await on_token(chunk.content)
+                    final_content += chunk.content
+    else:
+        result = await agent.ainvoke(
+            {"messages": messages},
+            config={"recursion_limit": _RECURSION_LIMIT},
+        )
+        output_messages = result.get("messages", [])
+        if output_messages:
+            last = output_messages[-1]
+            if hasattr(last, "content") and last.content:
+                final_content = str(last.content)
+
+    return final_content or FEEDBACK_FALLBACK

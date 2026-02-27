@@ -332,6 +332,7 @@ async def process_turn(
     user_text: str,
     llm: BaseChatModel | None = None,
     router_llm: BaseChatModel | None = None,
+    on_token: Callable[[str], Coroutine[None, None, None]] | None = None,
 ) -> tuple[str, RouteDecision]:
     """Process one user turn through the new Router + specialist architecture.
 
@@ -400,32 +401,35 @@ async def process_turn(
         if decision.route == "INTAKE":
             from app.agents.intake import run_intake
 
-            assistant_text = run_intake(
+            assistant_text = await run_intake(
                 _create_specialist_agent(
                     llm, proposal_tools, "intake_system", prompt_args
                 ),
                 user_text,
                 chat_history,
+                on_token=on_token,
             )
         elif decision.route == "FEEDBACK":
             from app.agents.feedback import run_feedback
 
-            assistant_text = run_feedback(
+            assistant_text = await run_feedback(
                 _create_specialist_agent(
                     llm, proposal_tools, "feedback_system", prompt_args
                 ),
                 user_text,
                 chat_history,
+                on_token=on_token,
             )
         else:
             from app.agents.coach import run_coach
 
-            assistant_text = run_coach(
+            assistant_text = await run_coach(
                 _create_specialist_agent(
                     llm, proposal_tools, "coach_system", prompt_args
                 ),
                 user_text,
                 chat_history,
+                on_token=on_token,
             )
     else:
         # Stub mode (no LLM)
