@@ -68,24 +68,13 @@ test.describe("Settings & Profile Walkthrough", () => {
     // -----------------------------------------------------------------------
     // Open menu
     await page.getByRole("button", { name: "Menu" }).click();
-    await page.getByRole("menuitem", { name: "Notification Settings" }).click();
+    // The menu items are rendered as buttons, not menuitems
+    await page.getByRole("button", { name: "Notification Settings" }).click();
 
     // Wait for settings page
-    await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Notifications", exact: true })).toBeVisible();
 
-    // Check if we can find Profile settings or if it's separate.
-    // The chat header menu had "Notification Settings". Let's check "Updates" or go back to dashboard.
-    // Actually, per ChatThread.tsx, the menu has "Notification Settings" and "Updates".
-    // Global settings might be on Dashboard.
-
-    await page.goto("/dashboard");
-    // Dashboard usually has a settings gear or similar?
-    // Checking Dashboard.tsx... (I don't have it read, but let's assume standard UI or check list_files)
-    // Actually let's assume we want to test Project Profile settings if any, or User Global Settings.
-    // routes.py has /me endpoint for global user profile.
-
-    // Let's go to /settings directly if it exists, or look for UI.
-    // Based on list_files, there is `web/src/pages/Settings.tsx`.
+    // Go to global settings for profile editing
     await page.goto("/settings");
 
     await expect(page.getByLabel("Display Name")).toHaveValue("Settings User");
@@ -95,7 +84,9 @@ test.describe("Settings & Profile Walkthrough", () => {
     // STEP 3: Update Profile
     // -----------------------------------------------------------------------
     await page.getByLabel("Display Name").fill("Updated Name");
-    await page.getByRole("button", { name: "Save Changes" }).click();
+    // Button label depends on state, initially "Save", then "Saving…", then "Saved"
+    // Use data-testid for robustness as text changes
+    await page.getByTestId("profile-save").click();
 
     // Verify persistence
     await page.reload();

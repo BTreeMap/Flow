@@ -66,7 +66,8 @@ test.describe("Updates Feed Walkthrough", () => {
     // -----------------------------------------------------------------------
     // Open menu
     await page.getByRole("button", { name: "Menu" }).click();
-    await page.getByRole("menuitem", { name: "Updates" }).click();
+    // The menu items are rendered as buttons, not menuitems
+    await page.getByRole("button", { name: "Updates" }).click();
 
     // Verify URL
     await expect(page).toHaveURL(new RegExp(`/p/${projectId}/updates`));

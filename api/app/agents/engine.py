@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable, Coroutine
 from datetime import datetime, timezone
 
 from langchain_core.language_models import BaseChatModel
