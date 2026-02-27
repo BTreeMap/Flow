@@ -27,19 +27,34 @@ class TestAgentToolPermissions:
         collector = ProposalCollector()
         tools = make_proposal_tools(collector, source_bot="INTAKE")
         names = {t.name for t in tools}
-        assert names == {"propose_profile_patch", "propose_memory_patch"}
+        assert names == {
+            "propose_profile_patch",
+            "propose_memory_patch",
+            "propose_schedule_nudge",
+            "propose_delete_schedule",
+        }
 
     def test_proposal_tools_for_coach(self) -> None:
         collector = ProposalCollector()
         tools = make_proposal_tools(collector, source_bot="COACH")
         names = {t.name for t in tools}
-        assert names == {"propose_profile_patch", "propose_memory_patch"}
+        assert names == {
+            "propose_profile_patch",
+            "propose_memory_patch",
+            "propose_schedule_nudge",
+            "propose_delete_schedule",
+        }
 
     def test_proposal_tools_for_feedback(self) -> None:
         collector = ProposalCollector()
         tools = make_proposal_tools(collector, source_bot="FEEDBACK")
         names = {t.name for t in tools}
-        assert names == {"propose_profile_patch", "propose_memory_patch"}
+        assert names == {
+            "propose_profile_patch",
+            "propose_memory_patch",
+            "propose_schedule_nudge",
+            "propose_delete_schedule",
+        }
 
 
 # ---------------------------------------------------------------------------

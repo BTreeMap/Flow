@@ -34,7 +34,7 @@ def _find_tool(tools: list[Any], name: str) -> Any:
 
 
 class TestToolCreation:
-    def test_proposal_tools_have_two_tools(self) -> None:
+    def test_proposal_tools_have_four_tools(self) -> None:
         collector = ProposalCollector()
         tools = make_proposal_tools(collector, source_bot="INTAKE")
         names = sorted(t.name for t in tools)

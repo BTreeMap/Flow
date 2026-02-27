@@ -57,6 +57,9 @@ test.describe("Chat UI and Debugging", () => {
     await page.getByTestId("register-display-name").fill("UI Tester");
     await page.getByTestId("register-finish").click();
 
+    // Wait for registration to complete (PATCH /me saves the email)
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
+
     // -----------------------------------------------------------------------
     // STEP 2: Join Project
     // -----------------------------------------------------------------------
