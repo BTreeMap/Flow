@@ -8,6 +8,8 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 
+from app.agents.tool_trace import ToolCallTraceHandler
+
 _RECURSION_LIMIT = 22
 
 
@@ -17,7 +19,7 @@ async def run_agent(
     chat_history: list[Any],
     fallback_text: str,
     on_token: Callable[[str], Coroutine[None, None, None]] | None = None,
-) -> str:
+) -> tuple[str, list[dict[str, Any]]]:
     """Run an agent with optional token streaming.
 
     Args:
@@ -28,17 +30,19 @@ async def run_agent(
         on_token: Optional async callback for streaming tokens.
 
     Returns:
-        The final assistant response text.
+        A tuple of (final_text, tool_calls) where tool_calls is a chronological
+        list of tool invocations recorded during the agent run.
     """
     messages = list(chat_history) + [HumanMessage(content=user_text)]
     final_content = ""
+    tracer = ToolCallTraceHandler()
 
     if on_token:
         # Stream events to capture tokens
         async for event in agent.astream_events(
             {"messages": messages},
             version="v2",
-            config={"recursion_limit": _RECURSION_LIMIT},
+            config={"recursion_limit": _RECURSION_LIMIT, "callbacks": [tracer]},
         ):
             if event["event"] == "on_chat_model_stream":
                 # Stream chat model text delta
@@ -50,7 +54,7 @@ async def run_agent(
         # Fallback to invoke if no streaming callback
         result = await agent.ainvoke(
             {"messages": messages},
-            config={"recursion_limit": _RECURSION_LIMIT},
+            config={"recursion_limit": _RECURSION_LIMIT, "callbacks": [tracer]},
         )
         output_messages = result.get("messages", [])
         if output_messages:
@@ -58,4 +62,4 @@ async def run_agent(
             if hasattr(last, "content") and last.content:
                 final_content = str(last.content)
 
-    return final_content or fallback_text
+    return final_content or fallback_text, tracer.get_tool_calls()

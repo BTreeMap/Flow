@@ -60,4 +60,55 @@ describe("MessageBubble", () => {
     expect(container.textContent).toContain("Hello");
     expect(container.textContent).toContain("world");
   });
+
+  it("renders debug info with agent and tools when showDebug is true", () => {
+    render(
+      <MessageBubble
+        role="assistant"
+        content="Hello"
+        showDebug={true}
+        debugInfo={{ agent: "COACH", tools: ["propose_profile_patch"] }}
+      />,
+    );
+    expect(screen.getByText("COACH")).toBeInTheDocument();
+    expect(screen.getByText(/propose_profile_patch/)).toBeInTheDocument();
+  });
+
+  it("renders tool_calls trace in debug mode", () => {
+    render(
+      <MessageBubble
+        role="assistant"
+        content="Hello"
+        showDebug={true}
+        debugInfo={{
+          agent: "COACH",
+          tools: ["list_schedules"],
+          tool_calls: [
+            {
+              tool: "list_schedules",
+              args: { membership_id: 123 },
+            },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText("tool calls (1)")).toBeInTheDocument();
+    expect(screen.getByText("list_schedules")).toBeInTheDocument();
+  });
+
+  it("does not render debug info when showDebug is false", () => {
+    const { container } = render(
+      <MessageBubble
+        role="assistant"
+        content="Hello"
+        showDebug={false}
+        debugInfo={{
+          agent: "COACH",
+          tools: [],
+          tool_calls: [{ tool: "list_schedules", args: {} }],
+        }}
+      />,
+    );
+    expect(container.querySelector(".font-mono")).not.toBeInTheDocument();
+  });
 });

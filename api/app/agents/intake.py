@@ -27,8 +27,8 @@ async def run_intake(
     user_text: str,
     chat_history: list[Any],
     on_token: Callable[[str], Coroutine[None, None, None]] | None = None,
-) -> str:
-    """Invoke the intake agent and return the assistant text.
+) -> tuple[str, list[dict[str, Any]]]:
+    """Invoke the intake agent and return (assistant_text, tool_calls).
 
     Falls back to ``INTAKE_FALLBACK`` if the agent produces no output.
     """

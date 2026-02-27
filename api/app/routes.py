@@ -884,7 +884,6 @@ async def _claim_invite_impl(
                     if assistant_msg.created_at
                     else datetime.now(UTC).isoformat(),
                     "prompt_versions": prompt_version(_prompt_name),
-                    "debug_info": _debug_info,
                 }
 
                 await persist_event(db, conv.id, "message.final", sse_payload)
@@ -1234,7 +1233,6 @@ async def send_message(
             if assistant_msg.created_at
             else datetime.now(UTC).isoformat(),
             "prompt_versions": prompt_version(_prompt_name),
-            "debug_info": debug_info,
         }
 
         # Persist event for durable SSE replay

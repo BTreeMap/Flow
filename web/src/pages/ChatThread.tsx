@@ -14,6 +14,18 @@ import type { DashboardResponse } from "../api/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
+interface DebugInfo {
+  agent?: string;
+  tools?: string[];
+  tool_calls?: Array<{
+    tool: string;
+    args?: unknown;
+    output?: unknown;
+    error?: string;
+    run_id?: string;
+  }>;
+}
+
 interface Message {
   id: string;
   serverMsgId: string;
@@ -21,7 +33,7 @@ interface Message {
   content: string;
   created_at?: string;
   isStreaming?: boolean;
-  debugInfo?: { agent?: string; tools?: string[] };
+  debugInfo?: DebugInfo;
 }
 
 function formatBubbleTime(iso?: string): string | undefined {
@@ -159,7 +171,7 @@ export function ChatThread() {
                 role: "user" | "assistant";
                 content: string;
                 created_at?: string;
-                debug_info?: { agent?: string; tools?: string[] };
+                debug_info?: DebugInfo;
               }) => ({
                 id: String(msg.message_id),
                 serverMsgId: msg.server_msg_id,
@@ -218,7 +230,7 @@ export function ChatThread() {
       role: "user" | "assistant";
       content: string;
       created_at?: string;
-      debug_info?: { agent?: string; tools?: string[] };
+      debug_info?: DebugInfo;
     }) => {
       setMessages((prev) => {
         // If message already exists (e.g. from stream), update it with final content and unset streaming
@@ -313,7 +325,7 @@ export function ChatThread() {
                       role: "user" | "assistant";
                       content: string;
                       created_at?: string;
-                      debug_info?: { agent?: string; tools?: string[] };
+                      debug_info?: DebugInfo;
                     },
                   );
                 } catch {
@@ -418,7 +430,7 @@ export function ChatThread() {
           content: string;
           created_at: string;
         };
-        debug_info?: { agent?: string; tools?: string[] };
+        debug_info?: DebugInfo;
       };
       setMessages((prev) => {
         // Remove the temporary message
