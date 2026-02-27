@@ -68,6 +68,8 @@ test.describe("Settings & Profile Walkthrough", () => {
     // -----------------------------------------------------------------------
     // Open menu
     await page.getByRole("button", { name: "Menu" }).click();
+    // Wait for menu to open
+    await expect(page.getByRole("button", { name: "Notification Settings" })).toBeVisible();
     // The menu items are rendered as buttons, not menuitems
     await page.getByRole("button", { name: "Notification Settings" }).click();
 

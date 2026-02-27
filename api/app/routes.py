@@ -1069,7 +1069,9 @@ async def send_message(
                             role=user_msg.role,
                             content=user_msg.content,
                             created_at=user_msg.created_at.isoformat(),
-                        ) if user_msg else None,
+                        )
+                        if user_msg
+                        else None,
                     )
             if turn.status == "processing":
                 # Another request is processing this turn; wait briefly
@@ -1096,7 +1098,9 @@ async def send_message(
                         if asst:
                             # Fetch user message for response
                             user_msg_result = await db.execute(
-                                select(Message).where(Message.id == turn.user_message_id)
+                                select(Message).where(
+                                    Message.id == turn.user_message_id
+                                )
                             )
                             user_msg = user_msg_result.scalars().first()
 
@@ -1111,7 +1115,9 @@ async def send_message(
                                     role=user_msg.role,
                                     content=user_msg.content,
                                     created_at=user_msg.created_at.isoformat(),
-                                ) if user_msg else None,
+                                )
+                                if user_msg
+                                else None,
                             )
                 return JSONResponse(
                     status_code=202,

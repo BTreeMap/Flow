@@ -55,6 +55,7 @@ test.describe("Updates Feed Walkthrough", () => {
     await page.getByRole("button", { name: "Join Project" }).click();
 
     // Onboarding
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding`), { timeout: 20000 });
     await page.getByPlaceholder("After my morning coffee").fill("Noon");
     await page.getByPlaceholder("08:00 or 8am").fill("12:00");
     await page.getByRole("button", { name: "Continue to chat" }).click();
@@ -66,6 +67,8 @@ test.describe("Updates Feed Walkthrough", () => {
     // -----------------------------------------------------------------------
     // Open menu
     await page.getByRole("button", { name: "Menu" }).click();
+    // Wait for menu to open
+    await expect(page.getByRole("button", { name: "Updates" })).toBeVisible();
     // The menu items are rendered as buttons, not menuitems
     await page.getByRole("button", { name: "Updates" }).click();
 
