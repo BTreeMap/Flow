@@ -43,12 +43,14 @@ test.describe("Chat UI and Debugging", () => {
     const inviteCodeStr = "test-invite-code-123";
 
     // -----------------------------------------------------------------------
-    // STEP 1: Registration (as Admin to test debug toggle later?)
-    // Actually, seed script might create normal user. Let's just register new.
+    // STEP 1: Registration (Unique User)
     // -----------------------------------------------------------------------
+    const uniqueId = Date.now().toString().slice(-6);
+    const userEmail = `ui-test-${uniqueId}@example.com`;
+
     await page.goto("/");
     await page.getByTestId("landing-register").click();
-    await page.getByTestId("register-email").fill("ui-test@example.com");
+    await page.getByTestId("register-email").fill(userEmail);
     await page.getByTestId("register-email-submit").click();
     await page.getByTestId("register-submit").click();
     await page.getByTestId("register-display-name").fill("UI Tester");
@@ -59,15 +61,23 @@ test.describe("Chat UI and Debugging", () => {
     // -----------------------------------------------------------------------
     await page.goto(`/p/${projectId}/activate?invite=${inviteCodeStr}`);
     await page.getByRole("button", { name: "Join Project" }).click();
+
+    // Explicitly wait for onboarding page
     await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding`));
 
-    // Skip onboarding for speed if possible, or fill quick
+    // Fill Onboarding Form
     await page.getByPlaceholder("After my morning coffee").fill("Now");
     await page.getByPlaceholder("08:00 or 8am").fill("09:00");
     await page.getByRole("button", { name: "Continue to chat" }).click();
+
+    // Explicitly wait for notifications page, which comes after form submission
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding/notifications`));
+
+    // Click skip on notifications page
     await page.getByRole("button", { name: "Skip for now" }).click();
 
-    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/chat`));
+    // Finally verify we reached the chat
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/chat`), { timeout: 20000 });
 
     // -----------------------------------------------------------------------
     // STEP 3: Test Message Ordering & Left Panel Update
@@ -77,36 +87,17 @@ test.describe("Chat UI and Debugging", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     // Wait for response
-    await expect(page.getByTestId("assistant-markdown")).toBeVisible();
+    await expect(page.getByTestId("assistant-markdown")).toBeVisible({ timeout: 30000 });
 
     // Verify ordering: User message should appear before Assistant message
-    // We can check the DOM order.
-    const messages = page.locator(".flex.flex-col > div > div");
-    // The chat container has messages. We need to be specific.
-    // MessageBubble renders a div with class "flex justify-end" (user) or "flex justify-start" (assistant)
-    // Actually our refactor changed it to flex-col items-end/start.
+    const userMsgLocator = page.getByText(userMessage);
+    await expect(userMsgLocator).toBeVisible();
 
-    // Let's get all message bubbles text content
-    // User bubble: bg-bubble-out
-    // Assistant bubble: bg-bubble-in
+    const userMsgBox = await userMsgLocator.boundingBox();
 
-    // We expect the last user message to be "Test Ordering Message"
-    // And there should be an assistant message *after* it.
-
-    // Check if "Test Ordering Message" is visible
-    await expect(page.getByText(userMessage)).toBeVisible();
-
-    // Simple check: ensure the user message is not the last one (meaning assistant replied after)
-    // and that it didn't jump to bottom.
-    // Actually, "user message at bottom" bug meant user message stayed at bottom even after assistant replied.
-    // So we want to verify assistant message is AFTER user message.
-
-    // Get the bounding box of user message
-    const userMsgBox = await page.getByText(userMessage).boundingBox();
-    // Get bounding box of assistant response (any text in markdown)
-    // This is tricky if we don't know the response.
-    // But we know assistant message has `bg-bubble-in`.
+    // Get bounding box of assistant response
     const assistantBubbles = page.locator(".bg-bubble-in");
+    await expect(assistantBubbles.last()).toBeVisible();
     const lastAssistantBubble = assistantBubbles.last();
     const asstMsgBox = await lastAssistantBubble.boundingBox();
 
@@ -124,20 +115,7 @@ test.describe("Chat UI and Debugging", () => {
     await expect(page).toHaveURL(/\/dashboard/);
 
     // The preview should show the assistant's response (or at least not be empty/old)
-    // Since we don't know exact text, we just check it's not "No messages yet"
-    // and maybe check if the time is recent.
-    // But mainly we want to ensure it rendered.
     const preview = page.locator("a", { hasText: "E2E Project" }).locator("p").nth(1); // Secondary text
     await expect(preview).not.toHaveText("No messages yet");
-
-    // -----------------------------------------------------------------------
-    // STEP 5: Debug Mode (Only valid if admin)
-    // -----------------------------------------------------------------------
-    // Our user is not admin, so toggle shouldn't be there.
-    // To test debug mode, we'd need an admin user.
-    // Existing seed might not give us easy admin access without DB manipulation.
-    // We can skip explicit E2E for debug toggle visibility logic here if we trust unit tests/logic,
-    // or try to hack it.
-    // Given constraints, verifying the UI fix (ordering) is the critical part.
   });
 });

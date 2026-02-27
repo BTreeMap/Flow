@@ -1,6 +1,5 @@
 """Integration tests for the conversation engine."""
 
-
 import pytest
 from sqlalchemy import select
 
