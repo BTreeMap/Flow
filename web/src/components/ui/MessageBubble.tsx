@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { AssistantMarkdown } from "../chat/AssistantMarkdown";
-import type { SendMessageResponse } from "../../api/openapi";
+import type { SendMessageResponse } from "../../api/types";
 
 interface MessageBubbleProps {
   role: "user" | "assistant" | "system";

@@ -10,7 +10,7 @@ import { ChatHeader } from "../components/ui/ChatHeader";
 import { MessageBubble } from "../components/ui/MessageBubble";
 import { Composer } from "../components/ui/Composer";
 import { useLayoutMode } from "../hooks/useLayoutMode";
-import type { SendMessageResponse } from "../api/openapi";
+import type { SendMessageResponse } from "../api/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 

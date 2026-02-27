@@ -58,6 +58,7 @@ export type UserMeResponse = components["schemas"]["UserMeResponse"];
 export type UserMeUpdateRequest = components["schemas"]["UserMeUpdateRequest"];
 export type DashboardResponse = components["schemas"]["DashboardResponse"];
 export type MembershipInfo = components["schemas"]["MembershipInfo"];
+export type SendMessageResponse = components["schemas"]["SendMessageResponse"];
 
 // ── User-defined (demo) types ─────────────────────────────────────────────
 

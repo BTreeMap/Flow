@@ -1203,7 +1203,7 @@ async def send_message(
             assistant_content, _decision, _tools_used = await engine_process_turn(
                 db=db,
                 conversation=conv,
-                membership_id=membership.id,
+                membership_id=membership_id,
                 user_msg=user_msg,
                 user_text=body.text,
                 llm=llm,
