@@ -11,7 +11,10 @@ from app.models import Project, ProjectInvite
 import hashlib
 from datetime import datetime, timedelta, timezone
 
-DATABASE_URL = os.environ.get("H4CKATH0N_DATABASE_URL", "sqlite+aiosqlite:////tmp/flow-e2e.db")
+DATABASE_URL = os.environ.get(
+    "H4CKATH0N_DATABASE_URL", "sqlite+aiosqlite:////tmp/flow-e2e.db"
+)
+
 
 async def seed():
     engine = create_async_engine(DATABASE_URL)
@@ -29,7 +32,7 @@ async def seed():
             id=project_id,
             display_name="E2E Project",
             status="active",
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
         session.add(project)
 
@@ -43,7 +46,7 @@ async def seed():
             expires_at=datetime.now(timezone.utc) + timedelta(days=1),
             max_uses=10,
             uses=0,
-            label="e2e-test"
+            label="e2e-test",
         )
         session.add(invite)
 
@@ -57,6 +60,7 @@ async def seed():
             pass
 
     await engine.dispose()
+
 
 if __name__ == "__main__":
     asyncio.run(seed())
