@@ -4,11 +4,14 @@ Validates:
 - Proposal tools have Pydantic args_schema
 - Proposal tools record proposals to the collector
 - Proposal tools return structured results
+- Proposal tools reject calls missing required payload fields
 """
 
 from __future__ import annotations
 
 from typing import Any
+
+import pytest
 
 from app.tools.proposal_tools import (
     ProposalCollector,
@@ -156,3 +159,66 @@ class TestMemoryPatchTool:
         assert result["status"] == "proposal_recorded"
         evidence = collector.memory_proposals[0]["evidence"]
         assert "my knee" in evidence["quotes"][0]
+
+
+# ---------------------------------------------------------------------------
+# Regression: tools must reject calls missing required payload fields
+# ---------------------------------------------------------------------------
+
+
+class TestMissingPayloadRejected:
+    """Reproduces the LLM error where 'patch' or 'items' is omitted."""
+
+    def test_profile_patch_without_patch_field_rejected(self) -> None:
+        """propose_profile_patch must fail when 'patch' dict is missing."""
+        from pydantic import ValidationError
+
+        from app.tools.proposal_tools import ProposeProfilePatchArgs
+
+        with pytest.raises(ValidationError, match="patch"):
+            ProposeProfilePatchArgs(
+                confidence=1,
+                message_ids=[],
+                quotes=["after breakfast"],
+                source_bot="INTAKE",
+            )
+
+    def test_memory_patch_without_items_field_rejected(self) -> None:
+        """propose_memory_patch must fail when 'items' list is missing."""
+        from pydantic import ValidationError
+
+        from app.tools.proposal_tools import ProposeMemoryPatchArgs
+
+        with pytest.raises(ValidationError, match="items"):
+            ProposeMemoryPatchArgs(
+                confidence=1,
+                message_ids=[],
+                quotes=["User prefers nudges at 1 am"],
+                source_bot="INTAKE",
+            )
+
+    def test_profile_patch_with_patch_field_accepted(self) -> None:
+        """Providing 'patch' must succeed."""
+        from app.tools.proposal_tools import ProposeProfilePatchArgs
+
+        args = ProposeProfilePatchArgs(
+            patch={"prompt_anchor": "after breakfast", "preferred_time": "1am"},
+            confidence=1,
+            message_ids=[],
+            quotes=["after breakfast", "1 am"],
+            source_bot="INTAKE",
+        )
+        assert args.patch["prompt_anchor"] == "after breakfast"
+
+    def test_memory_patch_with_items_field_accepted(self) -> None:
+        """Providing 'items' must succeed."""
+        from app.tools.proposal_tools import ProposeMemoryPatchArgs
+
+        args = ProposeMemoryPatchArgs(
+            items=[{"content": "User prefers nudges at 1 am after breakfast"}],
+            confidence=1,
+            message_ids=[],
+            quotes=["time: 1am; anchor: after breakfast"],
+            source_bot="INTAKE",
+        )
+        assert args.items[0]["content"] == "User prefers nudges at 1 am after breakfast"

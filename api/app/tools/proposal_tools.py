@@ -14,27 +14,69 @@ from pydantic import BaseModel, Field
 
 
 class ProposeProfilePatchArgs(BaseModel):
-    """Arguments for the propose_profile_patch tool."""
+    """Arguments for the propose_profile_patch tool.
 
-    patch: dict = Field(..., description="Partial profile patch (key-value pairs)")
+    Example call::
+
+        propose_profile_patch(
+            patch={"prompt_anchor": "after coffee", "preferred_time": "8am"},
+            confidence=0.9,
+            message_ids=[42],
+            quotes=["after coffee", "around 8 am"],
+            source_bot="INTAKE",
+        )
+    """
+
+    patch: dict = Field(
+        ...,
+        description=(
+            "REQUIRED. The profile fields to update as key-value pairs. "
+            'Example: {"prompt_anchor": "after breakfast", "preferred_time": "8am"}. '
+            "Valid keys: prompt_anchor, preferred_time, habit_domain, "
+            "motivational_frame, intensity, last_barrier, last_tweak, "
+            "last_motivator, last_successful_prompt, tone_tags."
+        ),
+    )
     confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
-    message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
+    message_ids: list[int] = Field(
+        ..., description="Message IDs that support this proposal (may be empty)"
+    )
     quotes: list[str] = Field(
-        default_factory=list, description="Short verbatim snippets"
+        default_factory=list,
+        description="Short verbatim quotes from the user that justify the patch",
     )
     source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
 
 
 class ProposeMemoryPatchArgs(BaseModel):
-    """Arguments for the propose_memory_patch tool."""
+    """Arguments for the propose_memory_patch tool.
+
+    Example call::
+
+        propose_memory_patch(
+            items=[{"content": "User prefers mornings for exercise"}],
+            confidence=0.8,
+            message_ids=[42],
+            quotes=["I always work out in the morning"],
+            source_bot="INTAKE",
+        )
+    """
 
     items: list[dict] = Field(
-        ..., description="List of memory items with 'content' key"
+        ...,
+        description=(
+            "REQUIRED. List of memory items to store. Each item must be a dict "
+            "with at least a 'content' key containing a short factual statement. "
+            'Example: [{"content": "User prefers mornings for exercise"}].'
+        ),
     )
     confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
-    message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
+    message_ids: list[int] = Field(
+        ..., description="Message IDs that support this proposal (may be empty)"
+    )
     quotes: list[str] = Field(
-        default_factory=list, description="Short verbatim snippets"
+        default_factory=list,
+        description="Short verbatim quotes from the user that justify the memory item",
     )
     source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
 
@@ -97,7 +139,7 @@ def make_proposal_tools(collector: ProposalCollector, source_bot: str) -> list[A
         quotes: list[str] | None = None,
         source_bot: str = source_bot,
     ) -> dict[str, Any]:
-        """Propose a partial update to the user profile. Router will validate and commit or ignore."""
+        """Propose updating user profile fields. The ``patch`` parameter is REQUIRED and contains the profile key-value pairs to set (e.g. ``{"prompt_anchor": "after breakfast", "preferred_time": "8am"}``). ``quotes`` are supporting evidence, NOT the data itself."""
         proposal = {
             "patch": patch,
             "confidence": confidence,
@@ -115,7 +157,7 @@ def make_proposal_tools(collector: ProposalCollector, source_bot: str) -> list[A
         quotes: list[str] | None = None,
         source_bot: str = source_bot,
     ) -> dict[str, Any]:
-        """Propose adding memory items. Router will validate and commit or ignore."""
+        """Propose storing new memory items. The ``items`` parameter is REQUIRED and must be a list of dicts each containing a ``content`` key (e.g. ``[{"content": "User prefers mornings"}]``). ``quotes`` are supporting evidence, NOT the data itself."""
         proposal = {
             "items": items,
             "confidence": confidence,

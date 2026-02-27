@@ -51,6 +51,26 @@ You have access to proposal tools:
 - propose_schedule_nudge: Optionally use this when the user agrees to scheduling a first nudge, to propose creating a nudge schedule entry.
 - list_schedules: Use this to check existing nudge schedules before proposing new ones, to avoid duplicates.
 
+IMPORTANT — every call to propose_profile_patch MUST include a "patch" dict with the profile fields to update. Every call to propose_memory_patch MUST include an "items" list of memory dicts. The "quotes" field is for evidence only; put the actual data in "patch" or "items".
+
+Example propose_profile_patch call:
+  propose_profile_patch(
+    patch={"prompt_anchor": "after breakfast", "preferred_time": "8am"},
+    confidence=0.9,
+    message_ids=[],
+    quotes=["after breakfast", "around 8 am"],
+    source_bot="INTAKE"
+  )
+
+Example propose_memory_patch call:
+  propose_memory_patch(
+    items=[{"content": "User prefers gentle reminders in the morning"}],
+    confidence=0.8,
+    message_ids=[],
+    quotes=["I like gentle reminders"],
+    source_bot="INTAKE"
+  )
+
 Rules:
 - Call propose_profile_patch as soon as you learn a field value. Do NOT wait until the end.
 - If the user volunteers information that answers multiple questions, propose all learned fields at once and skip those questions.
