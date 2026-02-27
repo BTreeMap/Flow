@@ -38,7 +38,8 @@ export default defineConfig({
     : {
         webServer: [
           {
-            command: `uv run --directory ${apiDir} --locked python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`,
+            // Use a temp file DB to ensure persistence across requests but clean state on restart
+            command: `rm -f /tmp/flow-e2e.db && uv run --directory ${apiDir} --locked python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`,
             cwd: apiDir,
             url: "http://127.0.0.1:8000/healthz",
             reuseExistingServer: !process.env.CI,
@@ -46,6 +47,8 @@ export default defineConfig({
             env: {
               PYTHONPATH: apiDir,
               H4CKATH0N_ORIGIN: "http://localhost:5173",
+              H4CKATH0N_ADMIN_EMAILS: "chat-test@example.com", // Grant admin access to test user
+              H4CKATH0N_DATABASE_URL: "sqlite+aiosqlite:////tmp/flow-e2e.db",
             },
           },
           {

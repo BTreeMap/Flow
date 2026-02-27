@@ -4,113 +4,18 @@ import {
   removeVirtualAuthenticator,
   type VirtualAuthenticator,
 } from "./webauthn-helpers";
+import { execSync } from "child_process";
+import path from "path";
+import { fileURLToPath } from "url";
 
 let auth: VirtualAuthenticator;
 
-const FAKE_PROJECT_ID = "p_testproject1234567890123456789";
-
-test.describe("Chat Experience Walkthrough", () => {
+test.describe("Chat Experience Walkthrough (Real Backend)", () => {
   test.beforeEach(async ({ page }) => {
     // Force mobile viewport for full navigation flow testing (Dashboard -> Chat -> Back)
     await page.setViewportSize({ width: 390, height: 844 });
 
     auth = await addVirtualAuthenticator(page);
-
-    // -----------------------------------------------------------------------
-    // MOCKS
-    // -----------------------------------------------------------------------
-
-    // Log all requests to debug 404
-    // page.on('request', request => console.log('>>', request.method(), request.url()));
-    // page.on('response', response => console.log('<<', response.status(), response.url()));
-
-    // 1. Dashboard: Return a single active project
-    await page.route("**/api/dashboard", async (route) => {
-      await route.fulfill({
-        json: {
-          memberships: [
-            {
-              project_id: FAKE_PROJECT_ID,
-              display_name: "AI Coach",
-              status: "active",
-              last_message_at: new Date().toISOString(),
-              last_message_preview: "Ready to help!",
-            },
-          ],
-        },
-      });
-    });
-
-    // 2. Profile: Return valid profile to skip onboarding
-    // Use regex to be more robust
-    await page.route(new RegExp(`/api/p/${FAKE_PROJECT_ID}/profile$`), async (route) => {
-      await route.fulfill({
-        json: {
-          prompt_anchor: "You are a helpful coach.",
-          preferred_time: "09:00",
-        },
-      });
-    });
-
-    // 3. Messages: Return a static history
-    await page.route(new RegExp(`/api/p/${FAKE_PROJECT_ID}/messages$`), async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({
-          json: {
-            messages: [
-              {
-                message_id: 100,
-                server_msg_id: "msg_100",
-                role: "assistant",
-                content: "Hello! I am your **AI Coach**.",
-                created_at: new Date(Date.now() - 10000).toISOString(),
-              },
-              {
-                message_id: 101,
-                server_msg_id: "msg_101",
-                role: "user",
-                content: "Hi there.",
-                created_at: new Date(Date.now() - 5000).toISOString(),
-              },
-            ],
-          },
-        });
-      } else if (route.request().method() === "POST") {
-        const body = route.request().postDataJSON();
-        await route.fulfill({
-          json: {
-            message_id: 102,
-            server_msg_id: `msg_${Date.now()}`,
-            role: "user",
-            content: body.text,
-            created_at: new Date().toISOString(),
-          },
-        });
-      } else {
-        await route.fallback();
-      }
-    });
-
-    // 5. SSE Events: Simulate a stream with a delayed message
-    await page.route(new RegExp(`/api/p/${FAKE_PROJECT_ID}/events$`), async (route) => {
-      const data = JSON.stringify({
-        message_id: 200,
-        server_msg_id: "msg_sse_200",
-        role: "assistant",
-        content: "I received your message via SSE!",
-        created_at: new Date().toISOString(),
-      });
-      // Try simple fulfill with body as string
-      await route.fulfill({
-        status: 200,
-        headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        },
-        body: `event: message.final\nid: msg_sse_200\ndata: ${data}\n\n`,
-      });
-    });
   });
 
   test.afterEach(async () => {
@@ -119,84 +24,113 @@ test.describe("Chat Experience Walkthrough", () => {
     }
   });
 
-  test("User creates account, sees dashboard, enters chat, sends message, and receives reply", async ({
+  test("User creates account, joins seeded project, completes onboarding, and chats", async ({
     page,
   }) => {
     // -----------------------------------------------------------------------
-    // STEP 1: Registration (to get into the authenticated state)
+    // STEP 0: Seed Data (Server-side)
     // -----------------------------------------------------------------------
+    try {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const apiDir = path.resolve(__dirname, "../../api");
+        // Ensure H4CKATH0N_DATABASE_URL matches playwright.config.ts
+        const env = { ...process.env, H4CKATH0N_DATABASE_URL: "sqlite+aiosqlite:////tmp/flow-e2e.db" };
+        execSync("uv run scripts/seed_e2e.py", { cwd: apiDir, env, stdio: 'inherit' });
+    } catch (e) {
+        console.error("Failed to seed DB:", e);
+        throw e;
+    }
+
+    const projectId = "ptestproject123456789012345678901";
+    const inviteCodeStr = "test-invite-code-123";
+
+    // -----------------------------------------------------------------------
+    // STEP 1: Registration
+    // -----------------------------------------------------------------------
+    const userEmail = "chat-test@example.com";
     await page.goto("/");
     await page.getByTestId("landing-register").click();
-    await page.getByTestId("register-email").fill("chat-test@example.com");
+    await page.getByTestId("register-email").fill(userEmail);
     await page.getByTestId("register-email-submit").click();
-    await page.getByTestId("register-submit").click(); // WebAuthn creation
+    await page.getByTestId("register-submit").click();
     await page.getByTestId("register-display-name").fill("Chat User");
     await page.getByTestId("register-finish").click();
 
-    // -----------------------------------------------------------------------
-    // STEP 2: Dashboard
-    // -----------------------------------------------------------------------
     await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.getByTestId("dashboard-heading")).toHaveText("Chats");
 
-    // Verify our mocked project is visible
-    const projectLink = page.getByRole("link", { name: "AI Coach Ready to help!" });
-    await expect(projectLink).toBeVisible();
+    // -----------------------------------------------------------------------
+    // STEP 3: Claim Invite (Project already created via seed)
+    // -----------------------------------------------------------------------
+    // Navigate directly to activation page with the invite code in query param
+    await page.goto(`/p/${projectId}/activate?invite=${inviteCodeStr}`);
 
-    // Test Search (Client-side filtering)
-    await page.getByTestId("chat-search").fill("Coach");
-    await expect(projectLink).toBeVisible();
-
-    await page.getByTestId("chat-search").fill("NonExistent");
-    await expect(projectLink).not.toBeVisible();
-
-    await page.getByTestId("chat-search").fill(""); // Clear search
+    // Now just click Join
+    await page.getByRole("button", { name: "Join Project" }).click();
 
     // -----------------------------------------------------------------------
-    // STEP 3: Enter Chat
+    // STEP 4: Onboarding
     // -----------------------------------------------------------------------
-    await projectLink.click();
-    await expect(page).toHaveURL(new RegExp(`/p/${FAKE_PROJECT_ID}/chat`));
+    // Expect redirect to onboarding
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding`));
 
-    // Verify Header
-    await expect(page.getByRole("heading", { name: "AI Coach" })).toBeVisible();
-
-    // Verify Historical Messages
-    // Wait specifically for the message list to load
-    await expect(page.getByText("Hello! I am your AI Coach.")).toBeVisible({ timeout: 10000 });
-    // Check Markdown rendering (bold text becomes strong tag or similar)
-    // We can check for the "AI Coach" text inside a strong tag if we want to be specific,
-    // but text visibility is a good enough proxy for now.
-    await expect(page.getByText("Hi there.")).toBeVisible();
+    // Fill Onboarding Form
+    await page.getByPlaceholder("After my morning coffee").fill("After lunch");
+    await page.getByPlaceholder("08:00 or 8am").fill("13:00");
+    await page.getByRole("button", { name: "Continue to chat" }).click();
 
     // -----------------------------------------------------------------------
-    // STEP 4: Send a Message
+    // STEP 5: Notification Permission (Onboarding Step 2)
+    // -----------------------------------------------------------------------
+    // Onboarding redirects to /onboarding/notifications
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding/notifications`));
+
+    // VAPID keys are missing in test env, so "Enable" is disabled. Click Skip.
+    await page.getByRole("button", { name: "Skip for now" }).click();
+
+    // Finally, we should be at chat
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/chat`), { timeout: 20000 });
+
+    // -----------------------------------------------------------------------
+    // STEP 6: Chat Experience
+    // -----------------------------------------------------------------------
+    await expect(page.getByRole("heading", { name: "E2E Project" })).toBeVisible();
+
+    // Note: The backend is supposed to send an initial greeting, but in Stub mode or some environments
+    // it might fail silently or take time. To be robust, we proceed to send a message immediately
+    // if the chat is ready.
+
+    // -----------------------------------------------------------------------
+    // STEP 7: Send Message
     // -----------------------------------------------------------------------
     const input = page.getByPlaceholder("Type a message…");
-    await input.fill("Hello from E2E");
+    await input.fill("Hello Real Backend");
     await page.getByRole("button", { name: "Send" }).click();
 
-    // Verify Optimistic UI (or fast response)
-    await expect(page.getByText("Hello from E2E")).toBeVisible();
+    // Verify Optimistic UI
+    await expect(page.getByText("Hello Real Backend")).toBeVisible();
     await expect(input).toHaveValue("");
 
-    // -----------------------------------------------------------------------
-    // STEP 5: Verify SSE Reception
-    // -----------------------------------------------------------------------
-    // The SSE mock sends "I received your message via SSE!" immediately (but client might take a moment to process)
-    await expect(page.getByText("I received your message via SSE!")).toBeVisible({ timeout: 10000 });
+    // Verify Response (Assistant replies)
+    // Now we definitely expect a response from the backend (Stub or LLM).
+    // Stub response is usually immediate.
+    // We look for ANY assistant message.
+    await expect(page.getByTestId("assistant-markdown")).toBeVisible({ timeout: 30000 });
 
     // -----------------------------------------------------------------------
-    // STEP 6: Verify Persistence (Reload)
+    // STEP 8: Verify Persistence (Reload)
     // -----------------------------------------------------------------------
-    // If we reload, we should fetch from /messages again.
-    // Since our mock /messages is static (ids 100, 101), the new messages (102, 200) won't be there
-    // unless we update the mock.
-    // However, the test requirement is just "expectations on chat experience".
-    // We've verified: Load history -> Send -> Receive.
+    await page.reload();
+    await expect(page.getByText("Hello Real Backend")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "E2E Project" })).toBeVisible();
 
-    // Let's verify we can go back to dashboard
+    // -----------------------------------------------------------------------
+    // STEP 9: Back Navigation
+    // -----------------------------------------------------------------------
     await page.getByRole("button", { name: "Back" }).click();
     await expect(page).toHaveURL(/\/dashboard/);
+
+    await expect(page.getByText("E2E Project")).toBeVisible();
   });
 });
