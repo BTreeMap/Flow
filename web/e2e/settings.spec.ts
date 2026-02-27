@@ -54,7 +54,16 @@ test.describe("Settings & Profile Walkthrough", () => {
     await page.getByTestId("register-finish").click();
 
     await page.goto(`/p/${projectId}/activate?invite=${inviteCodeStr}`);
-    await page.getByRole("button", { name: "Join Project" }).click();
+
+    // Wait for Join Project button and click with navigation wait
+    const joinBtn = page.getByRole("button", { name: "Join Project" });
+    await expect(joinBtn).toBeVisible();
+    await expect(joinBtn).toBeEnabled();
+
+    await Promise.all([
+      page.waitForURL(new RegExp(`/p/${projectId}/onboarding`), { timeout: 20000 }),
+      joinBtn.click()
+    ]);
 
     // Onboarding
     await page.getByPlaceholder("After my morning coffee").fill("Before bed");
