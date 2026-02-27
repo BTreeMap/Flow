@@ -27,37 +27,39 @@ async def seed():
 
         print(f"Seeding DB at {DATABASE_URL}...")
 
-        # Create Project
-        project = Project(
-            id=project_id,
-            display_name="E2E Project",
-            status="active",
-            created_at=datetime.now(timezone.utc),
-        )
-        session.add(project)
+        # Create Project (Idempotent)
+        existing = await session.get(Project, project_id)
+        if not existing:
+            project = Project(
+                id=project_id,
+                display_name="E2E Project",
+                status="active",
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(project)
 
-        # Create Invite
-        invite_code = "test-invite-code-123"
-        code_hash = hashlib.sha256(invite_code.encode()).hexdigest()
+            # Create Invite
+            invite_code = "test-invite-code-123"
+            code_hash = hashlib.sha256(invite_code.encode()).hexdigest()
 
-        invite = ProjectInvite(
-            project_id=project_id,
-            invite_code_hash=code_hash,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
-            max_uses=10,
-            uses=0,
-            label="e2e-test",
-        )
-        session.add(invite)
+            invite = ProjectInvite(
+                project_id=project_id,
+                invite_code_hash=code_hash,
+                expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+                max_uses=10,
+                uses=0,
+                label="e2e-test",
+            )
+            session.add(invite)
 
-        try:
-            await session.commit()
-            print(f"SEED_SUCCESS: {project_id} {invite_code}")
-        except Exception as e:
-            print(f"SEED_ERROR: {e}")
-            await session.rollback()
-            # If unique constraint violation, maybe it already exists?
-            pass
+            try:
+                await session.commit()
+                print(f"SEED_SUCCESS: {project_id} {invite_code}")
+            except Exception as e:
+                print(f"SEED_ERROR: {e}")
+                await session.rollback()
+        else:
+            print(f"SEED_SKIP: Project {project_id} already exists")
 
     await engine.dispose()
 

@@ -18,6 +18,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   created_at?: string;
+  isStreaming?: boolean;
 }
 
 function formatBubbleTime(iso?: string): string | undefined {
@@ -206,15 +207,62 @@ export function ChatThread() {
       content: string;
       created_at?: string;
     }) => {
-      const next: Message = {
-        id: String(payload.message_id),
-        serverMsgId: payload.server_msg_id,
-        role: payload.role,
-        content: payload.content,
-        created_at: payload.created_at,
-      };
       setMessages((prev) => {
-        if (prev.some((m) => m.serverMsgId === next.serverMsgId)) return prev;
+        // If message already exists (e.g. from stream), update it with final content and unset streaming
+        if (prev.some((m) => m.serverMsgId === payload.server_msg_id)) {
+          return prev.map((m) => {
+            if (m.serverMsgId === payload.server_msg_id) {
+              return {
+                ...m,
+                id: String(payload.message_id), // Ensure ID is sync
+                content: payload.content,
+                isStreaming: false,
+                created_at: payload.created_at,
+              };
+            }
+            return m;
+          });
+        }
+        // Otherwise append new
+        const next: Message = {
+          id: String(payload.message_id),
+          serverMsgId: payload.server_msg_id,
+          role: payload.role,
+          content: payload.content,
+          created_at: payload.created_at,
+          isStreaming: false,
+        };
+        return [...prev, next];
+      });
+    };
+
+    const handleSSEChunk = (payload: {
+      server_msg_id: string;
+      delta: string;
+    }) => {
+      setMessages((prev) => {
+        // Find existing message or append new placeholder
+        if (prev.some((m) => m.serverMsgId === payload.server_msg_id)) {
+          return prev.map((m) => {
+            if (m.serverMsgId === payload.server_msg_id) {
+              return {
+                ...m,
+                content: m.content + payload.delta,
+                isStreaming: true,
+              };
+            }
+            return m;
+          });
+        }
+        // Create placeholder
+        const next: Message = {
+          id: `stream-${payload.server_msg_id}`,
+          serverMsgId: payload.server_msg_id,
+          role: "assistant",
+          content: payload.delta,
+          created_at: new Date().toISOString(),
+          isStreaming: true,
+        };
         return [...prev, next];
       });
     };
@@ -252,6 +300,17 @@ export function ChatThread() {
                   );
                 } catch {
                   // ignore malformed messages
+                }
+              } else if (ev.event === "message.chunk") {
+                try {
+                  handleSSEChunk(
+                    JSON.parse(ev.data) as {
+                      server_msg_id: string;
+                      delta: string;
+                    },
+                  );
+                } catch {
+                  // ignore
                 }
               }
             },
@@ -331,24 +390,59 @@ export function ChatThread() {
         server_msg_id: string;
         role: "user" | "assistant";
         content: string;
+        user_message?: {
+          message_id: number;
+          server_msg_id: string;
+          role: "user" | "assistant";
+          content: string;
+          created_at: string;
+        };
       };
       setMessages((prev) => {
-        // Remove the temporary message and add the real one
-        const filtered = prev.filter((m) => m.id !== tempId);
-        // Avoid duplicate if serverMsgId is already present
-        if (filtered.some((m) => m.serverMsgId === data.server_msg_id)) {
-          return filtered;
+        // Remove the temporary message
+        const next = prev.filter((m) => m.id !== tempId);
+
+        // Add the real user message if returned (replacing temp)
+        if (data.user_message) {
+          // Avoid duplicate if already present
+          if (
+            !next.some((m) => m.serverMsgId === data.user_message!.server_msg_id)
+          ) {
+            next.push({
+              id: String(data.user_message.message_id),
+              serverMsgId: data.user_message.server_msg_id,
+              role: data.user_message.role,
+              content: data.user_message.content,
+              created_at: data.user_message.created_at,
+            });
+          }
         }
-        return [
-          ...filtered,
-          {
+
+        // Add or update the assistant message (in case streaming started)
+        const asstIdx = next.findIndex(
+          (m) => m.serverMsgId === data.server_msg_id,
+        );
+        if (asstIdx !== -1) {
+          next[asstIdx] = {
+            ...next[asstIdx],
             id: String(data.message_id),
             serverMsgId: data.server_msg_id,
             role: data.role,
             content: data.content,
-            created_at: new Date().toISOString(), // Use client time for immediate display or data.created_at if available
-          },
-        ];
+            created_at: data.user_message?.created_at || new Date().toISOString(),
+            isStreaming: false,
+          };
+        } else {
+          next.push({
+            id: String(data.message_id),
+            serverMsgId: data.server_msg_id,
+            role: data.role,
+            content: data.content,
+            created_at: new Date().toISOString(),
+            isStreaming: false,
+          });
+        }
+        return next;
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
@@ -426,6 +520,7 @@ export function ChatThread() {
             content={msg.content}
             timestamp={formatBubbleTime(msg.created_at)}
             isGroupContinuation={msg.isGroupContinuation}
+            isStreaming={msg.isStreaming}
           />
         ))}
         <div ref={bottomRef} />

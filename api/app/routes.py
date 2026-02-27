@@ -158,19 +158,20 @@ class SendMessageRequest(BaseModel):
     client_msg_id: str | None = None
 
 
-class SendMessageResponse(BaseModel):
-    message_id: int
-    server_msg_id: str
-    role: str
-    content: str
-
-
 class MessageItem(BaseModel):
     message_id: int
     server_msg_id: str
     role: str
     content: str
     created_at: str
+
+
+class SendMessageResponse(BaseModel):
+    message_id: int
+    server_msg_id: str
+    role: str
+    content: str
+    user_message: MessageItem | None = None
 
 
 class MessageListResponse(BaseModel):
@@ -1051,11 +1052,26 @@ async def send_message(
                 )
                 asst = asst_result.scalars().first()
                 if asst:
+                    # Fetch user message for response
+                    user_msg_result = await db.execute(
+                        select(Message).where(Message.id == turn.user_message_id)
+                    )
+                    user_msg = user_msg_result.scalars().first()
+
                     return SendMessageResponse(
                         message_id=asst.id,
                         server_msg_id=asst.server_msg_id,
                         role="assistant",
                         content=asst.content,
+                        user_message=MessageItem(
+                            message_id=user_msg.id,
+                            server_msg_id=user_msg.server_msg_id,
+                            role=user_msg.role,
+                            content=user_msg.content,
+                            created_at=user_msg.created_at.isoformat(),
+                        )
+                        if user_msg
+                        else None,
                     )
             if turn.status == "processing":
                 # Another request is processing this turn; wait briefly
@@ -1080,11 +1096,28 @@ async def send_message(
                         )
                         asst = asst_result.scalars().first()
                         if asst:
+                            # Fetch user message for response
+                            user_msg_result = await db.execute(
+                                select(Message).where(
+                                    Message.id == turn.user_message_id
+                                )
+                            )
+                            user_msg = user_msg_result.scalars().first()
+
                             return SendMessageResponse(
                                 message_id=asst.id,
                                 server_msg_id=asst.server_msg_id,
                                 role="assistant",
                                 content=asst.content,
+                                user_message=MessageItem(
+                                    message_id=user_msg.id,
+                                    server_msg_id=user_msg.server_msg_id,
+                                    role=user_msg.role,
+                                    content=user_msg.content,
+                                    created_at=user_msg.created_at.isoformat(),
+                                )
+                                if user_msg
+                                else None,
                             )
                 return JSONResponse(
                     status_code=202,
@@ -1141,6 +1174,24 @@ async def send_message(
         # Run new architecture engine turn (Router + specialist)
         from app.agents.engine import process_turn as engine_process_turn
 
+        # Generate assistant server_msg_id upfront for streaming
+        asst_server_msg_id = generate_server_msg_id()
+
+        async def on_token(token: str) -> None:
+            """Callback for streaming tokens to the client."""
+            _publish_event(
+                conv_id,
+                {
+                    "event": "message.chunk",
+                    "data": json.dumps(
+                        {
+                            "server_msg_id": asst_server_msg_id,
+                            "delta": token,
+                        }
+                    ),
+                },
+            )
+
         try:
             assistant_content, _decision = await engine_process_turn(
                 db=db,
@@ -1150,6 +1201,7 @@ async def send_message(
                 user_text=body.text,
                 llm=llm,
                 router_llm=llm,
+                on_token=on_token,
             )
         except Exception:
             logger.exception("Engine process_turn failed")
@@ -1159,7 +1211,7 @@ async def send_message(
             conversation_id=conv_id,
             role="assistant",
             content=assistant_content,
-            server_msg_id=generate_server_msg_id(),
+            server_msg_id=asst_server_msg_id,
         )
         db.add(assistant_msg)
         await db.flush()
@@ -1214,6 +1266,13 @@ async def send_message(
             server_msg_id=assistant_msg.server_msg_id,
             role="assistant",
             content=assistant_content,
+            user_message=MessageItem(
+                message_id=user_msg.id,
+                server_msg_id=user_msg.server_msg_id,
+                role=user_msg.role,
+                content=user_msg.content,
+                created_at=user_msg.created_at.isoformat(),
+            ),
         )
     except Exception:
         # Mark turn as failed on error

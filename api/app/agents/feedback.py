@@ -6,11 +6,12 @@ system prompt.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Coroutine
 from typing import Any
 
-from langchain_core.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 
+from app.agents.runner import run_agent
 from app.prompt_loader import load_prompt
 
 FEEDBACK_SYSTEM_PROMPT = load_prompt("feedback_system")
@@ -20,26 +21,21 @@ FEEDBACK_FALLBACK = (
     "Feel free to share any updates!"
 )
 
-_RECURSION_LIMIT = 22
 
-
-def run_feedback(
+async def run_feedback(
     agent: CompiledStateGraph,
     user_text: str,
     chat_history: list[Any],
+    on_token: Callable[[str], Coroutine[None, None, None]] | None = None,
 ) -> str:
     """Invoke the feedback agent and return the assistant text.
 
     Falls back to ``FEEDBACK_FALLBACK`` if the agent produces no output.
     """
-    messages = list(chat_history) + [HumanMessage(content=user_text)]
-    result = agent.invoke(
-        {"messages": messages},
-        config={"recursion_limit": _RECURSION_LIMIT},
+    return await run_agent(
+        agent=agent,
+        user_text=user_text,
+        chat_history=chat_history,
+        fallback_text=FEEDBACK_FALLBACK,
+        on_token=on_token,
     )
-    output_messages = result.get("messages", [])
-    if output_messages:
-        last = output_messages[-1]
-        if hasattr(last, "content") and last.content:
-            return str(last.content)
-    return FEEDBACK_FALLBACK
