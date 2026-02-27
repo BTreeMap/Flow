@@ -53,6 +53,9 @@ test.describe("Settings & Profile Walkthrough", () => {
     await page.getByTestId("register-display-name").fill("Settings User");
     await page.getByTestId("register-finish").click();
 
+    // Wait for registration to complete and profile to be synced
+    await expect(page).toHaveURL(/\/dashboard/);
+
     await page.goto(`/p/${projectId}/activate?invite=${inviteCodeStr}`);
 
     // Wait for Join Project button and click with navigation wait
