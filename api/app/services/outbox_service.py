@@ -4,10 +4,10 @@ import json
 import re
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import OutboxEvent, ProjectMembership
+from app.models import OutboxEvent
 
 
 def _parse_preferred_time(preferred_time: str) -> tuple[int, int]:
@@ -61,47 +61,3 @@ async def enqueue_outbox_event(
     db.add(event)
     await db.flush()
     return event
-
-
-async def enqueue_next_scheduled_prompt(
-    db: AsyncSession,
-    *,
-    membership: ProjectMembership,
-    preferred_time: str,
-    now: datetime | None = None,
-) -> OutboxEvent:
-    run_now = now or datetime.now(UTC)
-    run_at = next_run_at(preferred_time, run_now)
-    dedupe_key = f"scheduled_prompt:{membership.id}:{run_at.date().isoformat()}"
-    return await enqueue_outbox_event(
-        db,
-        project_id=membership.project_id,
-        membership_id=membership.id,
-        event_type="scheduled_prompt",
-        payload={"project_id": membership.project_id},
-        dedupe_key=dedupe_key,
-        available_at=run_at,
-    )
-
-
-async def replace_next_scheduled_prompt(
-    db: AsyncSession,
-    *,
-    membership: ProjectMembership,
-    preferred_time: str,
-    now: datetime | None = None,
-) -> OutboxEvent:
-    run_now = now or datetime.now(UTC)
-    await db.execute(
-        delete(OutboxEvent).where(
-            OutboxEvent.membership_id == membership.id,
-            OutboxEvent.type == "scheduled_prompt",
-            OutboxEvent.available_at > run_now,
-        )
-    )
-    return await enqueue_next_scheduled_prompt(
-        db,
-        membership=membership,
-        preferred_time=preferred_time,
-        now=run_now,
-    )

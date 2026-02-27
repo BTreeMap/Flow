@@ -71,12 +71,9 @@ test.describe("Settings & Profile Walkthrough", () => {
     const claimResponse = await claimPromise;
     expect(claimResponse.status()).toBe(200);
 
-    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding`), { timeout: 20000 });
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding/notifications`), { timeout: 20000 });
 
-    // Onboarding
-    await page.getByPlaceholder("After my morning coffee").fill("Before bed");
-    await page.getByPlaceholder("08:00 or 8am").fill("22:00");
-    await page.getByRole("button", { name: "Continue to chat" }).click();
+    // Notifications onboarding — skip
     await page.getByRole("button", { name: "Skip for now" }).click();
     await expect(page).toHaveURL(new RegExp(`/p/${projectId}/chat`));
 

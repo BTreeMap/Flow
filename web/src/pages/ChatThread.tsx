@@ -130,20 +130,6 @@ export function ChatThread() {
     (async () => {
       try {
         const token = await getOrMintToken("http");
-        const profileRes = await fetch(`${API_BASE}/p/${projectId}/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!profileRes.ok) {
-          throw new Error(`Failed to load profile (${profileRes.status})`);
-        }
-        const profile = (await profileRes.json()) as {
-          prompt_anchor?: string;
-          preferred_time?: string;
-        };
-        if (!profile.prompt_anchor || !profile.preferred_time) {
-          navigate(`/p/${projectId}/onboarding`, { replace: true });
-          return;
-        }
 
         // Fetch dashboard for chat title
         const dashRes = await fetch(`${API_BASE}/dashboard`, {
@@ -199,7 +185,7 @@ export function ChatThread() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, navigate]);
+  }, [projectId]);
 
   // Update dashboard helper
   const updateDashboardPreview = useCallback((preview: string, timestamp?: string) => {

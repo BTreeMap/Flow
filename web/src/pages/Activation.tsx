@@ -60,7 +60,7 @@ export function Activation() {
         throw new Error(detail || `Activation failed (${response.status})`);
       }
 
-      navigate(`/p/${projectId}/onboarding`);
+      navigate(`/p/${projectId}/onboarding/notifications`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Activation failed");
     } finally {

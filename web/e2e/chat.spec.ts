@@ -70,21 +70,10 @@ test.describe("Chat Experience Walkthrough (Real Backend)", () => {
     await page.getByRole("button", { name: "Join Project" }).click();
 
     // -----------------------------------------------------------------------
-    // STEP 4: Onboarding
+    // STEP 4: Notifications Onboarding
     // -----------------------------------------------------------------------
-    // Expect redirect to onboarding
-    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding`));
-
-    // Fill Onboarding Form
-    await page.getByPlaceholder("After my morning coffee").fill("After lunch");
-    await page.getByPlaceholder("08:00 or 8am").fill("13:00");
-    await page.getByRole("button", { name: "Continue to chat" }).click();
-
-    // -----------------------------------------------------------------------
-    // STEP 5: Notification Permission (Onboarding Step 2)
-    // -----------------------------------------------------------------------
-    // Onboarding redirects to /onboarding/notifications
-    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding/notifications`));
+    // After claim, user lands on notifications onboarding
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding/notifications`), { timeout: 20000 });
 
     // VAPID keys are missing in test env, so "Enable" is disabled. Click Skip.
     await page.getByRole("button", { name: "Skip for now" }).click();
