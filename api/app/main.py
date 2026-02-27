@@ -18,6 +18,7 @@ from app.db import init_db, engine as app_engine
 from app.db_migrations.migrate import upgrade_to_head
 from app.logging_conf import configure_logging
 from app.middleware import add_csp_middleware
+from app.middleware_logging import LoggingMiddleware
 from app.routes import router
 from h4ckath0n import create_app
 from h4ckath0n.realtime import (
@@ -73,6 +74,7 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 _base_app.router.lifespan_context = _lifespan
 app = _base_app
+app.add_middleware(LoggingMiddleware)
 add_csp_middleware(app)
 app.include_router(router)
 
