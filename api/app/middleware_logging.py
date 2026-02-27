@@ -72,7 +72,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             raise
 
         duration = (time.perf_counter() - start_time) * 1000
-        logger.info(f"Request completed: {method} {url} - {response.status_code} ({duration:.2f}ms)")
+        logger.info(
+            f"Request completed: {method} {url} - {response.status_code} ({duration:.2f}ms)"
+        )
 
         if logger.isEnabledFor(logging.DEBUG):
             # Log response headers

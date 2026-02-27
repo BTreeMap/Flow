@@ -58,6 +58,7 @@ def test_logging_middleware_streaming(caplog):
         def iter_content():
             yield b"data: hello\n\n"
             yield b"data: world\n\n"
+
         return StreamingResponse(iter_content(), media_type="text/event-stream")
 
     client = TestClient(app)
