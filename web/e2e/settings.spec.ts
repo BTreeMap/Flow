@@ -60,10 +60,15 @@ test.describe("Settings & Profile Walkthrough", () => {
     await expect(joinBtn).toBeVisible();
     await expect(joinBtn).toBeEnabled();
 
-    await Promise.all([
-      page.waitForURL(new RegExp(`/p/${projectId}/onboarding`), { timeout: 20000 }),
-      joinBtn.click()
-    ]);
+    // Debug: Monitor the claim request
+    const claimPromise = page.waitForResponse(resp =>
+        resp.url().includes("/claim") && resp.request().method() === "POST"
+    );
+    await joinBtn.click();
+    const claimResponse = await claimPromise;
+    expect(claimResponse.status()).toBe(200);
+
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding`), { timeout: 20000 });
 
     // Onboarding
     await page.getByPlaceholder("After my morning coffee").fill("Before bed");
