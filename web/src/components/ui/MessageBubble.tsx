@@ -98,7 +98,7 @@ export const MessageBubble = memo(function MessageBubble({
               </summary>
               <ul className="mt-0.5 space-y-1 list-none pl-0">
                 {debugInfo.tool_calls.map((tc, i) => (
-                  <li key={i} className="border-l border-text-subtle pl-1.5">
+                  <li key={tc.run_id ?? i} className="border-l border-text-subtle pl-1.5">
                     <span className="font-semibold">{tc.tool}</span>
                     {tc.args !== undefined && (
                       <pre className="whitespace-pre-wrap break-all opacity-75 mt-0.5">
