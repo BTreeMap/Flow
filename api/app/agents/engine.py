@@ -32,6 +32,7 @@ from app.schemas.patches import (
     MemoryItemData,
     MemoryPatchProposal,
     ProfilePatchProposal,
+    SchedulePatchProposal,
     UserProfileData,
 )
 from app.schemas.router import RouteDecision
@@ -45,6 +46,7 @@ from app.services.profile_service import (
     validate_memory_patch,
     validate_profile_patch,
 )
+from app.services.scheduler_service import create_nudge_schedule, deactivate_schedule
 from app.tools.proposal_tools import ProposalCollector
 
 logger = logging.getLogger(__name__)
@@ -294,10 +296,89 @@ async def _process_proposals(
         except Exception:
             logger.exception("Failed to process memory proposal: %s", raw)
 
+    # Process schedule proposals
+    for raw in collector.schedule_proposals:
+        try:
+            if latest_user_message_id and isinstance(raw, dict):
+                evidence = raw.get("evidence", {})
+                message_ids = (
+                    evidence.get("message_ids", [])
+                    if isinstance(evidence, dict)
+                    else []
+                )
+                if not message_ids:
+                    raw["evidence"] = {
+                        "message_ids": [latest_user_message_id],
+                        "quotes": evidence.get("quotes", [])
+                        if isinstance(evidence, dict)
+                        else [],
+                    }
+            try:
+                proposal = SchedulePatchProposal.model_validate(raw)
+            except Exception:
+                logger.warning("Invalid schedule proposal: %s", raw)
+                continue
+
+            # Validate schedule proposal (basic checks for now)
+            valid = True
+            reason = ""
+            if proposal.action == "create":
+                if not proposal.topic or not proposal.time:
+                    valid = False
+                    reason = "Missing topic or time"
+            elif proposal.action == "delete":
+                if not proposal.schedule_id:
+                    valid = False
+                    reason = "Missing schedule_id"
+
+            if valid and proposal.source_bot != "COACH":
+                # Assuming only Coach should really be messing with schedules for now,
+                # or at least that's where we exposed the tools.
+                # But technically any bot could if we let it.
+                # Let's keep it open but log it.
+                pass
+
+            await log_patch_audit(
+                db=db,
+                membership_id=membership_id,
+                proposal_type="schedule",
+                source_bot=proposal.source_bot,
+                patch_json=json.dumps(
+                    {
+                        "action": proposal.action,
+                        "topic": proposal.topic,
+                        "time": proposal.time,
+                        "schedule_id": proposal.schedule_id,
+                    }
+                ),
+                confidence=proposal.confidence,
+                evidence_json=proposal.evidence.model_dump_json(),
+                decision="committed" if valid else f"ignored: {reason}",
+                committed_at=now if valid else None,
+                flush=False,
+            )
+
+            if valid:
+                if proposal.action == "create":
+                    await create_nudge_schedule(
+                        db, membership_id, proposal.topic, proposal.time
+                    )
+                    logger.info(
+                        "Committed schedule creation from %s", proposal.source_bot
+                    )
+                elif proposal.action == "delete":
+                    await deactivate_schedule(db, proposal.schedule_id)
+                    logger.info(
+                        "Committed schedule deletion from %s", proposal.source_bot
+                    )
+
+        except Exception:
+            logger.exception("Failed to process schedule proposal: %s", raw)
+
     if profile_changed:
         await save_user_profile(db, membership_id, profile, flush=False)
 
-    # Final flush for all changes (audit logs, memory items, profile updates)
+    # Final flush for all changes (audit logs, memory items, profile updates, schedules)
     await db.flush()
 
     return profile
@@ -343,10 +424,10 @@ async def process_turn(
     llm: BaseChatModel | None = None,
     router_llm: BaseChatModel | None = None,
     on_token: Callable[[str], Coroutine[None, None, None]] | None = None,
-) -> tuple[str, RouteDecision]:
+) -> tuple[str, RouteDecision, dict]:
     """Process one user turn through the new Router + specialist architecture.
 
-    Returns (assistant_text, route_decision).
+    Returns (assistant_text, route_decision, debug_info).
     """
     # Step 1: Load profile + memory + recent history
     profile = await load_user_profile(db, membership_id)
@@ -388,6 +469,9 @@ async def process_turn(
 
     logger.info("Route decision: %s (reason: %s)", decision.route, decision.reason)
 
+    # Collect tool names for debugging
+    tool_names = []
+
     # Step 3: Invoke specialist
     if llm is not None:
         # LLM-backed agent invocation
@@ -395,6 +479,16 @@ async def process_turn(
         from app.tools.proposal_tools import make_proposal_tools
 
         proposal_tools = make_proposal_tools(collector, source_bot=decision.route)
+
+        # Add scheduler tools for COACH
+        if decision.route == "COACH":
+            from app.tools.scheduler_tools import list_schedules
+
+            # COACH gets list_schedules + proposal tools (which now include schedule proposals)
+            proposal_tools.append(list_schedules)
+
+        # Collect tool names for debug info
+        tool_names = [t.name for t in proposal_tools]
 
         chat_history: list[HumanMessage | AIMessage] = []
         # When creating history, exclude the just-added user message (which is last)
@@ -444,6 +538,7 @@ async def process_turn(
     else:
         # Stub mode (no LLM)
         assistant_text, collector = _run_specialist_stub(decision.route, user_text)
+        tool_names = ["stub_tools"]  # simplified for stub
 
     # Step 4: Process proposals through Router validator
     await _process_proposals(
@@ -455,4 +550,6 @@ async def process_turn(
         latest_user_message_id=user_msg.id if user_msg else None,
     )
 
-    return assistant_text, decision
+    debug_info = {"agent": decision.route, "tools": tool_names}
+
+    return assistant_text, decision, debug_info

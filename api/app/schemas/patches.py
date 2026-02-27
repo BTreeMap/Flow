@@ -89,6 +89,20 @@ class MemoryPatchProposal(BaseModel):
     )
 
 
+class SchedulePatchProposal(BaseModel):
+    """A specialist bot's proposal to schedule or delete a nudge."""
+
+    action: Literal["create", "delete"]
+    topic: str | None = None
+    time: str | None = None
+    schedule_id: int | None = None
+    confidence: float = Field(..., ge=0, le=1)
+    evidence: EvidenceSpan
+    source_bot: Literal["INTAKE", "FEEDBACK", "COACH"] = Field(
+        ..., description="Which bot proposed this"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Proposal results
 # ---------------------------------------------------------------------------

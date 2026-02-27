@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router";
-import { ArrowLeft, MoreVertical } from "lucide-react";
+import { ArrowLeft, MoreVertical, Bug } from "lucide-react";
 import { IconButton } from "./IconButton";
 import { useState, useRef, useEffect } from "react";
 import type { ReactNode } from "react";
+import { useAuth } from "../../auth";
 
 interface ChatHeaderProps {
   title: string;
@@ -11,6 +12,8 @@ interface ChatHeaderProps {
   hideBack?: boolean;
   connectionStatus?: "online" | "reconnecting" | "offline";
   menuItems?: { label: string; onClick: () => void }[];
+  debugMode?: boolean;
+  onToggleDebug?: () => void;
 }
 
 const statusColors = {
@@ -26,10 +29,14 @@ export function ChatHeader({
   hideBack,
   connectionStatus,
   menuItems,
+  debugMode,
+  onToggleDebug,
 }: ChatHeaderProps) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -70,32 +77,44 @@ export function ChatHeader({
         )}
       </div>
 
-      {menuItems && menuItems.length > 0 && (
-        <div className="relative" ref={menuRef}>
+      <div className="flex items-center gap-1">
+        {isAdmin && onToggleDebug && (
           <IconButton
-            label="Menu"
-            onClick={() => setMenuOpen((v) => !v)}
+            label="Toggle Debug"
+            onClick={onToggleDebug}
+            className={debugMode ? "text-primary bg-primary/10" : "text-text-subtle"}
           >
-            <MoreVertical className="w-5 h-5" />
+            <Bug className="w-5 h-5" />
           </IconButton>
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-[var(--radius-md)] shadow-md py-1 z-50">
-              {menuItems.map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    item.onClick();
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors"
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+
+        {menuItems && menuItems.length > 0 && (
+          <div className="relative" ref={menuRef}>
+            <IconButton
+              label="Menu"
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              <MoreVertical className="w-5 h-5" />
+            </IconButton>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-[var(--radius-md)] shadow-md py-1 z-50">
+                {menuItems.map((item) => (
+                  <button
+                    key={item.label}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      item.onClick();
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-text hover:bg-surface-2 transition-colors"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </header>
   );
 }

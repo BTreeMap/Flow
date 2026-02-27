@@ -7,6 +7,8 @@ interface MessageBubbleProps {
   timestamp?: string;
   isGroupContinuation?: boolean;
   isStreaming?: boolean;
+  debugInfo?: { agent?: string; tools?: string[] };
+  showDebug?: boolean;
 }
 
 export const MessageBubble = memo(function MessageBubble({
@@ -15,6 +17,8 @@ export const MessageBubble = memo(function MessageBubble({
   timestamp,
   isGroupContinuation,
   isStreaming,
+  debugInfo,
+  showDebug,
 }: MessageBubbleProps) {
   if (role === "system") {
     return (
@@ -43,7 +47,7 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <div
-      className={`flex ${isUser ? "justify-end" : "justify-start"} ${
+      className={`flex flex-col ${isUser ? "items-end" : "items-start"} ${
         isGroupContinuation ? "mt-[2px]" : "mt-2"
       }`}
     >
@@ -62,6 +66,15 @@ export const MessageBubble = memo(function MessageBubble({
           </span>
         )}
       </div>
+
+      {showDebug && debugInfo && !isUser && (
+        <div className="max-w-[78%] md:max-w-[65%] px-1 mt-1 text-[10px] text-text-subtle font-mono">
+          <span className="font-semibold">{debugInfo.agent}</span>
+          {debugInfo.tools && debugInfo.tools.length > 0 && (
+            <span className="opacity-75"> using {debugInfo.tools.join(", ")}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 });
