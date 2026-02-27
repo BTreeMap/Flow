@@ -1610,6 +1610,17 @@
       "UserProfileData": {
         "description": "Structured user profile fields (Store A). Pydantic validated.",
         "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "habit_domain": {
             "default": "",
             "title": "Habit Domain",
