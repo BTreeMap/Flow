@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
+import { useQueryClient } from "@tanstack/react-query";
 import { Alert } from "../components/Alert";
 import { getOrMintToken } from "../auth/token";
 import { useAuth } from "../auth";
@@ -9,6 +10,7 @@ import { ChatHeader } from "../components/ui/ChatHeader";
 import { MessageBubble } from "../components/ui/MessageBubble";
 import { Composer } from "../components/ui/Composer";
 import { useLayoutMode } from "../hooks/useLayoutMode";
+import type { SendMessageResponse } from "../api/openapi";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -19,6 +21,7 @@ interface Message {
   content: string;
   created_at?: string;
   isStreaming?: boolean;
+  debugInfo?: SendMessageResponse["debug_info"];
 }
 
 function formatBubbleTime(iso?: string): string | undefined {
@@ -39,7 +42,7 @@ export function ChatThread() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  useAuth();
+  const { user } = useAuth();
   const layoutMode = useLayoutMode();
   const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
@@ -54,6 +57,9 @@ export function ChatThread() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<string | null>(null);
   const [chatTitle, setChatTitle] = useState("Chat");
+  const queryClient = useQueryClient();
+
+  const debugMode = user?.role === "admin" && localStorage.getItem("flow_debug_mode") === "true";
 
   // Mark chat as opened for unread tracking
   useEffect(() => {
@@ -234,6 +240,8 @@ export function ChatThread() {
         };
         return [...prev, next];
       });
+      // Invalidate dashboard to update last message preview
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     };
 
     const handleSSEChunk = (payload: {
@@ -344,7 +352,7 @@ export function ChatThread() {
       active = false;
       ctrl.abort();
     };
-  }, [projectId]);
+  }, [projectId, queryClient]);
 
   const handleSend = async (text: string) => {
     if (!text || sending) return;
@@ -385,65 +393,61 @@ export function ChatThread() {
         throw new Error(`Send failed (${res.status})`);
       }
 
-      const data = (await res.json()) as {
-        message_id: number;
-        server_msg_id: string;
-        role: "user" | "assistant";
-        content: string;
-        user_message?: {
-          message_id: number;
-          server_msg_id: string;
-          role: "user" | "assistant";
-          content: string;
-          created_at: string;
-        };
-      };
+      const data = (await res.json()) as SendMessageResponse;
       setMessages((prev) => {
-        // Remove the temporary message
-        const next = prev.filter((m) => m.id !== tempId);
-
-        // Add the real user message if returned (replacing temp)
-        if (data.user_message) {
-          // Avoid duplicate if already present
-          if (
-            !next.some((m) => m.serverMsgId === data.user_message!.server_msg_id)
-          ) {
-            next.push({
-              id: String(data.user_message.message_id),
-              serverMsgId: data.user_message.server_msg_id,
-              role: data.user_message.role,
-              content: data.user_message.content,
-              created_at: data.user_message.created_at,
-            });
+        // Map over previous messages to replace the temp message in place
+        // This preserves the order: User Message -> Assistant Message (if streaming started)
+        return prev.map((m) => {
+          if (m.id === tempId) {
+            if (data.user_message) {
+              return {
+                id: String(data.user_message.message_id),
+                serverMsgId: data.user_message.server_msg_id,
+                role: data.user_message.role as "user",
+                content: data.user_message.content,
+                created_at: data.user_message.created_at,
+              };
+            }
+            // If for some reason user_message isn't returned, keep temp but mark sent?
+            // Ideally we should always get user_message back.
+            return m;
           }
-        }
 
-        // Add or update the assistant message (in case streaming started)
-        const asstIdx = next.findIndex(
-          (m) => m.serverMsgId === data.server_msg_id,
-        );
-        if (asstIdx !== -1) {
-          next[asstIdx] = {
-            ...next[asstIdx],
+          // If we find the assistant message that might have started streaming already
+          if (m.serverMsgId === data.server_msg_id) {
+             return {
+                ...m,
+                id: String(data.message_id),
+                role: data.role as "assistant",
+                content: data.content,
+                created_at: data.user_message?.created_at || new Date().toISOString(), // Fallback
+                isStreaming: false,
+                debugInfo: data.debug_info,
+             };
+          }
+          return m;
+        });
+      });
+
+      // If the assistant message wasn't in the list yet (no streaming happened), add it now
+      setMessages((prev) => {
+        if (prev.some((m) => m.serverMsgId === data.server_msg_id)) {
+          return prev;
+        }
+        return [...prev, {
             id: String(data.message_id),
             serverMsgId: data.server_msg_id,
-            role: data.role,
-            content: data.content,
-            created_at: data.user_message?.created_at || new Date().toISOString(),
-            isStreaming: false,
-          };
-        } else {
-          next.push({
-            id: String(data.message_id),
-            serverMsgId: data.server_msg_id,
-            role: data.role,
+            role: data.role as "assistant",
             content: data.content,
             created_at: new Date().toISOString(),
             isStreaming: false,
-          });
-        }
-        return next;
+            debugInfo: data.debug_info,
+        }];
       });
+
+      // Invalidate dashboard to update last message preview
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -521,6 +525,8 @@ export function ChatThread() {
             timestamp={formatBubbleTime(msg.created_at)}
             isGroupContinuation={msg.isGroupContinuation}
             isStreaming={msg.isStreaming}
+            debugInfo={msg.debugInfo}
+            showDebug={debugMode}
           />
         ))}
         <div ref={bottomRef} />

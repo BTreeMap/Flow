@@ -46,6 +46,7 @@ from app.services.profile_service import (
     validate_profile_patch,
 )
 from app.tools.proposal_tools import ProposalCollector
+from app.tools.scheduler_tools import list_schedules, schedule_nudge, delete_schedule
 
 logger = logging.getLogger(__name__)
 
@@ -131,8 +132,11 @@ def route_turn_llm(
 # ---------------------------------------------------------------------------
 
 
-def _run_specialist_stub(route: str, user_text: str) -> tuple[str, ProposalCollector]:
-    """Stub specialist invocation for testing without LLM."""
+def _run_specialist_stub(route: str, user_text: str) -> tuple[str, ProposalCollector, list[str]]:
+    """Stub specialist invocation for testing without LLM.
+
+    Returns (assistant_text, collector, tools_used).
+    """
     collector = ProposalCollector()
     if route == "INTAKE":
         text = (
@@ -146,7 +150,8 @@ def _run_specialist_stub(route: str, user_text: str) -> tuple[str, ProposalColle
         )
     else:
         text = "I'm here to support your habit journey. How can I help you today?"
-    return text, collector
+
+    return text, collector, []
 
 
 def _build_profile_summary(profile: UserProfileData) -> str:
@@ -343,10 +348,10 @@ async def process_turn(
     llm: BaseChatModel | None = None,
     router_llm: BaseChatModel | None = None,
     on_token: Callable[[str], Coroutine[None, None, None]] | None = None,
-) -> tuple[str, RouteDecision]:
+) -> tuple[str, RouteDecision, list[str]]:
     """Process one user turn through the new Router + specialist architecture.
 
-    Returns (assistant_text, route_decision).
+    Returns (assistant_text, route_decision, tools_used).
     """
     # Step 1: Load profile + memory + recent history
     profile = await load_user_profile(db, membership_id)
@@ -389,12 +394,15 @@ async def process_turn(
     logger.info("Route decision: %s (reason: %s)", decision.route, decision.reason)
 
     # Step 3: Invoke specialist
+    tools_used: list[str] = []
+
     if llm is not None:
         # LLM-backed agent invocation
         collector = ProposalCollector()
         from app.tools.proposal_tools import make_proposal_tools
 
         proposal_tools = make_proposal_tools(collector, source_bot=decision.route)
+        active_tools = list(proposal_tools)
 
         chat_history: list[HumanMessage | AIMessage] = []
         # When creating history, exclude the just-added user message (which is last)
@@ -413,7 +421,7 @@ async def process_turn(
 
             assistant_text = await run_intake(
                 _create_specialist_agent(
-                    llm, proposal_tools, "intake_system", prompt_args
+                    llm, active_tools, "intake_system", prompt_args
                 ),
                 user_text,
                 chat_history,
@@ -424,7 +432,7 @@ async def process_turn(
 
             assistant_text = await run_feedback(
                 _create_specialist_agent(
-                    llm, proposal_tools, "feedback_system", prompt_args
+                    llm, active_tools, "feedback_system", prompt_args
                 ),
                 user_text,
                 chat_history,
@@ -433,17 +441,24 @@ async def process_turn(
         else:
             from app.agents.coach import run_coach
 
+            # Inject scheduler tools for Coach
+            active_tools.extend([list_schedules, schedule_nudge, delete_schedule])
+
             assistant_text = await run_coach(
                 _create_specialist_agent(
-                    llm, proposal_tools, "coach_system", prompt_args
+                    llm, active_tools, "coach_system", prompt_args
                 ),
                 user_text,
                 chat_history,
                 on_token=on_token,
             )
+
+        # Populate tools_used for debugging
+        tools_used = [t.name for t in active_tools]
+
     else:
         # Stub mode (no LLM)
-        assistant_text, collector = _run_specialist_stub(decision.route, user_text)
+        assistant_text, collector, tools_used = _run_specialist_stub(decision.route, user_text)
 
     # Step 4: Process proposals through Router validator
     await _process_proposals(
@@ -455,4 +470,4 @@ async def process_turn(
         latest_user_message_id=user_msg.id if user_msg else None,
     )
 
-    return assistant_text, decision
+    return assistant_text, decision, tools_used

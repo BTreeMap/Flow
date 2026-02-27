@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -62,6 +62,12 @@ export function Admin() {
   const [expiresAt, setExpiresAt] = useState(() =>
     new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
   );
+
+  const [chatDebugMode, setChatDebugMode] = useState(() => localStorage.getItem("flow_debug_mode") === "true");
+
+  useEffect(() => {
+    localStorage.setItem("flow_debug_mode", String(chatDebugMode));
+  }, [chatDebugMode]);
 
   const projectsQuery = useQuery<AdminProjectsResponse["projects"], Error>({
     queryKey: ["admin-projects"],
@@ -221,6 +227,22 @@ export function Admin() {
           />
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex items-center justify-between bg-surface-alt p-3 rounded-xl">
+            <div>
+                <p className="text-sm font-medium text-text">Chat Debug Mode</p>
+                <p className="text-xs text-text-muted">Show agent details in chat</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={chatDebugMode}
+                onChange={(e) => setChatDebugMode(e.target.checked)}
+              />
+              <div className="w-11 h-6 bg-surface-2 rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/50 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
           <p className="text-sm text-text-muted">
             LLM mode:{" "}
             <span className="font-medium text-text">

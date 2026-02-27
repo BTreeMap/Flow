@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { AssistantMarkdown } from "../chat/AssistantMarkdown";
+import type { SendMessageResponse } from "../../api/openapi";
 
 interface MessageBubbleProps {
   role: "user" | "assistant" | "system";
@@ -7,6 +8,8 @@ interface MessageBubbleProps {
   timestamp?: string;
   isGroupContinuation?: boolean;
   isStreaming?: boolean;
+  debugInfo?: SendMessageResponse["debug_info"];
+  showDebug?: boolean;
 }
 
 export const MessageBubble = memo(function MessageBubble({
@@ -15,6 +18,8 @@ export const MessageBubble = memo(function MessageBubble({
   timestamp,
   isGroupContinuation,
   isStreaming,
+  debugInfo,
+  showDebug,
 }: MessageBubbleProps) {
   if (role === "system") {
     return (
@@ -56,6 +61,22 @@ export const MessageBubble = memo(function MessageBubble({
         ) : (
           <AssistantMarkdown markdown={content} isStreaming={isStreaming} />
         )}
+
+        {/* Debug info footer */}
+        {showDebug && debugInfo && !isUser && (
+          <div className="mt-2 pt-2 border-t border-black/10 text-[10px] text-text-subtle font-mono">
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              <span>Agent: <span className="font-semibold">{debugInfo.agent}</span></span>
+              {debugInfo.reason && <span>Reason: {debugInfo.reason}</span>}
+            </div>
+            {debugInfo.tools && debugInfo.tools.length > 0 && (
+              <div className="mt-1">
+                Tools: {debugInfo.tools.join(", ")}
+              </div>
+            )}
+          </div>
+        )}
+
         {timestamp && (
           <span className="block text-[11px] text-text-subtle mt-1 text-right">
             {timestamp}

@@ -251,14 +251,14 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        text, decision = await process_turn(
+        text, decision, _ = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,
             user_msg=user_msg,
             user_text="Hello!",
         )
-        assert text  # non-empty
+        assert text
         assert decision.route in ("INTAKE", "FEEDBACK", "COACH")
 
     @pytest.mark.asyncio
@@ -277,7 +277,7 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        _, decision = await process_turn(
+        _, decision, _ = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,
@@ -310,7 +310,7 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        _, decision = await process_turn(
+        _, decision, _ = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,
@@ -348,7 +348,7 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        _, decision = await process_turn(
+        _, decision, _ = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,

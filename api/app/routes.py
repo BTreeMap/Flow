@@ -166,12 +166,19 @@ class MessageItem(BaseModel):
     created_at: str
 
 
+class DebugInfo(BaseModel):
+    agent: str
+    tools: list[str]
+    reason: str | None = None
+
+
 class SendMessageResponse(BaseModel):
     message_id: int
     server_msg_id: str
     role: str
     content: str
     user_message: MessageItem | None = None
+    debug_info: DebugInfo | None = None
 
 
 class MessageListResponse(BaseModel):
@@ -848,7 +855,7 @@ async def _claim_invite_impl(
                 from app.agents.engine import process_turn as engine_process_turn
 
                 # Run engine with system trigger
-                assistant_content, _decision = await engine_process_turn(
+                assistant_content, _decision, _tools_used = await engine_process_turn(
                     db=db,
                     conversation=conv,
                     membership_id=membership.id,
@@ -1193,10 +1200,10 @@ async def send_message(
             )
 
         try:
-            assistant_content, _decision = await engine_process_turn(
+            assistant_content, _decision, _tools_used = await engine_process_turn(
                 db=db,
                 conversation=conv,
-                membership_id=membership_id,
+                membership_id=membership.id,
                 user_msg=user_msg,
                 user_text=body.text,
                 llm=llm,
@@ -1272,6 +1279,11 @@ async def send_message(
                 role=user_msg.role,
                 content=user_msg.content,
                 created_at=user_msg.created_at.isoformat(),
+            ),
+            debug_info=DebugInfo(
+                agent=_decision.route,
+                tools=_tools_used,
+                reason=_decision.reason,
             ),
         )
     except Exception:
