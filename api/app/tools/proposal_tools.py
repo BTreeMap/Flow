@@ -39,6 +39,25 @@ class ProposeMemoryPatchArgs(BaseModel):
     source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
 
 
+class ProposeScheduleNudgeArgs(BaseModel):
+    """Arguments for the propose_schedule_nudge tool."""
+
+    topic: str = Field(..., description="The topic or prompt for the daily nudge")
+    time: str = Field(..., description="The time of day in HH:MM format (24h)")
+    confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
+    message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
+    source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
+
+
+class ProposeDeleteScheduleArgs(BaseModel):
+    """Arguments for the propose_delete_schedule tool."""
+
+    schedule_id: int = Field(..., description="The ID of the schedule to delete")
+    confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
+    message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
+    source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
+
+
 # ---------------------------------------------------------------------------
 # Proposal collector — accumulates proposals during an agent run
 # ---------------------------------------------------------------------------
@@ -50,12 +69,16 @@ class ProposalCollector:
     def __init__(self) -> None:
         self.profile_proposals: list[dict[str, Any]] = []
         self.memory_proposals: list[dict[str, Any]] = []
+        self.schedule_proposals: list[dict[str, Any]] = []
 
     def add_profile_proposal(self, proposal: dict[str, Any]) -> None:
         self.profile_proposals.append(proposal)
 
     def add_memory_proposal(self, proposal: dict[str, Any]) -> None:
         self.memory_proposals.append(proposal)
+
+    def add_schedule_proposal(self, proposal: dict[str, Any]) -> None:
+        self.schedule_proposals.append(proposal)
 
 
 # ---------------------------------------------------------------------------
@@ -102,4 +125,47 @@ def make_proposal_tools(collector: ProposalCollector, source_bot: str) -> list[A
         collector.add_memory_proposal(proposal)
         return {"status": "proposal_recorded", "source_bot": source_bot}
 
-    return [propose_profile_patch, propose_memory_patch]
+    @tool("propose_schedule_nudge", args_schema=ProposeScheduleNudgeArgs)
+    def propose_schedule_nudge(
+        topic: str,
+        time: str,
+        confidence: float,
+        message_ids: list[int],
+        source_bot: str = source_bot,
+    ) -> dict[str, Any]:
+        """Propose scheduling a new daily nudge."""
+        proposal = {
+            "action": "create",
+            "topic": topic,
+            "time": time,
+            "confidence": confidence,
+            "evidence": {"message_ids": message_ids},
+            "source_bot": source_bot,
+        }
+        collector.add_schedule_proposal(proposal)
+        return {"status": "proposal_recorded", "source_bot": source_bot}
+
+    @tool("propose_delete_schedule", args_schema=ProposeDeleteScheduleArgs)
+    def propose_delete_schedule(
+        schedule_id: int,
+        confidence: float,
+        message_ids: list[int],
+        source_bot: str = source_bot,
+    ) -> dict[str, Any]:
+        """Propose deleting (deactivating) a nudge schedule."""
+        proposal = {
+            "action": "delete",
+            "schedule_id": schedule_id,
+            "confidence": confidence,
+            "evidence": {"message_ids": message_ids},
+            "source_bot": source_bot,
+        }
+        collector.add_schedule_proposal(proposal)
+        return {"status": "proposal_recorded", "source_bot": source_bot}
+
+    return [
+        propose_profile_patch,
+        propose_memory_patch,
+        propose_schedule_nudge,
+        propose_delete_schedule,
+    ]

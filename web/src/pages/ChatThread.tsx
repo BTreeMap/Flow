@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
+import { useQueryClient } from "@tanstack/react-query";
 import { Alert } from "../components/Alert";
 import { getOrMintToken } from "../auth/token";
 import { useAuth } from "../auth";
@@ -9,6 +10,7 @@ import { ChatHeader } from "../components/ui/ChatHeader";
 import { MessageBubble } from "../components/ui/MessageBubble";
 import { Composer } from "../components/ui/Composer";
 import { useLayoutMode } from "../hooks/useLayoutMode";
+import type { DashboardResponse } from "../api/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -19,6 +21,7 @@ interface Message {
   content: string;
   created_at?: string;
   isStreaming?: boolean;
+  debugInfo?: { agent?: string; tools?: string[] };
 }
 
 function formatBubbleTime(iso?: string): string | undefined {
@@ -40,6 +43,7 @@ export function ChatThread() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   useAuth();
+  const queryClient = useQueryClient();
   const layoutMode = useLayoutMode();
   const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
@@ -50,6 +54,7 @@ export function ChatThread() {
   >("online");
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<string | null>(null);
@@ -168,6 +173,7 @@ export function ChatThread() {
                 role: "user" | "assistant";
                 content: string;
                 created_at?: string;
+                debug_info?: { agent?: string; tools?: string[] };
               }) => ({
                 id: String(msg.message_id),
                 serverMsgId: msg.server_msg_id,
@@ -195,6 +201,26 @@ export function ChatThread() {
     };
   }, [projectId, navigate]);
 
+  // Update dashboard helper
+  const updateDashboardPreview = useCallback((preview: string, timestamp?: string) => {
+    queryClient.setQueryData<DashboardResponse>(["dashboard"], (old) => {
+      if (!old || !projectId) return old;
+      return {
+        ...old,
+        memberships: old.memberships.map((m) => {
+          if (m.project_id === projectId) {
+            return {
+              ...m,
+              last_message_preview: preview,
+              last_message_at: timestamp || m.last_message_at, // Keep old time if pending
+            };
+          }
+          return m;
+        }),
+      };
+    });
+  }, [projectId, queryClient]);
+
   // SSE connection for real-time updates
   useEffect(() => {
     const ctrl = new AbortController();
@@ -206,6 +232,7 @@ export function ChatThread() {
       role: "user" | "assistant";
       content: string;
       created_at?: string;
+      debug_info?: { agent?: string; tools?: string[] };
     }) => {
       setMessages((prev) => {
         // If message already exists (e.g. from stream), update it with final content and unset streaming
@@ -218,6 +245,7 @@ export function ChatThread() {
                 content: payload.content,
                 isStreaming: false,
                 created_at: payload.created_at,
+                debugInfo: payload.debug_info,
               };
             }
             return m;
@@ -231,9 +259,12 @@ export function ChatThread() {
           content: payload.content,
           created_at: payload.created_at,
           isStreaming: false,
+          debugInfo: payload.debug_info,
         };
         return [...prev, next];
       });
+      // Locally update dashboard
+      updateDashboardPreview(payload.content, payload.created_at);
     };
 
     const handleSSEChunk = (payload: {
@@ -296,6 +327,7 @@ export function ChatThread() {
                       role: "user" | "assistant";
                       content: string;
                       created_at?: string;
+                      debug_info?: { agent?: string; tools?: string[] };
                     },
                   );
                 } catch {
@@ -344,7 +376,7 @@ export function ChatThread() {
       active = false;
       ctrl.abort();
     };
-  }, [projectId]);
+  }, [projectId, queryClient, updateDashboardPreview]);
 
   const handleSend = async (text: string) => {
     if (!text || sending) return;
@@ -366,6 +398,9 @@ export function ChatThread() {
       setShowJumpToBottom(false);
       setHasNewMessages(false);
     }, 0);
+
+    // Optimistically update dashboard
+    updateDashboardPreview(text, userMsg.created_at);
 
     try {
       const token = await getOrMintToken("http");
@@ -397,6 +432,7 @@ export function ChatThread() {
           content: string;
           created_at: string;
         };
+        debug_info?: { agent?: string; tools?: string[] };
       };
       setMessages((prev) => {
         // Remove the temporary message
@@ -431,6 +467,7 @@ export function ChatThread() {
             content: data.content,
             created_at: data.user_message?.created_at || new Date().toISOString(),
             isStreaming: false,
+            debugInfo: data.debug_info,
           };
         } else {
           next.push({
@@ -440,10 +477,13 @@ export function ChatThread() {
             content: data.content,
             created_at: new Date().toISOString(),
             isStreaming: false,
+            debugInfo: data.debug_info,
           });
         }
         return next;
       });
+      // Locally update dashboard with final assistant message
+      updateDashboardPreview(data.content);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -460,9 +500,37 @@ export function ChatThread() {
   };
 
   const groupedMessages = useMemo(() => {
-    return messages.map((msg, i) => ({
+    // Sorting Logic:
+    // 1. Persisted messages (numeric ID) -> sort by ID ascending.
+    // 2. Pending User Messages (temp-*) -> sort by creation time (although usually just one).
+    // 3. Streaming Assistant Messages (stream-*) -> sort by creation time (usually just one).
+    //
+    // Final order: [ ...Persisted, ...PendingUser, ...StreamingAssistant ]
+    // This ensures pending/streaming always appear at the bottom until confirmed/persisted.
+
+    const persisted: Message[] = [];
+    const pendingUser: Message[] = [];
+    const streamingAssistant: Message[] = [];
+
+    messages.forEach(m => {
+        if (m.id.startsWith("temp-")) {
+            pendingUser.push(m);
+        } else if (m.id.startsWith("stream-")) {
+            streamingAssistant.push(m);
+        } else {
+            persisted.push(m);
+        }
+    });
+
+    persisted.sort((a, b) => Number(a.id) - Number(b.id));
+    pendingUser.sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime());
+    streamingAssistant.sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime());
+
+    const sorted = [...persisted, ...pendingUser, ...streamingAssistant];
+
+    return sorted.map((msg, i) => ({
       ...msg,
-      isGroupContinuation: shouldGroup(messages[i - 1], msg),
+      isGroupContinuation: shouldGroup(sorted[i - 1], msg),
     }));
   }, [messages]);
 
@@ -495,6 +563,8 @@ export function ChatThread() {
             onClick: () => navigate(`/p/${projectId}/notifications`),
           },
         ]}
+        debugMode={debugMode}
+        onToggleDebug={() => setDebugMode(!debugMode)}
       />
 
       {error && (
@@ -521,6 +591,8 @@ export function ChatThread() {
             timestamp={formatBubbleTime(msg.created_at)}
             isGroupContinuation={msg.isGroupContinuation}
             isStreaming={msg.isStreaming}
+            debugInfo={msg.debugInfo}
+            showDebug={debugMode}
           />
         ))}
         <div ref={bottomRef} />

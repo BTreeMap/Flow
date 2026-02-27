@@ -172,6 +172,7 @@ class SendMessageResponse(BaseModel):
     role: str
     content: str
     user_message: MessageItem | None = None
+    debug_info: dict[str, Any] | None = None
 
 
 class MessageListResponse(BaseModel):
@@ -848,7 +849,7 @@ async def _claim_invite_impl(
                 from app.agents.engine import process_turn as engine_process_turn
 
                 # Run engine with system trigger
-                assistant_content, _decision = await engine_process_turn(
+                assistant_content, _decision, _debug_info = await engine_process_turn(
                     db=db,
                     conversation=conv,
                     membership_id=membership.id,
@@ -884,6 +885,7 @@ async def _claim_invite_impl(
                     if assistant_msg.created_at
                     else datetime.now(UTC).isoformat(),
                     "prompt_versions": prompt_version(_prompt_name),
+                    "debug_info": _debug_info,
                 }
 
                 await persist_event(db, conv.id, "message.final", sse_payload)
@@ -1193,7 +1195,7 @@ async def send_message(
             )
 
         try:
-            assistant_content, _decision = await engine_process_turn(
+            assistant_content, _decision, debug_info = await engine_process_turn(
                 db=db,
                 conversation=conv,
                 membership_id=membership_id,
@@ -1208,7 +1210,7 @@ async def send_message(
             raise
 
         assistant_msg = Message(
-            conversation_id=conv_id,
+            conversation_id=conv.id,
             role="assistant",
             content=assistant_content,
             server_msg_id=asst_server_msg_id,
@@ -1238,6 +1240,7 @@ async def send_message(
             if assistant_msg.created_at
             else datetime.now(UTC).isoformat(),
             "prompt_versions": prompt_version(_prompt_name),
+            "debug_info": debug_info,
         }
 
         # Persist event for durable SSE replay
@@ -1273,6 +1276,7 @@ async def send_message(
                 content=user_msg.content,
                 created_at=user_msg.created_at.isoformat(),
             ),
+            debug_info=debug_info,
         )
     except Exception:
         # Mark turn as failed on error
