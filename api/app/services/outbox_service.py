@@ -14,11 +14,9 @@ def _parse_preferred_time(preferred_time: str) -> tuple[int, int]:
     value = preferred_time.strip().lower()
     if not value:
         return 9, 0
-    match_24h = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", value)
-    if match_24h:
+    if match_24h := re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", value):
         return int(match_24h.group(1)), int(match_24h.group(2))
-    match_ampm = re.fullmatch(r"(\d{1,2})(?::([0-5]\d))?\s*(am|pm)", value)
-    if match_ampm:
+    if match_ampm := re.fullmatch(r"(\d{1,2})(?::([0-5]\d))?\s*(am|pm)", value):
         hour = int(match_ampm.group(1)) % 12
         if match_ampm.group(3) == "pm":
             hour += 12
@@ -50,8 +48,7 @@ async def enqueue_outbox_event(
     existing_result = await db.execute(
         select(OutboxEvent).where(OutboxEvent.dedupe_key == dedupe_key)
     )
-    existing = existing_result.scalar_one_or_none()
-    if existing is not None:
+    if (existing := existing_result.scalar_one_or_none()) is not None:
         return existing
     event = OutboxEvent(
         project_id=project_id,

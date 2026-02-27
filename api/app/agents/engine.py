@@ -357,9 +357,8 @@ async def process_turn(
             ConversationRuntimeState.conversation_id == conversation.id
         )
     )
-    runtime_state = state_result.scalar_one_or_none()
     conv_state = ""
-    if runtime_state:
+    if runtime_state := state_result.scalar_one_or_none():
         try:
             state_data = json.loads(runtime_state.state_json)
             conv_state = state_data.get("conversationState", "")
