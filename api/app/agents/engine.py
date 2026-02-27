@@ -181,6 +181,7 @@ async def _process_proposals(
 ) -> UserProfileData:
     """Validate and commit proposals from the specialist. Returns updated profile."""
     now = datetime.now(timezone.utc)
+    profile_changed = False
 
     # Process profile proposals
     for raw in collector.profile_proposals:
@@ -230,11 +231,12 @@ async def _process_proposals(
                 evidence_json=proposal.evidence.model_dump_json(),
                 decision="committed" if valid else f"ignored: {reason}",
                 committed_at=now if valid else None,
+                flush=False,
             )
 
             if valid:
                 profile = apply_profile_patch(profile, proposal.patch)
-                await save_user_profile(db, membership_id, profile)
+                profile_changed = True
                 logger.info("Committed profile patch from %s", proposal.source_bot)
         except Exception:
             logger.exception("Failed to process profile proposal: %s", raw)
@@ -277,11 +279,12 @@ async def _process_proposals(
                 evidence_json=proposal.evidence.model_dump_json(),
                 decision="committed" if valid else f"ignored: {reason}",
                 committed_at=now if valid else None,
+                flush=False,
             )
 
             if valid:
                 for item in proposal.items:
-                    await add_memory_item(db, membership_id, item)
+                    await add_memory_item(db, membership_id, item, flush=False)
                 logger.info(
                     "Committed %d memory items from %s",
                     len(proposal.items),
@@ -289,6 +292,12 @@ async def _process_proposals(
                 )
         except Exception:
             logger.exception("Failed to process memory proposal: %s", raw)
+
+    if profile_changed:
+        await save_user_profile(db, membership_id, profile, flush=False)
+
+    # Final flush for all changes (audit logs, memory items, profile updates)
+    await db.flush()
 
     return profile
 
