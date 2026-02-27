@@ -44,8 +44,7 @@ async def load_user_profile(db: AsyncSession, membership_id: int) -> UserProfile
     result = await db.execute(
         select(UserProfileStore).where(UserProfileStore.membership_id == membership_id)
     )
-    row = result.scalar_one_or_none()
-    if row is None:
+    if (row := result.scalar_one_or_none()) is None:
         profile = UserProfileData()
     else:
         profile = UserProfileData.model_validate_json(row.profile_json)
@@ -58,9 +57,7 @@ async def load_user_profile(db: AsyncSession, membership_id: int) -> UserProfile
         .order_by(ParticipantContact.created_at.desc())
         .limit(1)
     )
-    contact = contact_res.scalar_one_or_none()
-
-    if contact and contact.email_raw:
+    if (contact := contact_res.scalar_one_or_none()) and contact.email_raw:
         # If we had a display name in contact, we'd use it, but we don't.
         # So we look up FlowUserProfile via membership.
         pass

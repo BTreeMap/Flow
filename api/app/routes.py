@@ -94,8 +94,7 @@ async def _get_membership(
             ProjectMembership.user_id == user_id,
         )
     )
-    membership = result.scalar_one_or_none()
-    if membership is None:
+    if (membership := result.scalar_one_or_none()) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Membership not found",
@@ -108,8 +107,7 @@ async def _get_conversation(db: AsyncSession, membership_id: int) -> Conversatio
     result = await db.execute(
         select(Conversation).where(Conversation.membership_id == membership_id)
     )
-    conv = result.scalar_one_or_none()
-    if conv is None:
+    if (conv := result.scalar_one_or_none()) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
@@ -687,8 +685,7 @@ async def _claim_invite_impl(
 ) -> ClaimResponse:
     # Verify project exists
     proj_result = await db.execute(select(Project).where(Project.id == project_id))
-    project = proj_result.scalar_one_or_none()
-    if project is None:
+    if proj_result.scalar_one_or_none() is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
@@ -740,8 +737,7 @@ async def _claim_invite_impl(
                 ProjectInvite.invite_code_hash == code_hash,
             )
         )
-        invite = invite_result.scalar_one_or_none()
-        if invite is None:
+        if (invite := invite_result.scalar_one_or_none()) is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired invite code",
@@ -801,8 +797,7 @@ async def _claim_invite_impl(
     conv_result = await db.execute(
         select(Conversation).where(Conversation.membership_id == membership.id)
     )
-    conv = conv_result.scalar_one_or_none()
-    if conv is None:
+    if (conv := conv_result.scalar_one_or_none()) is None:
         conv = Conversation(membership_id=membership.id)
         db.add(conv)
         await db.flush()
