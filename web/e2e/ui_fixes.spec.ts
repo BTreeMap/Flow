@@ -12,6 +12,7 @@ let auth: VirtualAuthenticator;
 
 test.describe("Chat UI and Debugging", () => {
   test.beforeEach(async ({ page }) => {
+    // Use mobile viewport to ensure "Back" button is visible (it is hidden in desktop "side" layout)
     await page.setViewportSize({ width: 390, height: 844 });
     auth = await addVirtualAuthenticator(page);
   });
@@ -60,21 +61,32 @@ test.describe("Chat UI and Debugging", () => {
     // STEP 2: Join Project
     // -----------------------------------------------------------------------
     await page.goto(`/p/${projectId}/activate?invite=${inviteCodeStr}`);
-    await page.getByRole("button", { name: "Join Project" }).click();
 
-    // Explicitly wait for onboarding page
-    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding`));
+    // Wait for the button to be enabled and click it
+    const joinButton = page.getByRole("button", { name: "Join Project" });
+    await expect(joinButton).toBeEnabled();
+
+    // Use Promise.all to wait for navigation or response
+    // The click triggers an API call then navigation
+    await joinButton.click();
+
+    // Check if we hit an error or succeeded
+    // We expect to navigate to onboarding
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding`), { timeout: 15000 });
 
     // Fill Onboarding Form
     await page.getByPlaceholder("After my morning coffee").fill("Now");
     await page.getByPlaceholder("08:00 or 8am").fill("09:00");
     await page.getByRole("button", { name: "Continue to chat" }).click();
 
-    // Explicitly wait for notifications page, which comes after form submission
+    // Explicitly wait for notifications page
     await expect(page).toHaveURL(new RegExp(`/p/${projectId}/onboarding/notifications`));
 
-    // Click skip on notifications page
-    await page.getByRole("button", { name: "Skip for now" }).click();
+    // Wait for "Skip for now" to be visible and clickable
+    const skipButton = page.getByRole("button", { name: "Skip for now" });
+    await expect(skipButton).toBeVisible();
+    await expect(skipButton).toBeEnabled();
+    await skipButton.click();
 
     // Finally verify we reached the chat
     await expect(page).toHaveURL(new RegExp(`/p/${projectId}/chat`), { timeout: 20000 });

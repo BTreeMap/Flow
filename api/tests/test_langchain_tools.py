@@ -38,7 +38,12 @@ class TestToolCreation:
         collector = ProposalCollector()
         tools = make_proposal_tools(collector, source_bot="INTAKE")
         names = sorted(t.name for t in tools)
-        assert names == ["propose_memory_patch", "propose_profile_patch"]
+        assert names == [
+            "propose_delete_schedule",
+            "propose_memory_patch",
+            "propose_profile_patch",
+            "propose_schedule_nudge",
+        ]
 
     def test_all_tools_have_args_schema(self) -> None:
         """Every tool must declare a Pydantic args_schema."""
