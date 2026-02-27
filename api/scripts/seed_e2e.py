@@ -3,13 +3,11 @@ import os
 import sys
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
 
 # Add api directory to path to import app modules if needed
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from app.models import Project, ProjectInvite
-from app.id_utils import generate_project_id
 import hashlib
 from datetime import datetime, timedelta, timezone
 
