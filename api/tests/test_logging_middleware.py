@@ -1,10 +1,8 @@
 """Test LoggingMiddleware functionality."""
 
-import json
 import logging
-from unittest.mock import MagicMock
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from starlette.testclient import TestClient
 
