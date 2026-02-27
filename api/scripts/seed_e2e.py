@@ -48,7 +48,7 @@ async def seed():
         result = await session.execute(
             select(ProjectInvite).where(
                 ProjectInvite.project_id == project_id,
-                ProjectInvite.invite_code_hash == code_hash
+                ProjectInvite.invite_code_hash == code_hash,
             )
         )
         invite = result.scalar_one_or_none()
@@ -58,7 +58,7 @@ async def seed():
                 project_id=project_id,
                 invite_code_hash=code_hash,
                 expires_at=datetime.now(timezone.utc) + timedelta(days=365),
-                max_uses=None, # Unlimited uses
+                max_uses=None,  # Unlimited uses
                 uses=0,
                 label="e2e-test",
             )
@@ -67,7 +67,7 @@ async def seed():
         else:
             # Reset existing invite to be valid
             invite.expires_at = datetime.now(timezone.utc) + timedelta(days=365)
-            invite.max_uses = None # Unlimited
+            invite.max_uses = None  # Unlimited
             invite.revoked_at = None
             print(f"SEED_INFO: Reset existing invite {invite_code}")
 
