@@ -184,11 +184,22 @@ All project-scoped endpoints require passkey authentication.
 
 | Method | Path | Tag | Description |
 |--------|------|-----|-------------|
+| `GET` | `/` | h4ckath0n | Welcome (framework root) |
+| `GET` | `/health` | h4ckath0n | Health check (framework) |
 | `GET` | `/healthz` | infra | Readiness probe (includes llm_mode) |
 | `GET` | `/demo/ping` | demo | Liveness ping |
 | `POST` | `/demo/echo` | demo | Echo with reverse |
 | `WS` | `/demo/ws` | demo | Authenticated WebSocket demo |
 | `GET` | `/demo/sse` | demo | Authenticated SSE demo stream |
+| `POST` | `/auth/passkey/register/start` | passkey | Start passkey registration |
+| `POST` | `/auth/passkey/register/finish` | passkey | Finish passkey registration |
+| `POST` | `/auth/passkey/login/start` | passkey | Start passkey login |
+| `POST` | `/auth/passkey/login/finish` | passkey | Finish passkey login |
+| `POST` | `/auth/passkey/add/start` | passkey | Start adding a passkey |
+| `POST` | `/auth/passkey/add/finish` | passkey | Finish adding a passkey |
+| `GET` | `/auth/passkeys` | passkey | List passkeys |
+| `PATCH` | `/auth/passkeys/{key_id}` | passkey | Rename a passkey |
+| `POST` | `/auth/passkeys/{key_id}/revoke` | passkey | Revoke a passkey |
 | `GET` | `/auth/me` | auth | Current user from auth context |
 | `GET` | `/auth/sessions` | auth | List registered passkey devices |
 | `POST` | `/auth/sessions/{device_id}/revoke` | auth | Revoke a passkey device |
