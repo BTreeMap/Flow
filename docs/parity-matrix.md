@@ -1,9 +1,14 @@
 # Parity Matrix — Legacy Conversation Flow → Python Implementation
 
+> ⚠️ **HISTORICAL REFERENCE** — This document is retained for traceability. The legacy
+> engine (`api/app/engine/`) has been fully removed. The current architecture is
+> defined in [`current-architecture.md`](current-architecture.md) and the "State,
+> authority, and write-path rules" section of [`AGENTS.md`](../AGENTS.md).
+
 > **Purpose.** This document maps every load-bearing behavior from the
 > [Legacy Conversation Flow Contract](legacy-conversation-flow-contract.md) (§10.1) to the
 > corresponding Python code, and maps each behavioral test scenario (§9) to planned test
-> functions. It must be kept current whenever engine behavior changes.
+> functions.
 
 ---
 
@@ -81,30 +86,31 @@ All tests are under `api/tests/`. Legacy engine tests and new LangChain layer te
 ## 5. LangChain Orchestration Refactor
 
 > **Scope.** The orchestration layer was refactored to use LangChain primitives.
-> The underlying engine logic (tools, state, scheduler, tone) is **unchanged**.
-> Only the orchestration and routing layers were replaced.
+> In Milestone 2, the legacy engine (`api/app/engine/`), `agents/router.py`,
+> `agents/orchestrator.py`, and `tools/langchain_tools.py` were removed.
+> The canonical engine is now `agents/engine.py`.
 
 ### Architecture
 
-| Component | Old Implementation | New Implementation | New File(s) |
+| Component | Old Implementation | Current Implementation | Current File(s) |
 |---|---|---|---|
-| **Router/Coordinator** | `ConversationFlow._get_conversation_state()` — direct state lookup | `RouteDecision` Pydantic model + `route_turn()` — structured output from LLM or deterministic fallback | `agents/router.py`, `schemas/router.py` |
+| **Router/Coordinator** | `ConversationFlow._get_conversation_state()` — direct state lookup | `RouteDecision` Pydantic model + deterministic routing in engine | `agents/engine.py`, `schemas/router.py` |
 | **Intake agent** | `IntakeModule.execute()` — hand-rolled tool loop | `create_intake_agent()` — LangGraph `create_agent()` with LangChain tools | `agents/intake.py` |
 | **Feedback agent** | `FeedbackModule.execute()` — hand-rolled tool loop | `create_feedback_agent()` — LangGraph `create_agent()` with LangChain tools | `agents/feedback.py` |
-| **Tool wrappers** | `INTAKE_TOOLS` / `FEEDBACK_TOOLS` — raw OpenAI function-calling dicts | `@tool` decorators with Pydantic `args_schema` | `tools/langchain_tools.py` |
-| **Orchestrator pipeline** | `ConversationFlow.process_response()` | `process_turn()` — router → agent → persist | `agents/orchestrator.py` |
+| **Tool wrappers** | `INTAKE_TOOLS` / `FEEDBACK_TOOLS` — raw OpenAI function-calling dicts | `@tool` decorators with Pydantic `args_schema` (proposal + scheduler) | `tools/proposal_tools.py`, `tools/scheduler_tools.py` |
+| **Orchestrator pipeline** | `ConversationFlow.process_response()` | `process_turn()` — router → agent → persist | `agents/engine.py` |
 
 ### Key design decisions
 
-1. **Coordinator is router-only.** `RouteDecision` has exactly two fields: `route` (Literal["INTAKE", "FEEDBACK"]) and `reason` (log-only, never shown to user). No user-visible text is produced.
+1. **Coordinator is router-only.** `RouteDecision` has exactly three fields: `route` (Literal["INTAKE", "FEEDBACK", "COACH"]) and `reason` (log-only, never shown to user). No user-visible text is produced.
 
-2. **LangChain tools wrap existing engine functions.** The `@tool` wrappers in `tools/langchain_tools.py` delegate directly to `engine/tools.py` functions (`execute_profile_save`, `execute_scheduler`, etc.), preserving all legacy semantics.
+2. **LangChain tools use proposal pattern.** Specialists use `propose_profile_patch` and `propose_memory_patch` tools (`tools/proposal_tools.py`). The Router validates and commits proposals.
 
-3. **Pydantic everywhere.** Tool args (`ProfileSaveArgs`, `SchedulerArgs`, etc.) and results (`ProfileSaveResult`, `SchedulerResult`, etc.) are Pydantic models in `schemas/tool_schemas.py`.
+3. **Pydantic everywhere.** Patch proposals, evidence spans, and permissions are Pydantic models in `schemas/patches.py`.
 
-4. **No hand-rolled loops.** Agent tool dispatch is handled by LangGraph's `create_agent()` runtime. `recursion_limit` is set to `MAX_TOOL_ROUNDS * 2 + 2` to match the legacy 10-round tool loop cap.
+4. **No hand-rolled loops.** Agent tool dispatch is handled by LangGraph's `create_agent()` runtime.
 
-5. **Backward compatible.** When no LLM is provided, the orchestrator falls back to the legacy `StubLLMClient` path through the original engine modules.
+5. **Stub fallback.** When no LLM is provided, the engine uses deterministic routing and stub responses.
 
 ### Behavior preservation
 
@@ -112,18 +118,18 @@ All 12 must-reproduce behaviors (§10.1, table above) are preserved:
 
 | # | Behavior | Where preserved | Tests |
 |---|---|---|---|
-| 1 | Sub-state routing defaults | `agents/router.py` — `_route_deterministic()` | `test_langchain_router.py::TestDeterministicRouting` |
-| 2 | Tool loop max iterations | `agents/intake.py`, `agents/feedback.py` — `_RECURSION_LIMIT` | Existing `test_flow.py::TestToolLoop` (engine layer unchanged) |
-| 3 | Profile field-by-field merge | `tools/langchain_tools.py` → `engine/tools.py` (delegated) | `test_langchain_tools.py::TestProfileSaveTool` |
-| 4 | Tone whitelist + EMA | Engine unchanged | Existing `test_tone.py` |
-| 5 | Reminder scheduling/cancellation | `agents/orchestrator.py` — calls `scheduler.handle_daily_prompt_reply()` | `test_langchain_agents.py::TestOrchestratorNoLLM` |
-| 6 | History trimming 50/30 | `agents/orchestrator.py` — `_save_history()`, `_to_langchain_messages()` | `test_langchain_agents.py::TestHistoryManagement` |
-| 7 | Auto-feedback enforcement | Engine unchanged | Existing `test_scheduler.py` |
-| 8 | Intensity adjustment once/day | Engine unchanged | Existing `test_scheduler.py` |
-| 9 | PromptAnchor/PreferredTime mandatory | `tools/langchain_tools.py` → `engine/tools.py` | `test_langchain_tools.py::TestPromptGeneratorTool` |
-| 10 | last_blocker alias | Engine unchanged | Existing `test_tools.py` |
-| 11 | Mutual exclusion for tone | Engine unchanged | Existing `test_tone.py` |
-| 12 | no_emojis overrides emojis_ok | Engine unchanged | Existing `test_tone.py` |
+| 1 | Sub-state routing defaults | `agents/engine.py` — deterministic routing | `test_new_architecture.py`, `test_engine_integration.py` |
+| 2 | Tool loop max iterations | LangGraph agent recursion limit | `test_langchain_agents.py` |
+| 3 | Profile field-by-field merge | `tools/proposal_tools.py` → `services/profile_service.py` | `test_langchain_tools.py` |
+| 4 | Tone whitelist + EMA | Legacy engine removed; tone logic in profile service | `test_new_architecture.py` |
+| 5 | Reminder scheduling/cancellation | `agents/engine.py` — scheduling in turn pipeline | `test_nudge_integration.py` |
+| 6 | History trimming | Message pagination in routes | `test_api.py` |
+| 7 | Auto-feedback enforcement | Outbox worker scheduled events | `test_outbox_worker.py` |
+| 8 | Intensity adjustment once/day | Outbox worker scheduled events | `test_outbox_worker.py` |
+| 9 | PromptAnchor/PreferredTime mandatory | Profile validation in engine | `test_new_architecture.py` |
+| 10 | last_blocker alias | Legacy engine removed | — |
+| 11 | Mutual exclusion for tone | Legacy engine removed | — |
+| 12 | no_emojis overrides emojis_ok | Legacy engine removed | — |
 
 **Semantics unchanged; orchestration changed only.**
 
@@ -143,3 +149,4 @@ All 12 must-reproduce behaviors (§10.1, table above) are preserved:
 |---|---|---|
 | 2025-07-15 | Initial | Created parity matrix from legacy contract and engine implementation |
 | 2026-02-15 | LangChain Refactor | Added §5: LangChain orchestration refactor with code + test pointers |
+| 2026-02-27 | Doc Parity | Updated stale file references after Milestone 2 removal of legacy engine |
