@@ -25,6 +25,7 @@ PR concurrency: cancels redundant runs on the same PR branch.
 Triggers:
 
 - **Push to `main`**
+- **`release: published`** (GitHub release event)
 - **`workflow_dispatch`** (manual trigger)
 
 Gating: release is gated by backend unit+integration tests and frontend unit tests **only**. End-to-end tests run in parallel but do not block the release.
@@ -73,6 +74,7 @@ Two images are published to GHCR:
 | `:dev.YYYY-MM-DD` | `:dev.2026-02-15` |
 | `:dev.SHORT_SHA` | `:dev.abc1234` |
 | `:dev.YYYY-MM-DD.SHORT_SHA` | `:dev.2026-02-15.abc1234` |
+| `:latest` | `:latest` |
 
 Both images use the same tag scheme.
 
@@ -80,7 +82,7 @@ Both images use the same tag scheme.
 
 | Tag | Example |
 |-----|---------|
-| `:latest` | `:latest` |
+| `:stable` | `:stable` |
 | `:YYYY-MM-DD` | `:2026-02-15` |
 | `:SHORT_SHA` | `:abc1234` |
 | `:YYYY-MM-DD.SHORT_SHA` | `:2026-02-15.abc1234` |
@@ -126,7 +128,7 @@ docker build \
   --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --build-arg VCS_REF="$(git rev-parse --short=7 HEAD)" \
   --build-arg SOURCE_URL="https://github.com/<owner>/<repo>" \
-  -t flow-backend:local .
+  -t flow:local .
 ```
 
 ### Frontend + reverse proxy Docker image (flow-web)
@@ -148,7 +150,7 @@ docker build \
 ### Run with Docker Compose
 
 ```bash
-FLOW_WEB_IMAGE=flow-web:local FLOW_IMAGE=flow-backend:local docker compose up
+FLOW_WEB_IMAGE=flow-web:local FLOW_IMAGE=flow:local docker compose up
 ```
 
 The stack is accessible at `http://localhost:8080`.

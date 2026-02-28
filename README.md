@@ -118,32 +118,30 @@ Flow/
 │   │   ├── main.py               # App entry point (h4ckath0n create_app)
 │   │   ├── routes.py             # API route handlers
 │   │   ├── models.py             # SQLAlchemy 2.x models (incl. UserProfile, Memory, AuditLog)
+│   │   ├── config.py             # Configuration (env vars, settings)
 │   │   ├── db.py                 # Database session management
 │   │   ├── middleware.py         # CSP and other middleware
 │   │   ├── id_utils.py           # Custom ID generation (p... / u...)
-│   │   ├── agents/               # NEW: Multi-bot LangChain agents
+│   │   ├── agents/               # Multi-bot LangChain agents
 │   │   │   ├── engine.py         # Turn engine: Router + specialist pipeline
-│   │   │   ├── router.py         # Routing coordinator (structured output)
 │   │   │   ├── intake.py         # Intake specialist agent
 │   │   │   ├── feedback.py       # Feedback specialist agent
 │   │   │   ├── coach.py          # Coach specialist agent
-│   │   │   └── orchestrator.py   # Legacy orchestrator (backward compat)
+│   │   │   ├── runner.py         # Agent runner (LangChain invoke wrapper + tool trace)
+│   │   │   └── tool_trace.py     # Tool call tracing callback
 │   │   ├── schemas/              # Pydantic models
 │   │   │   ├── router.py         # RouteDecision (INTAKE/FEEDBACK/COACH)
 │   │   │   ├── patches.py        # Proposals, evidence, permissions, profile/memory schemas
-│   │   │   └── tool_schemas.py   # Legacy tool argument schemas
-│   │   ├── services/             # NEW: Business logic layer
-│   │   │   └── profile_service.py # Profile/memory persistence, validation, audit
+│   │   │   └── tool_schemas.py   # Tool argument schemas
+│   │   ├── services/             # Business logic layer
+│   │   │   ├── profile_service.py    # Profile/memory persistence, validation, audit
+│   │   │   ├── event_service.py      # Event handling
+│   │   │   ├── outbox_service.py     # Outbox event persistence
+│   │   │   └── scheduler_service.py  # Scheduling logic
 │   │   ├── tools/                # LangChain tools
-│   │   │   ├── proposal_tools.py # NEW: propose_profile_patch, propose_memory_patch
-│   │   │   └── langchain_tools.py # Legacy tool wrappers
-│   │   └── engine/               # Legacy conversation engine (deprecated for new work)
-│   │       ├── flow.py           # Legacy orchestrator
-│   │       ├── modules.py        # IntakeModule, FeedbackModule, tool loop
-│   │       ├── state.py          # State enums, Pydantic models, DataKeys
-│   │       ├── tools.py          # Tool implementations
-│   │       ├── scheduler.py      # Daily prompts, reminders, auto-feedback
-│   │       └── tone.py           # Tone adaptation (EMA, hysteresis, whitelist)
+│   │   │   ├── proposal_tools.py     # propose_profile_patch, propose_memory_patch
+│   │   │   └── scheduler_tools.py    # Scheduling LangChain tools
+│   │   └── worker/               # Outbox event worker
 │   ├── Dockerfile                # Backend container image
 │   ├── prompts/                  # System prompt templates
 │   ├── tests/                    # Backend test suite
@@ -166,14 +164,13 @@ Flow/
 │   │   │   ├── Register.tsx      # Passkey registration
 │   │   │   └── Settings.tsx      # User settings
 │   │   ├── auth/                 # Passkey auth (from h4ckath0n scaffold)
-│   │   ├── api/                  # API client and types
-│   │   ├── components/           # Shared UI components
-│   │   └── gen/                  # Generated OpenAPI TypeScript client
+│   │   ├── api/                  # API client, types, and generated OpenAPI (openapi.ts)
+│   │   └── components/           # Shared UI components
 │   └── package.json
 ├── docker-compose.yml            # Production-like local stack (flow-web + flow + postgres)
 ├── docs/
-│   ├── current-architecture.md           # NEW: Current architecture (authoritative)
-│   ├── legacy-conversation-flow-contract.md   # DEPRECATED: Legacy behavior reference
+│   ├── current-architecture.md           # Current architecture (authoritative)
+│   ├── legacy-conversation-flow-contract.md   # Legacy behavior reference (deprecated)
 │   └── parity-matrix.md                       # Legacy → new code mapping
 ├── .env.example
 └── AGENTS.md                     # Agent behavior rules
@@ -183,26 +180,59 @@ Flow/
 
 All project-scoped endpoints require passkey authentication.
 
+<!-- ROUTE_TABLE_START -->
+
 | Method | Path | Tag | Description |
 |--------|------|-----|-------------|
-| `GET` | `/healthz` | infra | Readiness probe |
+| `GET` | `/` | h4ckath0n | Welcome (framework root) |
+| `GET` | `/health` | h4ckath0n | Health check (framework) |
+| `GET` | `/healthz` | infra | Readiness probe (includes llm_mode) |
+| `GET` | `/demo/ping` | demo | Liveness ping |
+| `POST` | `/demo/echo` | demo | Echo with reverse |
+| `WS` | `/demo/ws` | demo | Authenticated WebSocket demo |
+| `GET` | `/demo/sse` | demo | Authenticated SSE demo stream |
+| `POST` | `/auth/passkey/register/start` | passkey | Start passkey registration |
+| `POST` | `/auth/passkey/register/finish` | passkey | Finish passkey registration |
+| `POST` | `/auth/passkey/login/start` | passkey | Start passkey login |
+| `POST` | `/auth/passkey/login/finish` | passkey | Finish passkey login |
+| `POST` | `/auth/passkey/add/start` | passkey | Start adding a passkey |
+| `POST` | `/auth/passkey/add/finish` | passkey | Finish adding a passkey |
+| `GET` | `/auth/passkeys` | passkey | List passkeys |
+| `PATCH` | `/auth/passkeys/{key_id}` | passkey | Rename a passkey |
+| `POST` | `/auth/passkeys/{key_id}/revoke` | passkey | Revoke a passkey |
+| `GET` | `/auth/me` | auth | Current user from auth context |
+| `GET` | `/auth/sessions` | auth | List registered passkey devices |
+| `POST` | `/auth/sessions/{device_id}/revoke` | auth | Revoke a passkey device |
 | `GET` | `/me` | user | Current user profile (email, display_name, is_admin) |
 | `PATCH` | `/me` | user | Update email and/or display name |
 | `GET` | `/dashboard` | dashboard | List user's project memberships |
 | `POST` | `/p/{project_id}/activate/claim` | activation | Claim invite code, create membership + conversation |
 | `GET` | `/p/{project_id}/me` | activation | Get membership status, conversation ID |
+| `GET` | `/p/{project_id}/profile` | profile | Get user profile for project |
+| `PUT` | `/p/{project_id}/profile` | profile | Update user profile for project |
+| `GET` | `/p/{project_id}/messages` | messaging | Get message history |
 | `POST` | `/p/{project_id}/messages` | messaging | Send message, get assistant reply |
 | `GET` | `/p/{project_id}/events` | streaming | SSE event stream for real-time updates |
 | `GET` | `/p/{project_id}/push/vapid-public-key` | push | Get VAPID public key for push subscription |
 | `POST` | `/p/{project_id}/push/subscribe` | push | Store a push subscription |
 | `POST` | `/p/{project_id}/push/unsubscribe` | push | Revoke a push subscription |
+| `GET` | `/p/{project_id}/notifications` | notifications | List notifications |
+| `GET` | `/p/{project_id}/notifications/unread-count` | notifications | Get unread notification count |
+| `POST` | `/p/{project_id}/notifications/{notification_id}/read` | notifications | Mark notification as read |
+| `GET` | `/admin/debug/status` | admin | System debug status |
+| `POST` | `/admin/debug/llm-connectivity` | admin | Test LLM connectivity |
+| `POST` | `/admin/projects` | admin | Create a new project |
+| `GET` | `/admin/projects` | admin | List all projects |
 | `PATCH` | `/admin/projects/{project_id}` | admin | Update project name or status |
+| `POST` | `/admin/projects/{project_id}/invites` | admin | Create invite for project |
+| `GET` | `/admin/projects/{project_id}/participants` | admin | List project participants |
+| `GET` | `/admin/projects/{project_id}/export` | admin | Export project data |
 | `GET` | `/admin/projects/{project_id}/push/channels` | admin | List push subscriptions for a project |
-| `POST` | `/admin/push/test` | admin | Send test push notification to selected subscriptions |
-| `GET` | `/demo/ping` | demo | Liveness ping |
-| `POST` | `/demo/echo` | demo | Echo with reverse |
-| `GET` | `/demo/sse` | demo | Authenticated SSE demo stream |
-| `WS` | `/demo/ws` | demo | Authenticated WebSocket demo |
+| `POST` | `/admin/push/test` | admin | Send test push notification |
+
+<!-- ROUTE_TABLE_END -->
+
+> This table is auto-verified by CI. See [Drift prevention](#drift-prevention).
 
 ## Data Model
 
@@ -258,7 +288,7 @@ All proposals and decisions are logged in the `patch_audit_log` table.
 
 ### Legacy Engine
 
-The legacy conversation flow engine (`api/app/engine/`) is retained for backward compatibility. The legacy behavioral contract (`docs/legacy-conversation-flow-contract.md`) is deprecated.
+The legacy conversation flow engine was fully removed. The legacy behavioral contract (`docs/legacy-conversation-flow-contract.md`) is deprecated and retained for historical reference only.
 
 ## Frontend Pages
 
@@ -288,21 +318,30 @@ The legacy conversation flow engine (`api/app/engine/`) is retained for backward
 ### Backend
 
 ```bash
-cd api && uv run python -m pytest tests/ -v
+cd api && uv run pytest tests/ -v --tb=short
 ```
 
 Test modules:
 
 - `test_api.py` — API endpoint integration tests (messaging wired to new engine)
-- `test_new_architecture.py` — **NEW:** Router permissions, confidence thresholds, evidence spans, profile/memory validation, proposal tools, deterministic routing
-- `test_engine_integration.py` — **NEW:** Full turn pipeline with async DB, profile persistence, memory persistence, audit log
-- `test_langchain_router.py` — Router structured output and deterministic routing
+- `test_api_schema_contracts.py` — OpenAPI schema contract tests
+- `test_admin_push_perf.py` — Admin push notification performance tests
+- `test_config.py` — Configuration loading and validation
+- `test_engine_integration.py` — Full turn pipeline with async DB, profile persistence, memory persistence, audit log
+- `test_id_utils.py` — Custom ID generation utilities
 - `test_langchain_agents.py` — Agent tool permissions and orchestrator pipeline
 - `test_langchain_tools.py` — LangChain tool schemas and invocation
-- `test_flow.py` — Legacy conversation engine routing and history
-- `test_scheduler.py` — Daily prompts, reminders, auto-feedback, intensity
-- `test_tone.py` — Tone adaptation, EMA, whitelist validation
-- `test_tools.py` — Tool execution and state management
+- `test_logging_middleware.py` — Logging middleware behavior
+- `test_migrations.py` — Database migration tests
+- `test_milestone2.py` — Milestone 2 feature integration tests
+- `test_new_architecture.py` — Router permissions, confidence thresholds, evidence spans, profile/memory validation, proposal tools, deterministic routing
+- `test_notifications_routes.py` — Notification endpoint tests
+- `test_nudge_integration.py` — Nudge scheduling integration tests
+- `test_outbox_worker.py` — Outbox worker processing tests
+- `test_prompts.py` — System prompt template tests
+- `test_read_receipt_logic.py` — Read receipt logic tests
+- `test_tool_trace.py` — Tool call tracing tests
+- `test_worker_logic.py` — Worker logic unit tests
 
 ### Verify Patch Audit Behavior
 
@@ -319,26 +358,52 @@ cd web && npm run test:e2e # E2E tests (Playwright)
 
 This is a prototype. The following are mocked or incomplete:
 
-- **LLM calls** — In stub mode, specialist agents return fixed responses. Connect a real LLM (OpenAI, Anthropic, etc.) by passing `llm` and `router_llm` parameters to the engine.
-- **Web Push delivery** — Push subscriptions are stored in the database but no actual push messages are sent. Wire up `pywebpush` with VAPID keys to enable delivery.
-- **Outbox event processing** — Outbox events (reminders, auto-feedback timers) are created with dedupe keys but no background worker processes them. Add a polling worker or task queue to fire events at `available_at`.
-- **Message endpoint** — `POST /p/{project_id}/messages` runs the Router + specialist pipeline in stub mode (deterministic routing, fixed responses). With a real LLM, it produces contextual responses.
+- **LLM calls** — In stub mode (no `OPENAI_API_KEY`), specialist agents return fixed responses. Connect a real LLM (OpenAI, Anthropic, etc.) by passing `llm` and `router_llm` parameters to the engine.
+- **Web Push delivery** — Push delivery is implemented via `pywebpush` in the outbox worker. Configure `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to enable it.
+- **Message endpoint** — `POST /p/{project_id}/messages` runs the full Router + specialist pipeline. Without an OpenAI API key it operates in stub mode (deterministic routing, fixed responses); with a real API key it produces contextual LLM responses.
 
 ## Environment Variables
 
 Configure in `.env` at the repository root (see `.env.example`):
 
-| Variable | Description |
-|----------|-------------|
-| `H4CKATH0N_ENV` | Environment mode (`development` / `production`) |
-| `H4CKATH0N_DATABASE_URL` | SQLAlchemy async database URL |
-| `H4CKATH0N_RP_ID` | WebAuthn relying party ID (e.g., `localhost`) |
-| `H4CKATH0N_ORIGIN` | Allowed origin for CORS and WebAuthn |
-| `VITE_API_BASE_URL` | API base URL for the frontend (e.g., `/api`) |
-| `OPENAI_API_KEY` | OpenAI API key for live LLM responses (backend only) |
-| `H4CKATH0N_OPENAI_API_KEY` | Optional alternate env name for the OpenAI key |
-| `VAPID_PUBLIC_KEY` | VAPID public key for Web Push |
-| `VAPID_PRIVATE_KEY` | VAPID private key for Web Push (never log this) |
+<!-- ENV_TABLE_START -->
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `H4CKATH0N_ENV` | `development` | Environment mode (`development` / `production`) |
+| `H4CKATH0N_DATABASE_URL` | `sqlite+aiosqlite:///./data/flow-app.db` | SQLAlchemy async database URL |
+| `H4CKATH0N_RP_ID` | `localhost` | WebAuthn relying party ID |
+| `H4CKATH0N_ORIGIN` | (none) | Allowed origin for CORS and WebAuthn |
+| `VITE_API_BASE_URL` | `/api` | API base URL for the frontend |
+| `LOG_LEVEL` | `INFO` | Log level (backend logging) |
+| `FLOW_DATA_DIR` | `/app/data` or `./data` | Persistent data directory |
+| `FLOW_WORKER_ID` | hostname | Worker identifier for outbox lease |
+| `LLM_MODEL` | `gpt-4o-mini` | LLM model name for OpenAI |
+| `OPENAI_API_KEY` | (none) | OpenAI API key for live LLM responses |
+| `H4CKATH0N_OPENAI_API_KEY` | (none) | Optional alternate name for the OpenAI key |
+| `VAPID_PUBLIC_KEY` | `""` | VAPID public key for Web Push |
+| `VAPID_PRIVATE_KEY` | `""` | VAPID private key for Web Push (never log) |
+| `VAPID_CLAIM_SUB` | `mailto:flow@oss.joefang.org` | VAPID subject claim |
+| `FLOW_VAPID_PUBLIC_KEY` | (none) | Legacy alias for `VAPID_PUBLIC_KEY` |
+| `FLOW_VAPID_PRIVATE_KEY` | (none) | Legacy alias for `VAPID_PRIVATE_KEY` |
+
+<!-- ENV_TABLE_END -->
+
+## Drift Prevention
+
+Documentation parity is enforced by CI. The docs check script validates:
+
+1. **API endpoint drift** — the route table in this README matches the current OpenAPI schema.
+2. **Environment variable drift** — the env var table matches what `api/app/config.py` reads and what `.env.example` provides.
+3. **Link hygiene** — all relative markdown links in README and `docs/` resolve to existing files.
+
+Run locally:
+
+```bash
+python3 scripts/docs/check_docs.py
+```
+
+The CI job `docs-check` runs this on every PR and push to main.
 
 ## License
 

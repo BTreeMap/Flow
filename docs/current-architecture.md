@@ -251,22 +251,27 @@ The outbox worker (`app.worker.outbox_worker`) processes scheduled events:
 | File | Purpose |
 |------|---------|
 | `api/app/agents/engine.py` | Main turn engine: `process_turn()` |
-| `api/app/agents/router.py` | Router structured output helpers |
-| `api/app/agents/coach.py` | Coach specialist agent |
 | `api/app/agents/intake.py` | Intake specialist agent |
 | `api/app/agents/feedback.py` | Feedback specialist agent |
+| `api/app/agents/coach.py` | Coach specialist agent |
+| `api/app/agents/runner.py` | Agent runner (LangChain invoke wrapper + tool trace) |
+| `api/app/agents/tool_trace.py` | Tool call tracing callback |
 | `api/app/tools/proposal_tools.py` | Proposal tools + ProposalCollector |
+| `api/app/tools/scheduler_tools.py` | Scheduling LangChain tools |
 | `api/app/prompt_loader.py` | Prompt file loader with caching and versioning |
 | `api/app/services/profile_service.py` | Profile/memory persistence + validation |
 | `api/app/services/event_service.py` | SSE event persistence and replay |
+| `api/app/services/outbox_service.py` | Outbox event persistence |
+| `api/app/services/scheduler_service.py` | Scheduling logic |
 | `api/app/schemas/patches.py` | All Pydantic schemas for proposals |
 | `api/app/schemas/router.py` | RouteDecision (INTAKE/FEEDBACK/COACH) |
+| `api/app/worker/outbox_worker.py` | Outbox event processing worker |
 | `api/app/db_migrations/migrate.py` | Alembic migration runner |
 
 ---
 
 ## Deprecation Notes
 
-- The legacy conversation flow engine (`api/app/engine/`) is retained for test coverage of pure utility functions (tone, state, scheduler). It is not used by any canonical runtime path.
+- The legacy conversation flow engine (`api/app/engine/`) has been fully removed. 
 - The legacy behavioral contract (`docs/legacy-conversation-flow-contract.md`) is deprecated and for historical reference only.
 - New work should use the Router + specialist architecture defined here.
