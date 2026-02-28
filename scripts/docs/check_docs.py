@@ -97,7 +97,7 @@ def check_api_routes() -> None:
         cwd=REPO / "api",
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=30,
     )
     if result.returncode != 0:
         error(f"Failed to generate OpenAPI: {result.stderr.strip()}")
@@ -234,7 +234,11 @@ def check_links() -> None:
             checked += 1
             target = (md_file.parent / link_path).resolve()
             if not target.exists():
-                error(f"Broken link in {md_file.relative_to(REPO)}: [{match.group(1)}]({link}) → {target.relative_to(REPO)}")
+                try:
+                    display = target.relative_to(REPO)
+                except ValueError:
+                    display = target
+                error(f"Broken link in {md_file.relative_to(REPO)}: [{match.group(1)}]({link}) → {display}")
                 broken += 1
 
     if broken == 0:

@@ -102,7 +102,7 @@ All tests are under `api/tests/`. Legacy engine tests and new LangChain layer te
 
 ### Key design decisions
 
-1. **Coordinator is router-only.** `RouteDecision` has exactly three fields: `route` (Literal["INTAKE", "FEEDBACK", "COACH"]) and `reason` (log-only, never shown to user). No user-visible text is produced.
+1. **Coordinator is router-only.** `RouteDecision` has exactly two fields: `route` (Literal["INTAKE", "FEEDBACK", "COACH"]) and `reason` (log-only, never shown to user). No user-visible text is produced.
 
 2. **LangChain tools use proposal pattern.** Specialists use `propose_profile_patch` and `propose_memory_patch` tools (`tools/proposal_tools.py`). The Router validates and commits proposals.
 
