@@ -482,7 +482,7 @@ jobs:
         id: trivy-backend
         continue-on-error: true
         if: always()
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@0.34.2
         with:
           image-ref: ${{ env.IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.digest }}
           format: table
@@ -502,7 +502,7 @@ jobs:
         id: trivy-web
         continue-on-error: true
         if: always()
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@0.34.2
         with:
           image-ref: ${{ env.WEB_IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.web_digest }}
           format: table
