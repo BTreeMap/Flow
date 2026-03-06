@@ -48,7 +48,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.7"
+          version: "0.10.8"
 
       - name: Set up Python
         run: uv python install
@@ -91,7 +91,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.7"
+          version: "0.10.8"
 
       - name: Set up Python
         run: uv python install
@@ -118,7 +118,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.7"
+          version: "0.10.8"
 
       - name: Set up Python
         run: uv python install
@@ -184,7 +184,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.7"
+          version: "0.10.8"
 
       - name: Set up Python
         run: uv python install
@@ -252,10 +252,10 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build image for scanning
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./api
           file: ./api/Dockerfile
@@ -344,10 +344,10 @@ jobs:
         run: cp frontend.tar.xz web/frontend.tar.xz
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build flow-web image for scanning
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./web
           file: ./web/Dockerfile
