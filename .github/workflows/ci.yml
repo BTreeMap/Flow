@@ -83,6 +83,33 @@ jobs:
           name: backend-test-results-${{ matrix.db }}
           path: api/junit-results.xml
 
+  # ── Documentation drift check ────────────────────────────────────────
+  docs-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.7"
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Restore uv cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('api/uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: Install backend dependencies
+        working-directory: api
+        run: uv sync --frozen
+
+      - name: Run docs drift check
+        run: python3 scripts/docs/check_docs.py
+
   # ── Frontend unit tests ───────────────────────────────────────────────
   frontend-unit-integration:
     runs-on: ubuntu-24.04
@@ -243,7 +270,7 @@ jobs:
       - name: Run Trivy vulnerability scan (CRITICAL)
         id: trivy-backend
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@0.34.2
         with:
           image-ref: flow-backend:scan
           format: table
@@ -284,7 +311,7 @@ jobs:
 
       - name: Trivy SARIF report (HIGH+CRITICAL)
         if: always()
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@0.34.2
         with:
           image-ref: flow-backend:scan
           format: sarif
@@ -335,7 +362,7 @@ jobs:
       - name: Run Trivy vulnerability scan (CRITICAL)
         id: trivy-web
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@0.34.2
         with:
           image-ref: flow-web:scan
           format: table
@@ -376,7 +403,7 @@ jobs:
 
       - name: Trivy SARIF report (HIGH+CRITICAL)
         if: always()
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@0.34.2
         with:
           image-ref: flow-web:scan
           format: sarif
