@@ -48,7 +48,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.8"
+          version: "0.10.9"
 
       - name: Set up Python
         run: uv python install
@@ -91,7 +91,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.8"
+          version: "0.10.9"
 
       - name: Set up Python
         run: uv python install
@@ -118,7 +118,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.8"
+          version: "0.10.9"
 
       - name: Set up Python
         run: uv python install
@@ -184,7 +184,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.8"
+          version: "0.10.9"
 
       - name: Set up Python
         run: uv python install
@@ -270,7 +270,7 @@ jobs:
       - name: Run Trivy vulnerability scan (CRITICAL)
         id: trivy-backend
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.34.2
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: flow-backend:scan
           format: table
@@ -311,7 +311,7 @@ jobs:
 
       - name: Trivy SARIF report (HIGH+CRITICAL)
         if: always()
-        uses: aquasecurity/trivy-action@0.34.2
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: flow-backend:scan
           format: sarif
@@ -362,7 +362,7 @@ jobs:
       - name: Run Trivy vulnerability scan (CRITICAL)
         id: trivy-web
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.34.2
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: flow-web:scan
           format: table
@@ -403,7 +403,7 @@ jobs:
 
       - name: Trivy SARIF report (HIGH+CRITICAL)
         if: always()
-        uses: aquasecurity/trivy-action@0.34.2
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: flow-web:scan
           format: sarif
