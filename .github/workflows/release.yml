@@ -52,7 +52,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.8"
+          version: "0.10.9"
 
       - name: Set up Python
         run: uv python install
@@ -82,7 +82,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.8"
+          version: "0.10.9"
 
       - name: Set up Python
         run: uv python install
@@ -482,7 +482,7 @@ jobs:
         id: trivy-backend
         continue-on-error: true
         if: always()
-        uses: aquasecurity/trivy-action@0.34.2
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ env.IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.digest }}
           format: table
@@ -502,7 +502,7 @@ jobs:
         id: trivy-web
         continue-on-error: true
         if: always()
-        uses: aquasecurity/trivy-action@0.34.2
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ env.WEB_IMAGE_BASE }}@${{ needs.publish-manifests-and-tags.outputs.web_digest }}
           format: table
@@ -693,7 +693,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.10.8"
+          version: "0.10.9"
 
       - name: Set up Python
         run: uv python install
