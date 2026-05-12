@@ -1,8 +1,8 @@
 # ---- Builder stage ----
-FROM python:3.14.3-slim-bookworm AS builder
+FROM python:3.14.5-slim-bookworm AS builder
 
 # Install uv (pinned)
-COPY --from=ghcr.io/astral-sh/uv:0.10.8 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.13 /uv /usr/local/bin/uv
 
 WORKDIR /build
 
@@ -25,7 +25,7 @@ RUN uv sync --frozen --no-dev
 
 
 # ---- Runtime stage ----
-FROM python:3.14.3-slim-bookworm AS runtime
+FROM python:3.14.5-slim-bookworm AS runtime
 
 # OCI labels for traceability
 ARG BUILD_DATE
@@ -62,5 +62,5 @@ USER app
 
 EXPOSE 8000
 
-# Entrypoint: run uvicorn directly (no uv sync, no network)
-ENTRYPOINT ["/opt/venv/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Entrypoint: run uvicorn through custom launcher script
+ENTRYPOINT ["/opt/venv/bin/python", "-m", "app.serve"]
