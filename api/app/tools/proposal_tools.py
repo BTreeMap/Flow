@@ -94,7 +94,7 @@ class ProposeScheduleNudgeArgs(BaseModel):
 class ProposeDeleteScheduleArgs(BaseModel):
     """Arguments for the propose_delete_schedule tool."""
 
-    schedule_id: int = Field(..., description="The ID of the schedule to delete")
+    rule_id: int = Field(..., description="The ID of the notification rule to delete")
     confidence: float = Field(..., ge=0, le=1, description="Confidence 0-1")
     message_ids: list[int] = Field(..., description="Message IDs supporting this claim")
     source_bot: str = Field(..., description="INTAKE, FEEDBACK, or COACH")
@@ -112,6 +112,7 @@ class ProposalCollector:
         self.profile_proposals: list[dict[str, Any]] = []
         self.memory_proposals: list[dict[str, Any]] = []
         self.schedule_proposals: list[dict[str, Any]] = []
+        self.telemetry_proposals: list[dict[str, Any]] = []
 
     def add_profile_proposal(self, proposal: dict[str, Any]) -> None:
         self.profile_proposals.append(proposal)
@@ -126,6 +127,21 @@ class ProposalCollector:
 # ---------------------------------------------------------------------------
 # Factory for proposal tools bound to a collector
 # ---------------------------------------------------------------------------
+
+
+def _make_telemetry_tool(collector: ProposalCollector, source_bot: str) -> Any:
+    @tool
+    def record_daily_telemetry(state_updates: dict[str, Any]) -> str:
+        """Record factual behavioral state updates (e.g. steps, barriers) into today's telemetry log."""
+        collector.telemetry_proposals.append(
+            {
+                "state_updates": state_updates,
+                "source_bot": source_bot,
+            }
+        )
+        return "Telemetry successfully recorded. Proceed to close the conversation."
+
+    return record_daily_telemetry
 
 
 def make_proposal_tools(collector: ProposalCollector, source_bot: str) -> list[Any]:
@@ -189,7 +205,7 @@ def make_proposal_tools(collector: ProposalCollector, source_bot: str) -> list[A
 
     @tool("propose_delete_schedule", args_schema=ProposeDeleteScheduleArgs)
     def propose_delete_schedule(
-        schedule_id: int,
+        rule_id: int,
         confidence: float,
         message_ids: list[int],
         source_bot: str = source_bot,
@@ -197,7 +213,7 @@ def make_proposal_tools(collector: ProposalCollector, source_bot: str) -> list[A
         """Propose deleting (deactivating) a nudge schedule."""
         proposal = {
             "action": "delete",
-            "schedule_id": schedule_id,
+            "rule_id": rule_id,
             "confidence": confidence,
             "evidence": {"message_ids": message_ids},
             "source_bot": source_bot,
@@ -205,9 +221,12 @@ def make_proposal_tools(collector: ProposalCollector, source_bot: str) -> list[A
         collector.add_schedule_proposal(proposal)
         return {"status": "proposal_recorded", "source_bot": source_bot}
 
-    return [
+    tools: list[Any] = [
         propose_profile_patch,
         propose_memory_patch,
         propose_schedule_nudge,
         propose_delete_schedule,
     ]
+    if source_bot == "FEEDBACK":
+        tools.append(_make_telemetry_tool(collector, source_bot))
+    return tools

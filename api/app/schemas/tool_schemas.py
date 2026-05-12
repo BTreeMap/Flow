@@ -61,7 +61,9 @@ class SchedulerArgs(BaseModel):
         default=None, description="Random window start"
     )
     random_end_time: str | None = Field(default=None, description="Random window end")
-    schedule_id: str | None = Field(default=None, description="Schedule ID for delete")
+    rule_id: str | None = Field(
+        default=None, description="Notification rule ID for delete"
+    )
 
 
 class SchedulerResult(BaseModel):

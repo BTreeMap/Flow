@@ -45,7 +45,6 @@ class UserProfileData(BaseModel):
     tone_scores: dict[str, float] = Field(default_factory=dict)
     total_prompts: int = 0
     success_count: int = 0
-    display_name: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +94,7 @@ class SchedulePatchProposal(BaseModel):
     action: Literal["create", "delete"]
     topic: str | None = None
     time: str | None = None
-    schedule_id: int | None = None
+    rule_id: int | None = None
     confidence: float = Field(..., ge=0, le=1)
     evidence: EvidenceSpan
     source_bot: Literal["INTAKE", "FEEDBACK", "COACH"] = Field(

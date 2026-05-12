@@ -1,59 +1,69 @@
 from __future__ import annotations
 
-from typing import Annotated
+import json
+import logging
 
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 
 from app.db import async_session_factory
-from app.services.scheduler_service import (
-    create_nudge_schedule,
-    deactivate_schedule,
-    list_active_schedules,
-)
+from app.models import NotificationRule
+from sqlalchemy import select
+
+logger = logging.getLogger(__name__)
 
 
-@tool
-async def list_schedules(
-    membership_id: Annotated[
-        int, "The ID of the project membership to list schedules for"
-    ],
-) -> str:
-    """List all active nudge schedules for a user."""
+# ---------------------------------------------------------------------------
+# Internal helpers — NOT LangChain tools, never exposed to the LLM.
+# Used by make_scoped_list_schedules_tool and by tests for DB setup.
+# ---------------------------------------------------------------------------
+
+
+async def _list_schedules_for_membership(membership_id: int) -> str:
+    """Return a formatted list of active notification rules for *membership_id*.
+
+    This is a plain async function, not a tool.  It uses the module-level
+    ``async_session_factory`` so tests can monkeypatch it.
+    """
     async with async_session_factory() as db:
-        schedules = await list_active_schedules(db, membership_id)
-        if not schedules:
+        result = await db.execute(
+            select(NotificationRule).where(
+                NotificationRule.membership_id == membership_id,
+                NotificationRule.is_active.is_(True),
+            )
+        )
+        rules = result.scalars().all()
+        if not rules:
             return "No active schedules found."
 
         lines = []
-        for s in schedules:
-            lines.append(f"ID: {s.id}, Topic: {s.topic}, Time: {s.cron_rule}")
+        for r in rules:
+            config = json.loads(r.config_json)
+            topic = config.get("topic", "?")
+            time_str = config.get("time", "?")
+            lines.append(f"ID: {r.id}, Topic: {topic}, Time: {time_str}")
         return "\n".join(lines)
 
 
-@tool
-async def schedule_nudge(
-    membership_id: Annotated[int, "The ID of the project membership"],
-    topic: Annotated[str, "The topic or prompt for the daily nudge"],
-    time: Annotated[str, "The time of day in HH:MM format (24h)"],
-) -> str:
-    """Schedule a new daily nudge."""
-    async with async_session_factory() as db:
-        try:
-            schedule = await create_nudge_schedule(db, membership_id, topic, time)
-            await db.commit()
-            return f"Scheduled nudge ID {schedule.id} for {time} daily."
-        except ValueError as e:
-            return f"Error: {e}"
+# ---------------------------------------------------------------------------
+# Scoped LLM tool — the ONLY tool from this module that may be given to an
+# LLM agent.  It captures membership_id at construction time so the LLM
+# never needs to supply tenant-scoping identifiers.
+# ---------------------------------------------------------------------------
 
 
-@tool
-async def delete_schedule(
-    schedule_id: Annotated[int, "The ID of the schedule to delete"],
-) -> str:
-    """Delete (deactivate) a nudge schedule."""
-    async with async_session_factory() as db:
-        success = await deactivate_schedule(db, schedule_id)
-        if not success:
-            return "Schedule not found."
-        await db.commit()
-        return f"Schedule {schedule_id} deactivated."
+def make_scoped_list_schedules_tool(membership_id: int) -> BaseTool:
+    """Create a list_schedules tool scoped to a specific membership.
+
+    The returned tool accepts NO arguments — the membership_id is captured
+    from the runtime context so the LLM cannot supply a foreign id.
+    """
+
+    @tool("list_schedules")
+    async def _scoped_list_schedules() -> str:
+        """List active notification schedules for this project only.
+
+        Takes no arguments — the project scope is determined automatically.
+        """
+        return await _list_schedules_for_membership(membership_id)
+
+    return _scoped_list_schedules
