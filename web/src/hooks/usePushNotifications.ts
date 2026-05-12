@@ -38,7 +38,34 @@ function getSubscriptionKeys(
   return { auth: keys.auth, p256dh: keys.p256dh };
 }
 
-export function usePushNotifications(projectId?: string) {
+const SUB_ID_STORAGE_KEY = "flow_push_subscription_id";
+
+/** Shape of a single subscription returned by the debug list endpoint. */
+interface WebPushSubscriptionInfo {
+  id: number;
+  endpoint: string;
+  user_agent: string;
+  created_at: string | null;
+}
+
+/** Extract the subscriptions array from the untyped backend response. */
+function extractSubscriptions(data: unknown): WebPushSubscriptionInfo[] {
+  if (
+    data &&
+    typeof data === "object" &&
+    "subscriptions" in data &&
+    Array.isArray((data as { subscriptions: unknown }).subscriptions)
+  ) {
+    return (data as { subscriptions: WebPushSubscriptionInfo[] }).subscriptions;
+  }
+  return [];
+}
+
+/**
+ * User-scoped push notification management.
+ * No projectId required — subscriptions are global per user.
+ */
+export function usePushNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>(
     typeof Notification !== "undefined" ? Notification.permission : "default",
   );
@@ -48,8 +75,10 @@ export function usePushNotifications(projectId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [pushNotConfigured, setPushNotConfigured] = useState(false);
+  const [hasStaleBrowserSubscription, setHasStaleBrowserSubscription] =
+    useState(false);
 
-  // Check initial subscription status
+  // Check initial subscription status via backend
   useEffect(() => {
     (async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -59,7 +88,25 @@ export function usePushNotifications(projectId?: string) {
       try {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
-        setSubscribed(!!sub);
+        if (!sub) {
+          setSubscribed(false);
+          setInitializing(false);
+          return;
+        }
+        // Check backend for user-scoped subscription
+        const { data } = await api.GET(
+          "/notifications/webpush/subscriptions",
+        );
+        const subs = extractSubscriptions(data);
+        const registered = subs.some(
+          (s) => s.endpoint === sub.endpoint,
+        );
+        if (!registered) {
+          // Browser has a subscription the backend doesn't know about — stale
+          setHasStaleBrowserSubscription(true);
+          localStorage.removeItem(SUB_ID_STORAGE_KEY);
+        }
+        setSubscribed(registered);
       } catch {
         // ignore
       } finally {
@@ -70,13 +117,9 @@ export function usePushNotifications(projectId?: string) {
 
   // Check if VAPID is configured on the backend
   useEffect(() => {
-    if (!projectId) return;
     (async () => {
       const { error: apiError } = await api.GET(
-        "/p/{project_id}/push/vapid-public-key",
-        {
-          params: { path: { project_id: projectId } },
-        },
+        "/notifications/webpush/vapid-public-key",
       );
       if (!apiError) return;
       const detail = extractErrorDetail(apiError, "");
@@ -87,10 +130,9 @@ export function usePushNotifications(projectId?: string) {
         setPushNotConfigured(true);
       }
     })();
-  }, [projectId]);
+  }, []);
 
   const subscribe = useCallback(async () => {
-    if (!projectId) return;
     setError(null);
     setSuccess(null);
     setLoading(true);
@@ -104,10 +146,7 @@ export function usePushNotifications(projectId?: string) {
       }
 
       const { data: vapidData, error: vapidError } = await api.GET(
-        "/p/{project_id}/push/vapid-public-key",
-        {
-          params: { path: { project_id: projectId } },
-        },
+        "/notifications/webpush/vapid-public-key",
       );
       if (vapidError) {
         const detail = extractErrorDetail(
@@ -135,15 +174,28 @@ export function usePushNotifications(projectId?: string) {
       }
 
       const reg = await navigator.serviceWorker.ready;
-      const subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey,
-      });
 
-      const { error: subscribeError } = await api.POST(
-        "/p/{project_id}/push/subscribe",
+      // If browser has a stale subscription, unsubscribe first to get a fresh endpoint
+      if (hasStaleBrowserSubscription) {
+        const existingSub = await reg.pushManager.getSubscription();
+        if (existingSub) {
+          await existingSub.unsubscribe();
+        }
+        setHasStaleBrowserSubscription(false);
+      }
+
+      // Reuse existing browser subscription if available, otherwise create new
+      let subscription = await reg.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      }
+
+      const { data: subData, error: subscribeError } = await api.POST(
+        "/notifications/webpush/subscriptions",
         {
-          params: { path: { project_id: projectId } },
           body: {
             endpoint: subscription.endpoint,
             keys: getSubscriptionKeys(subscription),
@@ -152,6 +204,11 @@ export function usePushNotifications(projectId?: string) {
         },
       );
       if (subscribeError) throw new Error("Failed to register subscription");
+
+      // Store subscription_id for later unsubscribe
+      if (subData?.subscription_id) {
+        localStorage.setItem(SUB_ID_STORAGE_KEY, String(subData.subscription_id));
+      }
 
       setSubscribed(true);
       setSuccess("Notifications enabled!");
@@ -162,24 +219,69 @@ export function usePushNotifications(projectId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [hasStaleBrowserSubscription]);
 
   const unsubscribe = useCallback(async () => {
-    if (!projectId) return;
     setError(null);
     setSuccess(null);
     setLoading(true);
 
     try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await sub.unsubscribe();
-        await api.POST("/p/{project_id}/push/unsubscribe", {
-          params: { path: { project_id: projectId } },
-          body: { endpoint: sub.endpoint },
-        });
+      // Find subscription_id from localStorage or backend
+      let subId = localStorage.getItem(SUB_ID_STORAGE_KEY);
+
+      if (!subId) {
+        // Look up from backend by endpoint
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          const { data } = await api.GET(
+            "/notifications/webpush/subscriptions",
+          );
+          const subs = extractSubscriptions(data);
+          const match = subs.find(
+            (s) => s.endpoint === sub.endpoint,
+          );
+          if (match) subId = String(match.id);
+        }
       }
+
+      if (subId) {
+        const { error: delError } = await api.DELETE(
+          "/notifications/webpush/subscriptions/{subscription_id}",
+          { params: { path: { subscription_id: Number(subId) } } },
+        );
+        // Clear stale localStorage even on 404 (e.g., after migration)
+        localStorage.removeItem(SUB_ID_STORAGE_KEY);
+        if (delError) {
+          // If the stored ID was stale, fall back to endpoint lookup
+          const reg2 = await navigator.serviceWorker.ready;
+          const sub2 = await reg2.pushManager.getSubscription();
+          if (sub2) {
+            const { data: fallbackData } = await api.GET(
+              "/notifications/webpush/subscriptions",
+            );
+            const fallbackSubs = extractSubscriptions(fallbackData);
+            const match = fallbackSubs.find(
+              (s) => s.endpoint === sub2.endpoint,
+            );
+            if (match) {
+              await api.DELETE(
+                "/notifications/webpush/subscriptions/{subscription_id}",
+                { params: { path: { subscription_id: match.id } } },
+              );
+            }
+          }
+        }
+      }
+
+      // Also unsubscribe in the browser (global, since subscriptions are user-scoped)
+      const reg = await navigator.serviceWorker.ready;
+      const browserSub = await reg.pushManager.getSubscription();
+      if (browserSub) {
+        await browserSub.unsubscribe();
+      }
+
       setSubscribed(false);
       setSuccess("Notifications disabled.");
     } catch (err) {
@@ -189,7 +291,7 @@ export function usePushNotifications(projectId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, []);
 
   return {
     permission,
@@ -201,7 +303,7 @@ export function usePushNotifications(projectId?: string) {
     pushNotConfigured,
     subscribe,
     unsubscribe,
-    setError, // Allowing components to clear error if needed
-    setSuccess, // Allowing components to clear success if needed
+    setError,
+    setSuccess,
   };
 }

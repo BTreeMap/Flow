@@ -6,14 +6,14 @@
 	servers {
 		timeouts {
 			read_header 30s
-			read_body   5m
-			write       0		# 0 = no timeout (required for SSE streams)
-			idle        30m		# default 5m — raised for long-lived connections
+			read_body 5m
+			write 0 # 0 = no timeout (required for SSE streams)
+			idle 30m # default 5m — raised for long-lived connections
 		}
 	}
 }
 
-:8080 {
+:{$WEB_PORT:8080} {
 	# Reverse proxy API requests to backend with SSE streaming support.
 	# handle_path strips the /api prefix before forwarding to the backend,
 	# because the backend registers routes at root (e.g. /healthz, /dashboard).
@@ -22,10 +22,10 @@
 			flush_interval -1
 
 			transport http {
-				dial_timeout             30s	# default 10s  — connect to upstream
-				response_header_timeout  0		# 0 = no timeout — wait for upstream headers
-				keepalive                120s	# keep upstream conns alive
-				keepalive_idle_conns     64
+				dial_timeout 30s # default 10s  — connect to upstream
+				response_header_timeout 0 # 0 = no timeout — wait for upstream headers
+				keepalive 120s # keep upstream conns alive
+				keepalive_idle_conns 64
 			}
 		}
 	}

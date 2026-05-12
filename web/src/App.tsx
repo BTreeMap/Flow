@@ -16,8 +16,10 @@ import { OnboardingNotifications } from "./pages/OnboardingNotifications";
 import { ChatThread } from "./pages/ChatThread";
 import { Notifications } from "./pages/Notifications";
 import { Admin } from "./pages/Admin";
+import { useVisualViewport } from "./hooks/useVisualViewport";
 
 export function App() {
+  useVisualViewport();
   return (
     <Routes>
       {/* Auth / public pages keep top-nav Layout */}

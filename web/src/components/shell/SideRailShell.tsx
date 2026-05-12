@@ -16,7 +16,7 @@ export function SideRailShell() {
   const showListPane = isChatRoute || isDashboard;
 
   return (
-    <div className="flex h-screen bg-bg overflow-hidden">
+    <div className="flex h-full bg-bg overflow-hidden">
       <NavRail />
       {showListPane && (
         <div className="w-[360px] shrink-0 border-r border-divider overflow-y-auto bg-surface">

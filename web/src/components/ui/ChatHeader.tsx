@@ -50,7 +50,7 @@ export function ChatHeader({
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-2 h-[var(--header-h)] px-2 bg-surface/95 backdrop-blur-sm border-b border-divider">
+    <header className="sticky top-0 z-40 flex items-center gap-2 h-[var(--header-h)] px-2 bg-surface/95 backdrop-blur-sm border-b border-divider pt-[env(safe-area-inset-top,0px)]">
       {!hideBack && (
         <IconButton label="Back" onClick={() => navigate(backTo)}>
           <ArrowLeft className="w-5 h-5" />

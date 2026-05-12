@@ -10,20 +10,19 @@ import { ChatHeader } from "../components/ui/ChatHeader";
 import { MessageBubble } from "../components/ui/MessageBubble";
 import { Composer } from "../components/ui/Composer";
 import { useLayoutMode } from "../hooks/useLayoutMode";
-import type { DashboardResponse } from "../api/types";
+import { useTimezone } from "../hooks/useTimezone";
+import type { DashboardResponse, FeedbackPollMetadata } from "../api/types";
+import api from "../api/client";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 interface DebugInfo {
   agent?: string;
+  condition?: string;
+  prompt_args?: Record<string, unknown>;
   tools?: string[];
-  tool_calls?: Array<{
-    tool: string;
-    args?: unknown;
-    output?: unknown;
-    error?: string;
-    run_id?: string;
-  }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tool_calls?: any[];
 }
 
 interface Message {
@@ -31,9 +30,14 @@ interface Message {
   serverMsgId: string;
   role: "user" | "assistant";
   content: string;
+  metadata?: FeedbackPollMetadata | Record<string, unknown>;
   created_at?: string;
   isStreaming?: boolean;
   debugInfo?: DebugInfo;
+}
+
+function isSystemContent(content: string): boolean {
+  return content.startsWith("[System:");
 }
 
 function formatBubbleTime(iso?: string): string | undefined {
@@ -50,11 +54,21 @@ function shouldGroup(prev: Message | undefined, curr: Message): boolean {
   return diff < 2 * 60 * 1000; // 2 minutes
 }
 
+function debugInfoFromMetadata(
+  metadata: FeedbackPollMetadata | Record<string, unknown> | undefined,
+): DebugInfo | undefined {
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const debugInfo = (metadata as Record<string, unknown>).debug_info;
+  if (!debugInfo || typeof debugInfo !== "object") return undefined;
+  return debugInfo as DebugInfo;
+}
+
 export function ChatThread() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   useAuth();
+  useTimezone();
   const queryClient = useQueryClient();
   const layoutMode = useLayoutMode();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,6 +81,7 @@ export function ChatThread() {
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
+  const [currentNotificationId, setCurrentNotificationId] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<string | null>(null);
@@ -82,20 +97,29 @@ export function ChatThread() {
   // Handle push notification interaction (nid param)
   useEffect(() => {
     const nid = searchParams.get("nid");
-    if (nid && projectId) {
+    const parsedNid = nid ? parseInt(nid, 10) : NaN;
+    if (!Number.isNaN(parsedNid) && projectId) {
+      // Safe to carry this id client-side: backend re-verifies user+membership scope
+      // before cancelling any scheduled feedback task.
+      setCurrentNotificationId(parsedNid);
       // Clear param immediately so we don't re-trigger
       const newParams = new URLSearchParams(searchParams);
       newParams.delete("nid");
       setSearchParams(newParams, { replace: true });
 
-      // Call mark-read
+      // Call mark-read (unified global endpoint)
       (async () => {
         try {
-          const token = await getOrMintToken("http");
-          await fetch(`${API_BASE}/p/${projectId}/notifications/${nid}/read`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          await api.POST(
+            "/notifications/{notification_id}/read",
+            {
+              params: {
+                path: {
+                  notification_id: parsedNid,
+                },
+              },
+            },
+          );
         } catch (err) {
           console.error("Failed to mark notification read", err);
         }
@@ -170,6 +194,7 @@ export function ChatThread() {
                 server_msg_id: string;
                 role: "user" | "assistant";
                 content: string;
+                metadata?: FeedbackPollMetadata | Record<string, unknown>;
                 created_at?: string;
                 debug_info?: DebugInfo;
               }) => ({
@@ -177,7 +202,9 @@ export function ChatThread() {
                 serverMsgId: msg.server_msg_id,
                 role: msg.role,
                 content: msg.content,
+                metadata: msg.metadata,
                 created_at: msg.created_at,
+                debugInfo: msg.debug_info ?? debugInfoFromMetadata(msg.metadata),
               }),
             ),
           );
@@ -229,6 +256,7 @@ export function ChatThread() {
       server_msg_id: string;
       role: "user" | "assistant";
       content: string;
+      metadata?: FeedbackPollMetadata | Record<string, unknown>;
       created_at?: string;
       debug_info?: DebugInfo;
     }) => {
@@ -237,15 +265,17 @@ export function ChatThread() {
         if (prev.some((m) => m.serverMsgId === payload.server_msg_id)) {
           return prev.map((m) => {
             if (m.serverMsgId === payload.server_msg_id) {
-              return {
-                ...m,
-                id: String(payload.message_id), // Ensure ID is sync
-                content: payload.content,
-                isStreaming: false,
-                created_at: payload.created_at,
-                debugInfo: payload.debug_info,
-              };
-            }
+                return {
+                  ...m,
+                  id: String(payload.message_id), // Ensure ID is sync
+                  content: payload.content,
+                  metadata: payload.metadata,
+                  isStreaming: false,
+                  created_at: payload.created_at,
+                  debugInfo:
+                    payload.debug_info ?? debugInfoFromMetadata(payload.metadata),
+                };
+              }
             return m;
           });
         }
@@ -255,9 +285,10 @@ export function ChatThread() {
           serverMsgId: payload.server_msg_id,
           role: payload.role,
           content: payload.content,
+          metadata: payload.metadata,
           created_at: payload.created_at,
           isStreaming: false,
-          debugInfo: payload.debug_info,
+          debugInfo: payload.debug_info ?? debugInfoFromMetadata(payload.metadata),
         };
         return [...prev, next];
       });
@@ -296,6 +327,24 @@ export function ChatThread() {
       });
     };
 
+    const handleMessageUpdated = (payload: {
+      message_id: number;
+      server_msg_id?: string;
+      metadata: FeedbackPollMetadata | Record<string, unknown>;
+    }) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === String(payload.message_id)) {
+            return { ...m, metadata: payload.metadata };
+          }
+          if (payload.server_msg_id && m.serverMsgId === payload.server_msg_id) {
+            return { ...m, metadata: payload.metadata };
+          }
+          return m;
+        }),
+      );
+    };
+
     (async () => {
       let retryCount = 0;
       while (active && !ctrl.signal.aborted) {
@@ -324,12 +373,25 @@ export function ChatThread() {
                       server_msg_id: string;
                       role: "user" | "assistant";
                       content: string;
+                      metadata?: FeedbackPollMetadata | Record<string, unknown>;
                       created_at?: string;
                       debug_info?: DebugInfo;
                     },
                   );
                 } catch {
                   // ignore malformed messages
+                }
+              } else if (ev.event === "message.updated") {
+                try {
+                  handleMessageUpdated(
+                    JSON.parse(ev.data) as {
+                      message_id: number;
+                      server_msg_id?: string;
+                      metadata: FeedbackPollMetadata | Record<string, unknown>;
+                    },
+                  );
+                } catch {
+                  // ignore malformed updates
                 }
               } else if (ev.event === "message.chunk") {
                 try {
@@ -408,7 +470,11 @@ export function ChatThread() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ text, client_msg_id: tempId }),
+        body: JSON.stringify({
+          text,
+          client_msg_id: tempId,
+          current_notification_id: currentNotificationId,
+        }),
       });
 
       if (!res.ok) {
@@ -482,6 +548,7 @@ export function ChatThread() {
       });
       // Locally update dashboard with final assistant message
       updateDashboardPreview(data.content);
+      setCurrentNotificationId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -524,7 +591,9 @@ export function ChatThread() {
     pendingUser.sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime());
     streamingAssistant.sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime());
 
-    const sorted = [...persisted, ...pendingUser, ...streamingAssistant];
+    const sorted = [...persisted, ...pendingUser, ...streamingAssistant].filter(
+      (m) => !isSystemContent(m.content),
+    );
 
     return sorted.map((msg, i) => ({
       ...msg,
@@ -534,14 +603,14 @@ export function ChatThread() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-chat-bg">
+      <div className="flex items-center justify-center flex-1 bg-chat-bg">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className={`flex flex-col bg-chat-bg ${layoutMode === "side" ? "h-full" : "h-screen"}`}>
+    <div className={`flex flex-col bg-chat-bg ${layoutMode === "side" ? "h-full" : "flex-1 min-h-0"}`}>
       <ChatHeader
         title={chatTitle}
         hideBack={layoutMode === "side"}
@@ -584,8 +653,10 @@ export function ChatThread() {
         {groupedMessages.map((msg) => (
           <MessageBubble
             key={msg.id}
+            projectId={projectId}
             role={msg.role}
             content={msg.content}
+            metadata={msg.metadata}
             timestamp={formatBubbleTime(msg.created_at)}
             isGroupContinuation={msg.isGroupContinuation}
             isStreaming={msg.isStreaming}
@@ -598,18 +669,20 @@ export function ChatThread() {
 
       {/* Jump to bottom */}
       {showJumpToBottom && (
-        <button
-          onClick={scrollToBottom}
-          className={`absolute bottom-[calc(var(--composer-h)+env(safe-area-inset-bottom,0px)+20px)] right-4 w-10 h-10 rounded-full shadow-md flex items-center justify-center transition-colors z-30 ${
-            hasNewMessages
-              ? "bg-primary text-primary-foreground hover:bg-primary/90"
-              : "bg-surface text-text-muted hover:bg-surface-2"
-          }`}
-          aria-label="Jump to bottom"
-          data-testid="jump-to-bottom"
-        >
-          <ChevronDown className="w-5 h-5" />
-        </button>
+        <div className="relative z-30">
+          <button
+            onClick={scrollToBottom}
+            className={`absolute bottom-3 right-4 w-10 h-10 rounded-full shadow-md flex items-center justify-center transition-colors ${
+              hasNewMessages
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-surface text-text-muted hover:bg-surface-2"
+            }`}
+            aria-label="Jump to bottom"
+            data-testid="jump-to-bottom"
+          >
+            <ChevronDown className="w-5 h-5" />
+          </button>
+        </div>
       )}
 
       <Composer onSend={(text) => void handleSend(text)} disabled={sending} />

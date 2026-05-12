@@ -20,7 +20,7 @@ export function OnboardingNotifications() {
     success,
     subscribe,
     pushNotConfigured,
-  } = usePushNotifications(projectId);
+  } = usePushNotifications();
 
   const showsIOSGuide = isIOS() && !isStandalone();
 
@@ -108,7 +108,7 @@ export function OnboardingNotifications() {
           </div>
 
           {permission === "denied" && (
-            <p className="text-sm text-error mt-2">
+            <p className="text-sm text-danger mt-2">
               Notifications are blocked. Please enable them in your browser
               settings to continue.
             </p>

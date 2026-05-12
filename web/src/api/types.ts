@@ -56,8 +56,20 @@ export type AdminPushTestResultItem =
   components["schemas"]["AdminPushTestResultItem"];
 export type UserMeResponse = components["schemas"]["UserMeResponse"];
 export type UserMeUpdateRequest = components["schemas"]["UserMeUpdateRequest"];
+export type TimezoneUpdateRequest =
+  components["schemas"]["TimezoneUpdateRequest"];
 export type DashboardResponse = components["schemas"]["DashboardResponse"];
 export type MembershipInfo = components["schemas"]["MembershipInfo"];
+export type FeedbackPollMetadata = components["schemas"]["FeedbackPollMetadata"];
+
+// ── Notification types (unified) ──────────────────────────────────────────
+
+export type NotificationUnreadCountResponse =
+  components["schemas"]["NotificationUnreadCountResponse"];
+export type UnifiedNotificationItem =
+  components["schemas"]["UnifiedNotificationItem"];
+export type UnifiedNotificationListResponse =
+  components["schemas"]["UnifiedNotificationListResponse"];
 
 // ── User-defined (demo) types ─────────────────────────────────────────────
 
@@ -85,11 +97,27 @@ type _AssertDemoPingGet = paths["/demo/ping"]["get"];
 type _AssertDemoSseGet = paths["/demo/sse"]["get"];
 type _AssertMeGet = paths["/me"]["get"];
 type _AssertMePatch = paths["/me"]["patch"];
+type _AssertMeTimezonePost = paths["/me/timezone"]["post"];
 type _AssertDashboardGet = paths["/dashboard"]["get"];
 type _AssertAdminProjectPatch = paths["/admin/projects/{project_id}"]["patch"];
 type _AssertAdminPushChannelsGet =
   paths["/admin/projects/{project_id}/push/channels"]["get"];
 type _AssertAdminPushTestPost = paths["/admin/push/test"]["post"];
+type _AssertNotificationsGet = paths["/notifications"]["get"];
+type _AssertFeedbackEventPost =
+  paths["/p/{project_id}/chat/events/feedback"]["post"];
+type _AssertNotificationsUnreadCountGet =
+  paths["/notifications/unread-count"]["get"];
+type _AssertNotificationReadPost =
+  paths["/notifications/{notification_id}/read"]["post"];
+type _AssertWebpushVapidGet =
+  paths["/notifications/webpush/vapid-public-key"]["get"];
+type _AssertWebpushSubscriptionsPost =
+  paths["/notifications/webpush/subscriptions"]["post"];
+type _AssertWebpushSubscriptionsGet =
+  paths["/notifications/webpush/subscriptions"]["get"];
+type _AssertWebpushSubscriptionDelete =
+  paths["/notifications/webpush/subscriptions/{subscription_id}"]["delete"];
 
 // Suppress "declared but never read" – they exist purely for the type check.
 export type {
@@ -104,8 +132,17 @@ export type {
   _AssertDemoSseGet,
   _AssertMeGet,
   _AssertMePatch,
+  _AssertMeTimezonePost,
   _AssertDashboardGet,
   _AssertAdminProjectPatch,
   _AssertAdminPushChannelsGet,
   _AssertAdminPushTestPost,
+  _AssertNotificationsGet,
+  _AssertFeedbackEventPost,
+  _AssertNotificationsUnreadCountGet,
+  _AssertNotificationReadPost,
+  _AssertWebpushVapidGet,
+  _AssertWebpushSubscriptionsPost,
+  _AssertWebpushSubscriptionsGet,
+  _AssertWebpushSubscriptionDelete,
 };

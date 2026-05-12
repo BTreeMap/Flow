@@ -1,4 +1,3 @@
-import { useParams } from "react-router";
 import { Card, CardContent, CardHeader } from "../components/Card";
 import { Button } from "../components/Button";
 import { Alert } from "../components/Alert";
@@ -10,7 +9,6 @@ import {
 } from "../hooks/usePushNotifications";
 
 export function Notifications() {
-  const { projectId } = useParams<{ projectId: string }>();
   const {
     permission,
     subscribed,
@@ -20,7 +18,7 @@ export function Notifications() {
     pushNotConfigured,
     subscribe,
     unsubscribe,
-  } = usePushNotifications(projectId);
+  } = usePushNotifications();
 
   const showsIOSGuide = isIOS() && !isStandalone();
 

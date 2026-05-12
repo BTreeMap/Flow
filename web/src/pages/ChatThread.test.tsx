@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { MessageBubble } from "../components/ui/MessageBubble";
+import type { FeedbackPollMetadata } from "../api/types";
 
 // Test MessageBubble rendering (unit level) - the ChatThread component
 // relies on network calls and SSE which are hard to unit test, so we
@@ -61,17 +62,47 @@ describe("MessageBubble", () => {
     expect(container.textContent).toContain("world");
   });
 
-  it("renders debug info with agent and tools when showDebug is true", () => {
+  it("renders debug info with route, condition, and prompt args when showDebug is true", () => {
     render(
       <MessageBubble
         role="assistant"
         content="Hello"
         showDebug={true}
-        debugInfo={{ agent: "COACH", tools: ["propose_profile_patch"] }}
+        debugInfo={{
+          agent: "COACH",
+          condition: "C",
+          prompt_args: { active_condition: "C", timezone: "UTC" },
+          tools: ["propose_profile_patch"],
+        }}
       />,
     );
+    expect(screen.getByText("Route:")).toBeInTheDocument();
     expect(screen.getByText("COACH")).toBeInTheDocument();
+    expect(screen.getByText("C")).toBeInTheDocument();
+    expect(screen.getByText("prompt_args")).toBeInTheDocument();
     expect(screen.getByText(/propose_profile_patch/)).toBeInTheDocument();
+  });
+
+  it("renders feedback poll options for assistant feedback_poll metadata", () => {
+    const metadata: FeedbackPollMetadata = {
+      type: "feedback_poll",
+      notification_id: 42,
+      status: "pending",
+      actions: [
+        { id: "fb_0", title: "Highly Relevant" },
+        { id: "fb_1", title: "Needs Improvement" },
+      ],
+    };
+    render(
+      <MessageBubble
+        role="assistant"
+        content="How helpful was this?"
+        projectId="p_test_project_00000000000000000"
+        metadata={metadata}
+      />,
+    );
+    expect(screen.getByText("Highly Relevant")).toBeInTheDocument();
+    expect(screen.getByText("Needs Improvement")).toBeInTheDocument();
   });
 
   it("renders tool_calls trace in debug mode", () => {

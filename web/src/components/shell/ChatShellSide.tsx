@@ -9,7 +9,7 @@ import { NotificationBanner } from "../NotificationBanner";
  */
 export function ChatShellSide() {
   return (
-    <div className="flex h-screen bg-bg overflow-hidden">
+    <div className="flex h-full bg-bg overflow-hidden">
       <NavRail />
       <div className="w-[360px] shrink-0 border-r border-divider overflow-y-auto bg-surface">
         <ChatListPane embedded />

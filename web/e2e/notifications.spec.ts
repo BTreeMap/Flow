@@ -105,25 +105,39 @@ test.describe("Notifications Flow", () => {
     // The sidebar link `/updates` goes to `src/pages/Updates.tsx` which lists projects.
     // `src/pages/UpdatesPage.tsx` is the detail view for a project.
 
+    // Mock unified notifications feed (the /updates page now shows a unified feed)
+    await page.route("**/api/notifications", async route => {
+        const json = {
+            notifications: [{
+                id: notificationId,
+                title: "E2E Nudge",
+                body: "This is a test nudge body.",
+                created_at: new Date().toISOString(),
+                read_at: null,
+                project_id: fakeProjectId,
+                project_display_name: "Test Project"
+            }]
+        };
+        await route.fulfill({ json });
+    });
+
+    // Mock unified mark read
+    await page.route(`**/api/notifications/${notificationId}/read`, async route => {
+         await route.fulfill({ json: { ok: true } });
+    });
+
     // Click "Updates" in bottom nav/sidebar
     await page.click('a[href="/updates"]'); // Adjust selector based on AppShell
 
-    // Should see the project listed in the Updates list
-    // Use first() or specific role to check visibility without strict mode error
-    await expect(page.getByRole("link", { name: "Test Project View daily" })).toBeVisible();
-
-    // Click the project row to go to project updates
-    await page.getByRole("link", { name: "Test Project View daily" }).click();
-
-    // Now we are at /p/:id/updates (mocked)
-    await expect(page).toHaveURL(new RegExp(`/p/${fakeProjectId}/updates`));
-    await expect(page.getByText("E2E Nudge")).toBeVisible();
+    // The unified feed shows notification items as buttons, not links
+    await expect(page.getByText("E2E Nudge")).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("This is a test nudge body.")).toBeVisible();
+    await expect(page.getByText("Test Project")).toBeVisible();
 
-    // 4. Click the Notification Card
+    // 4. Click the Notification to navigate to chat
     await page.getByText("E2E Nudge").click();
 
-    // 5. Verify Navigation to Chat
+    // 5. Verify Navigation to Chat with nid param
     await expect(page).toHaveURL(new RegExp(`/p/${fakeProjectId}/chat`));
 
     // Verify Chat Page loads (mock chat messages if needed, or just header)

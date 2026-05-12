@@ -128,4 +128,23 @@ describe("Dashboard chats list", () => {
 
     expect(await screen.findByText("No chats yet")).toBeInTheDocument();
   });
+
+  it("masks system preview text defensively", async () => {
+    mockFetch([
+      {
+        project_id: "p-system",
+        display_name: "System Test",
+        status: "active",
+        conversation_id: 10,
+        last_message_preview:
+          "[System: User provided feedback 'Needs tweaks' on notification 1]",
+        last_message_at: "2025-01-15T10:00:00Z",
+      },
+    ]);
+    renderDashboard();
+
+    expect(await screen.findByText("System Test")).toBeInTheDocument();
+    expect(screen.getByText("Feedback submitted")).toBeInTheDocument();
+    expect(screen.queryByText(/\[System:/)).not.toBeInTheDocument();
+  });
 });

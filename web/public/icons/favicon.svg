@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Flow Research app icon</title>
+  <desc id="desc">A minimalist indigo app icon with a rounded white speech bubble containing two flowing lines.</desc>
+  <rect width="1024" height="1024" rx="232" fill="#6366F1"/>
+  <path d="M286 304c0-53 43-96 96-96h302c76 0 138 62 138 138v148c0 76-62 138-138 138H498l-140 116v-116h-10c-34 0-62-28-62-62V304Z" fill="#FFFFFF"/>
+  <path d="M416 420c36-27 74-27 110 0 36 28 74 28 110 0" fill="none" stroke="#6366F1" stroke-width="52" stroke-linecap="round"/>
+  <path d="M416 530c36-27 74-27 110 0 36 28 74 28 110 0" fill="none" stroke="#A5B4FC" stroke-width="52" stroke-linecap="round"/>
+</svg>

@@ -98,7 +98,7 @@ function PasskeyName({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             maxLength={MAX_NAME_LENGTH}
-            className="text-sm border rounded px-2 py-0.5 w-48 bg-surface text-text border-border"
+            className="text-[16px] border rounded px-2 py-0.5 w-48 bg-surface text-text border-border"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter") save();
@@ -325,7 +325,7 @@ export function Settings() {
   const activePasskeys = passkeys?.filter((p) => !p.revoked_at) ?? [];
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg">
+    <div className="flex flex-col flex-1 bg-bg">
       <PageHeader title="Settings" data-testid="settings-heading" />
       <div className="space-y-6 px-4 py-6 max-w-2xl mx-auto w-full">
 

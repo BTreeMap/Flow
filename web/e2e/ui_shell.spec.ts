@@ -49,13 +49,14 @@ test.describe("Responsive nav switching", () => {
     await expect(page.getByTestId("nav-rail")).not.toBeVisible();
   });
 
-  test("landscape: nav-rail visible, bottom-nav not visible", async ({
+  test("landscape phone: bottom-nav visible, nav-rail not visible", async ({
     page,
   }) => {
+    // Landscape phones (short edge < 600) stay in phone/bottom-nav mode
     await page.setViewportSize({ width: 844, height: 390 });
     await registerUser(page, `landscape-nav-${Date.now()}@example.com`);
-    await expect(page.getByTestId("nav-rail")).toBeVisible();
-    await expect(page.getByTestId("bottom-nav")).not.toBeVisible();
+    await expect(page.getByTestId("bottom-nav")).toBeVisible();
+    await expect(page.getByTestId("nav-rail")).not.toBeVisible();
   });
 
   test("desktop: nav-rail visible, bottom-nav not visible", async ({

@@ -294,6 +294,34 @@ test.describe("Security: tampered and malformed JWTs", () => {
   });
 
   // -----------------------------------------------------------------------
+  // S9b) Browser ECDSA sign output is raw P1363 (r||s), not DER sequence
+  // -----------------------------------------------------------------------
+  test("browser ECDSA sign output is raw P1363 format", async ({ page }) => {
+    await registerUser(page, "P1363 Format Test");
+
+    const details = await page.evaluate(async () => {
+      const { getPrivateKey } = await import("/src/auth/deviceKey.ts");
+      const privateKey = await getPrivateKey();
+      const data = new TextEncoder().encode("p1363-format-check");
+      const sigBytes = new Uint8Array(
+        await crypto.subtle.sign(
+          { name: "ECDSA", hash: "SHA-256" },
+          privateKey!,
+          data,
+        ),
+      );
+
+      return {
+        length: sigBytes.length,
+        firstByte: sigBytes[0],
+      };
+    });
+
+    expect(details.length).toBe(64);
+    expect(details.firstByte).not.toBe(0x30);
+  });
+
+  // -----------------------------------------------------------------------
   // S9) Tampered JWT signature rejected
   // -----------------------------------------------------------------------
   test("tampered JWT signature is rejected", async ({ page }) => {

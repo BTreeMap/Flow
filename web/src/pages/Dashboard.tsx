@@ -9,9 +9,15 @@ import { ListRow } from "../components/ui/ListRow";
 import { Button } from "../components/Button";
 import { useInstallPrompt } from "../hooks/useInstallPrompt";
 import { useLayoutMode } from "../hooks/useLayoutMode";
+import { useTimezone } from "../hooks/useTimezone";
 import type { DashboardResponse, MembershipInfo } from "../api/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+
+function getDisplayPreview(preview: string | null | undefined): string {
+  if (!preview) return "No messages yet";
+  return preview.startsWith("[System:") ? "Feedback submitted" : preview;
+}
 
 function getLastOpenedAt(projectId: string): string | null {
   return localStorage.getItem(`chat-opened:${projectId}`);
@@ -91,6 +97,7 @@ function Avatar({ name }: { name: string }) {
 export function Dashboard() {
   const navigate = useNavigate();
   const layoutMode = useLayoutMode();
+  useTimezone();
   const [search, setSearch] = useState("");
   const { canPrompt, promptInstall, showIOSGuide } = useInstallPrompt();
   const [showFab, setShowFab] = useState(false);
@@ -155,7 +162,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg" data-testid="dashboard-page">
+    <div className="flex flex-col flex-1 bg-bg" data-testid="dashboard-page">
       <PageHeader
         title="Chats"
         data-testid="dashboard-heading"
@@ -182,7 +189,7 @@ export function Dashboard() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             data-testid="chat-search"
-            className="w-full pl-9 pr-4 py-2 bg-surface-2 text-[14px] text-text placeholder:text-text-subtle rounded-[var(--radius-pill)] border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus transition-colors"
+            className="w-full pl-9 pr-4 py-2 bg-surface-2 text-[16px] text-text placeholder:text-text-subtle rounded-[var(--radius-pill)] border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus transition-colors"
           />
         </div>
       </div>
@@ -218,12 +225,12 @@ export function Dashboard() {
         {filtered.active.length > 0 &&
           filtered.active.map((m) => (
               <Link key={m.project_id} to={`/p/${m.project_id}/chat`}>
-                <ListRow
-                  avatar={<Avatar name={m.display_name ?? ""} />}
-                  primary={m.display_name ?? m.project_id}
-                  secondary={m.last_message_preview ?? "No messages yet"}
-                  unread={isUnread(m)}
-                  trailing={
+                  <ListRow
+                    avatar={<Avatar name={m.display_name ?? ""} />}
+                    primary={m.display_name ?? m.project_id}
+                    secondary={getDisplayPreview(m.last_message_preview)}
+                    unread={isUnread(m)}
+                    trailing={
                     m.last_message_at ? (
                       <span className="text-[11px] text-text-subtle whitespace-nowrap">
                         {formatTime(m.last_message_at)}
@@ -259,7 +266,8 @@ export function Dashboard() {
       {/* FAB */}
       <button
         onClick={() => setShowFab(true)}
-        className="fixed bottom-[calc(var(--bottomnav-h)+env(safe-area-inset-bottom,0px)+16px)] right-4 w-14 h-14 rounded-full bg-primary text-on-primary shadow-md flex items-center justify-center hover:bg-primary-hover transition-colors z-40 md:bottom-6"
+        className="fixed right-4 w-14 h-14 rounded-full bg-primary text-on-primary shadow-md flex items-center justify-center hover:bg-primary-hover transition-colors z-40"
+        style={{ bottom: "calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + 16px)" }}
         aria-label="Join project"
       >
         <Plus className="w-6 h-6" />
@@ -280,7 +288,7 @@ export function Dashboard() {
               placeholder="Invite link or /p/.../activate"
               value={inviteInput}
               onChange={(e) => setInviteInput(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-2 text-[14px] text-text placeholder:text-text-subtle rounded-[var(--radius-pill)] border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="w-full px-4 py-2.5 bg-surface-2 text-[16px] text-text placeholder:text-text-subtle rounded-[var(--radius-pill)] border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleJoinFromFab();
@@ -311,4 +319,3 @@ export function Dashboard() {
     </div>
   );
 }
-

@@ -8,6 +8,11 @@ import type { DashboardResponse, MembershipInfo } from "../../api/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
+function getDisplayPreview(preview: string | null | undefined): string {
+  if (!preview) return "No messages yet";
+  return preview.startsWith("[System:") ? "Feedback submitted" : preview;
+}
+
 function getLastOpenedAt(projectId: string): string | null {
   return localStorage.getItem(`chat-opened:${projectId}`);
 }
@@ -111,7 +116,7 @@ export function ChatListPane({ embedded }: ChatListPaneProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             data-testid="chat-search"
-            className="w-full pl-9 pr-4 py-2 bg-surface-2 text-[14px] text-text placeholder:text-text-subtle rounded-[var(--radius-pill)] border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus transition-colors"
+            className="w-full pl-9 pr-4 py-2 bg-surface-2 text-[16px] text-text placeholder:text-text-subtle rounded-[var(--radius-pill)] border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus transition-colors"
           />
         </div>
       </div>
@@ -152,7 +157,7 @@ export function ChatListPane({ embedded }: ChatListPaneProps) {
                 <ListRow
                   avatar={<Avatar name={m.display_name ?? ""} />}
                   primary={m.display_name ?? m.project_id}
-                  secondary={m.last_message_preview ?? "No messages yet"}
+                  secondary={getDisplayPreview(m.last_message_preview)}
                   unread={isUnread(m)}
                   className={
                     activeProjectId === m.project_id ? "bg-primary/5" : ""

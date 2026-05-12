@@ -25,7 +25,7 @@ export function Input({
       )}
       <input
         id={inputId}
-        className={`w-full px-3 py-2 bg-surface border border-border rounded-xl text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors ${
+        className={`w-full px-3 py-2 bg-surface border border-border rounded-xl text-[16px] text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors ${
           error ? "border-danger" : ""
         } ${className}`}
         {...props}

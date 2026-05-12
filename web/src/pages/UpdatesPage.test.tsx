@@ -50,8 +50,8 @@ describe('UpdatesPage', () => {
 
   it('renders notifications and marks unread as read on mount', () => {
     const notifications = [
-      { id: 1, title: 'Nudge 1', body: 'Body 1', created_at: new Date().toISOString(), read_at: null }, // Unread
-      { id: 2, title: 'Nudge 2', body: 'Body 2', created_at: new Date().toISOString(), read_at: '2023-01-01' }, // Read
+      { id: 1, title: 'Nudge 1', body: 'Body 1', created_at: new Date().toISOString(), read_at: null, membership_id: 1, payload_json: '{}', project_display_name: 'Test', project_id: 'test-project' }, // Unread
+      { id: 2, title: 'Nudge 2', body: 'Body 2', created_at: new Date().toISOString(), read_at: '2023-01-01', membership_id: 1, payload_json: '{}', project_display_name: 'Test', project_id: 'test-project' }, // Read
     ];
 
     vi.spyOn(useNotificationsHook, 'useNotifications').mockReturnValue({
@@ -75,7 +75,7 @@ describe('UpdatesPage', () => {
 
   it('navigates to chat on card click', () => {
     const notifications = [
-        { id: 1, title: 'Nudge 1', body: 'Body 1', created_at: new Date().toISOString(), read_at: null },
+        { id: 1, title: 'Nudge 1', body: 'Body 1', created_at: new Date().toISOString(), read_at: null, membership_id: 1, payload_json: '{}', project_display_name: 'Test', project_id: 'test-project' },
     ];
 
     vi.spyOn(useNotificationsHook, 'useNotifications').mockReturnValue({

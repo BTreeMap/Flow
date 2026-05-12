@@ -6,6 +6,7 @@
   --color-primary: #6366f1;
   --color-primary-hover: #4f46e5;
   --color-on-primary: #ffffff;
+  --color-primary-foreground: #ffffff;
 
   /* Surfaces */
   --color-bg: #f2f3f5;
@@ -13,11 +14,14 @@
   --color-surface-2: #f9fafb;
   --color-surface-3: #f1f5f9;
   --color-surface-alt: #f9fafb;
+  --color-surface-muted: #f3f4f6;
+  --color-surface-hover: #f3f4f6;
 
   /* Text */
   --color-text: #111827;
   --color-text-muted: #6b7280;
   --color-text-subtle: #9ca3af;
+  --color-primary-dark: #4338ca;
 
   /* Borders */
   --color-border: #e5e7eb;
@@ -28,6 +32,7 @@
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
   --color-danger-hover: #dc2626;
+  --color-error: #ef4444;
 
   /* Chat */
   --color-chat-bg: #efeae2;
@@ -56,8 +61,32 @@
 }
 
 @layer base {
+  html {
+    /* Fallback for --vvh before JS hydrates */
+    --vvh: 100vh;
+    --vvh-offset: 0px;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    overscroll-behavior-y: none;
+  }
+
   body {
     @apply bg-bg text-text antialiased;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0
+      env(safe-area-inset-left);
+  }
+
+  /* Prevent iOS Safari auto-zoom on focus for all form controls */
+  @supports (-webkit-touch-callout: none) {
+    input,
+    textarea,
+    select {
+      font-size: max(16px, 1em);
+    }
   }
 }
 
@@ -69,16 +98,20 @@ html[data-theme="dark"] {
   --color-primary: #818cf8;
   --color-primary-hover: #6366f1;
   --color-on-primary: #ffffff;
+  --color-primary-foreground: #ffffff;
 
   --color-bg: #0b0f1a;
   --color-surface: #111827;
   --color-surface-2: #1e293b;
   --color-surface-3: #1e293b;
   --color-surface-alt: #1e293b;
+  --color-surface-muted: #1e293b;
+  --color-surface-hover: #1e293b;
 
   --color-text: #f1f5f9;
   --color-text-muted: #94a3b8;
   --color-text-subtle: #64748b;
+  --color-primary-dark: #a5b4fc;
 
   --color-border: #334155;
   --color-divider: #1e293b;
@@ -87,6 +120,7 @@ html[data-theme="dark"] {
   --color-warning: #fbbf24;
   --color-danger: #f87171;
   --color-danger-hover: #ef4444;
+  --color-error: #f87171;
 
   --color-chat-bg: #0b141a;
   --color-bubble-in: #1e293b;

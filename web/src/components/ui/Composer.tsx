@@ -35,7 +35,7 @@ export function Composer({ onSend, disabled }: ComposerProps) {
 
   return (
     <div
-      className="sticky bottom-0 z-30 bg-surface border-t border-divider px-3 flex items-end gap-2"
+      className="shrink-0 z-30 bg-surface border-t border-divider px-3 flex items-end gap-2"
       style={{
         paddingTop: "8px",
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
@@ -49,7 +49,7 @@ export function Composer({ onSend, disabled }: ComposerProps) {
         onKeyDown={handleKeyDown}
         placeholder="Type a message…"
         disabled={disabled}
-        className="flex-1 resize-none px-4 py-2.5 bg-surface-2 border border-border rounded-[var(--radius-pill)] text-[15px] text-text placeholder:text-text-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-focus transition-colors"
+        className="flex-1 resize-none px-4 py-2.5 bg-surface-2 border border-border rounded-[var(--radius-pill)] text-[16px] text-text placeholder:text-text-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-focus transition-colors"
         style={{ maxHeight: `${COMPOSER_MAX_HEIGHT}px` }}
       />
       <button
