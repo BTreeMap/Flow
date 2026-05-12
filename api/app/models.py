@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -44,7 +49,6 @@ class Project(Base):
     memberships: Mapped[list[ProjectMembership]] = relationship(
         back_populates="project"
     )
-    outbox_events: Mapped[list[OutboxEvent]] = relationship(back_populates="project")
 
 
 # ---- Internal entities -------------------------------------------------------
@@ -87,7 +91,7 @@ class ProjectMembership(Base):
     project_id: Mapped[str] = mapped_column(
         String(32), ForeignKey("projects.id"), nullable=False
     )
-    user_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -106,10 +110,6 @@ class ProjectMembership(Base):
     conversations: Mapped[list[Conversation]] = relationship(
         back_populates="membership"
     )
-    push_subscriptions: Mapped[list[PushSubscription]] = relationship(
-        back_populates="membership"
-    )
-    outbox_events: Mapped[list[OutboxEvent]] = relationship(back_populates="membership")
 
 
 class ParticipantContact(Base):
@@ -149,8 +149,29 @@ class Conversation(Base):
     )
 
 
+class Participation(Base):
+    __tablename__ = "participations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    membership_id: Mapped[int] = mapped_column(
+        ForeignKey("project_memberships.id"), nullable=False
+    )
+    study_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    study_start_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="UTC")
+
+
 class Message(Base):
     __tablename__ = "messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "conversation_id",
+            "client_msg_id",
+            name="uq_message_conversation_client_msg",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     conversation_id: Mapped[int] = mapped_column(
@@ -163,6 +184,17 @@ class Message(Base):
     )
     client_msg_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     server_msg_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)
+    participation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("participations.id"), nullable=True
+    )
+    condition_source: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="SYSTEM", index=True
+    )
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata",
+        JSON().with_variant(JSONB, "postgresql"),
+        nullable=True,
+    )
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
 
@@ -184,22 +216,40 @@ class ConversationRuntimeState(Base):
     conversation: Mapped[Conversation] = relationship(back_populates="runtime_state")
 
 
+class DailyInterventionLog(Base):
+    __tablename__ = "daily_intervention_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    participation_id: Mapped[int] = mapped_column(
+        ForeignKey("participations.id"), nullable=False
+    )
+    intervention_date: Mapped[date] = mapped_column(Date, nullable=False)
+    study_day_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    assigned_condition: Mapped[str] = mapped_column(String(1), nullable=False)
+    extracted_state: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"),
+        nullable=True,
+    )
+
+
 class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
     __table_args__ = (
         UniqueConstraint(
-            "membership_id", "endpoint", name="uq_push_subscription_membership_endpoint"
+            "user_id", "endpoint", name="uq_push_subscription_user_endpoint"
         ),
+        Index("ix_push_sub_user_active", "user_id", "revoked_at"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    membership_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("project_memberships.id"), nullable=False
-    )
+    user_id: Mapped[str] = mapped_column(String(32), nullable=False)
     endpoint: Mapped[str] = mapped_column(String(2048), nullable=False)
     p256dh: Mapped[str] = mapped_column(String(255), nullable=False)
     auth: Mapped[str] = mapped_column(String(255), nullable=False)
-    user_agent: Mapped[str] = mapped_column(String(512), nullable=False)
+    user_agent: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    consecutive_gone_410_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -212,43 +262,6 @@ class PushSubscription(Base):
     last_failure_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-
-    membership: Mapped[ProjectMembership] = relationship(
-        back_populates="push_subscriptions"
-    )
-
-
-class OutboxEvent(Base):
-    __tablename__ = "outbox_events"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    project_id: Mapped[str] = mapped_column(
-        String(32), ForeignKey("projects.id"), nullable=False
-    )
-    membership_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("project_memberships.id"), nullable=False
-    )
-    type: Mapped[str] = mapped_column(String(50), nullable=False)
-    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
-    dedupe_key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    available_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    locked_until: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    locked_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    claimed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-
-    project: Mapped[Project] = relationship(back_populates="outbox_events")
-    membership: Mapped[ProjectMembership] = relationship(back_populates="outbox_events")
 
 
 class UserProfileStore(Base):
@@ -302,7 +315,7 @@ class PatchAuditLog(Base):
     patch_json: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
-    decision: Mapped[str] = mapped_column(String(30), nullable=False)
+    decision: Mapped[str] = mapped_column(String(255), nullable=False)
     committed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -371,33 +384,21 @@ class FlowUserProfile(Base):
 
     __tablename__ = "flow_user_profiles"
 
-    user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
     email_raw: Mapped[str | None] = mapped_column(String(320), nullable=True)
     email_normalized: Mapped[str | None] = mapped_column(String(320), nullable=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tz_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    tz_offset_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
     )
-
-
-class NudgeSchedule(Base):
-    __tablename__ = "nudge_schedules"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    membership_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("project_memberships.id"), nullable=False
-    )
-    topic: Mapped[str] = mapped_column(String(255), nullable=False)
-    cron_rule: Mapped[str] = mapped_column(String(50), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-
-    membership: Mapped[ProjectMembership] = relationship()
 
 
 class Notification(Base):
@@ -415,6 +416,166 @@ class Notification(Base):
     )
     read_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+    rule_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("notification_rules.id"), nullable=True
+    )
+    local_date: Mapped[str | None] = mapped_column(Date, nullable=True)
+    dedupe_key: Mapped[str | None] = mapped_column(
+        String(255), unique=True, nullable=True
+    )
+
+    membership: Mapped[ProjectMembership] = relationship()
+    rule: Mapped[NotificationRule | None] = relationship(back_populates="instances")
+
+
+class NotificationRule(Base):
+    """Describes what should happen and when (e.g. daily nudge at 08:00 local)."""
+
+    __tablename__ = "notification_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    membership_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("project_memberships.id"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(50), nullable=False)
+    config_json: Mapped[str] = mapped_column(Text, nullable=False)
+    tz_policy: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="floating_user_tz"
+    )
+    timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    membership: Mapped[ProjectMembership] = relationship()
+    state: Mapped[NotificationRuleState | None] = relationship(
+        back_populates="rule", uselist=False
+    )
+    instances: Mapped[list[Notification]] = relationship(back_populates="rule")
+
+
+class NotificationRuleState(Base):
+    """Hot worker state for a notification rule — indexed for efficient polling."""
+
+    __tablename__ = "notification_rule_state"
+    __table_args__ = (Index("ix_rule_state_next_due", "next_due_at_utc"),)
+
+    rule_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("notification_rules.id"), primary_key=True
+    )
+    next_due_at_utc: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    locked_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    rule: Mapped[NotificationRule] = relationship(back_populates="state")
+
+
+class NotificationDelivery(Base):
+    """Short-lived delivery command (push_notify, push_dismiss)."""
+
+    __tablename__ = "notification_deliveries"
+    __table_args__ = (
+        Index("ix_delivery_run_status", "run_at_utc", "status"),
+        Index("ix_delivery_user_id", "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    instance_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("notifications.id"), nullable=False
+    )
+    membership_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("project_memberships.id"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    channel: Mapped[str] = mapped_column(String(30), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    run_at_utc: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    locked_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    instance: Mapped[Notification] = relationship()
+    membership: Mapped[ProjectMembership] = relationship()
+
+
+class ScheduledTask(Base):
+    """Ephemeral task queue for delayed system actions."""
+
+    __tablename__ = "scheduled_tasks"
+    __table_args__ = (
+        Index("ix_scheduled_task_due", "run_at_utc", "status"),
+        Index("ix_scheduled_task_rule", "rule_id"),
+        Index("ix_scheduled_task_parent", "parent_instance_id"),
+        Index(
+            "ix_scheduled_task_membership_type_status",
+            "membership_id",
+            "task_type",
+            "status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    membership_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("project_memberships.id"), nullable=False
+    )
+    rule_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("notification_rules.id", ondelete="CASCADE"), nullable=True
+    )
+    # Parent nudge notification id for delayed feedback tasks; null for standalone tasks.
+    parent_instance_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("notifications.id", ondelete="CASCADE"), nullable=True
+    )
+    task_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    run_at_utc: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    locked_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     membership: Mapped[ProjectMembership] = relationship()

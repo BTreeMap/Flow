@@ -23,7 +23,7 @@ def configure_logging() -> None:
     1. Console logging (stdout) with human-readable format.
     2. File logging (app.log) in the data directory.
     """
-    log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
+    log_level_name = config.get_log_level()
     log_level = getattr(logging, log_level_name, logging.INFO)
 
     data_dir = config.get_data_dir()

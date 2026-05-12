@@ -30,7 +30,9 @@ from app.models import (
     FlowUserProfile,
     MemoryItem,
     Notification,
-    OutboxEvent,
+    NotificationDelivery,
+    NotificationRule,
+    NotificationRuleState,
     PatchAuditLog,
     Conversation,
     Message,
@@ -39,15 +41,14 @@ from app.models import (
     ProjectInvite,
     ProjectMembership,
     PushSubscription,
+    ScheduledTask,
     UserProfileStore,
 )
 from app.schemas.patches import UserProfileData
 from app.services.event_service import load_events_since, persist_event
-from app.services.outbox_service import (
-    enqueue_outbox_event,
-)
 from app.services.profile_service import load_user_profile, save_user_profile
 from app import config
+from app.agents.engine import process_turn as engine_process_turn
 from h4ckath0n.auth import require_user
 from h4ckath0n.auth.dependencies import require_admin
 from h4ckath0n.auth.models import Device, User
@@ -65,6 +66,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MESSAGE_PREVIEW_MAX_LENGTH = 120
+FEEDBACK_ACTION_CLIENT_MSG_PREFIX = "feedback_action:"
 
 # ---------------------------------------------------------------------------
 # In-memory SSE fan-out queues: conversation_id -> set of asyncio.Queue
@@ -76,6 +78,28 @@ def _publish_event(conversation_id: int, event: dict[str, Any]) -> None:
     """Push an SSE event to all listeners on a conversation."""
     for q in _sse_queues.get(conversation_id, set()):
         q.put_nowait(event)
+
+
+def _resolve_feedback_action_title(
+    deliveries: list[NotificationDelivery], action_id: str
+) -> str:
+    """Resolve human-readable action title from delivery payload actions."""
+    for delivery in deliveries:
+        try:
+            payload = json.loads(delivery.payload_json)
+        except json.JSONDecodeError:
+            continue
+        for action in payload.get("actions", []):
+            if action.get("action") == action_id:
+                return str(action.get("title") or action_id)
+    return action_id
+
+
+def _format_feedback_system_message(action_title: str, notification_id: int) -> str:
+    return (
+        f"[System: User provided feedback '{action_title}' on notification "
+        f"{notification_id}]"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +179,20 @@ class SendMessageRequest(BaseModel):
 
     text: str
     client_msg_id: str | None = None
+    current_notification_id: int | None = None
+
+
+class FeedbackAction(BaseModel):
+    id: str
+    title: str
+
+
+class FeedbackPollMetadata(BaseModel):
+    type: Literal["feedback_poll"]
+    notification_id: int
+    status: Literal["pending", "completed"]
+    selected_action_id: str | None = None
+    actions: list[FeedbackAction]
 
 
 class MessageItem(BaseModel):
@@ -163,6 +201,7 @@ class MessageItem(BaseModel):
     role: str
     content: str
     created_at: str
+    metadata: FeedbackPollMetadata | dict[str, Any] | None = None
 
 
 class SendMessageResponse(BaseModel):
@@ -176,6 +215,14 @@ class SendMessageResponse(BaseModel):
 
 class MessageListResponse(BaseModel):
     messages: list[MessageItem]
+
+
+class FeedbackEventRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action_id: str
+    notification_id: int
+    project_id: str | None = None
 
 
 class PushKeys(BaseModel):
@@ -197,34 +244,31 @@ class PushSubscribeResponse(BaseModel):
     subscription_id: int
 
 
-class PushUnsubscribeRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    endpoint: str
-
-
-class PushUnsubscribeResponse(BaseModel):
-    ok: bool
-
-
-class NotificationItem(BaseModel):
-    id: int
-    title: str
-    body: str
-    created_at: str
-    read_at: str | None
-
-
-class NotificationListResponse(BaseModel):
-    notifications: list[NotificationItem]
-
-
 class NotificationUnreadCountResponse(BaseModel):
     count: int
 
 
 class VapidPublicKeyResponse(BaseModel):
     public_key: str
+
+
+class UnifiedNotificationItem(BaseModel):
+    id: int
+    title: str
+    body: str
+    created_at: str
+    read_at: str | None
+    payload_json: str
+    project_id: str
+    project_display_name: str | None
+    membership_id: int
+    rule_id: int | None = None
+    local_date: str | None = None
+
+
+class UnifiedNotificationListResponse(BaseModel):
+    notifications: list[UnifiedNotificationItem]
+    next_cursor: str | None = None
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -300,6 +344,13 @@ class UserMeUpdateRequest(BaseModel):
 
     email: EmailStr | None = None
     display_name: str | None = None
+
+
+class TimezoneUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    timezone: str
+    offset_minutes: int | None = None
 
 
 class AdminProjectUpdateRequest(BaseModel):
@@ -399,63 +450,77 @@ async def dashboard(
     db: AsyncSession = Depends(get_db),
 ) -> DashboardResponse:
     """Return all memberships with project info for the current user."""
-    result = await db.execute(
-        select(ProjectMembership)
-        .where(ProjectMembership.user_id == user.id)
-        .options(
-            joinedload(ProjectMembership.project),
-            selectinload(ProjectMembership.conversations),
-        )
-    )
-    memberships = result.scalars().all()
-
-    # Batch: fetch last message per conversation to avoid N+1
-    membership_ids = [m.id for m in memberships]
-    last_msg_map: dict[int, Message] = {}
-    if membership_ids:
-        # Subquery for the max message id per conversation
-        latest_msg_subq = (
-            select(
-                Conversation.membership_id,
-                func.max(Message.id).label("max_msg_id"),
-            )
-            .join(Message, Message.conversation_id == Conversation.id)
-            .where(Conversation.membership_id.in_(membership_ids))
-            .group_by(Conversation.membership_id)
-            .subquery()
-        )
-        last_msgs_result = await db.execute(
-            select(latest_msg_subq.c.membership_id, Message).join(
-                Message, Message.id == latest_msg_subq.c.max_msg_id
+    try:
+        result = await db.execute(
+            select(ProjectMembership)
+            .where(ProjectMembership.user_id == user.id)
+            .options(
+                joinedload(ProjectMembership.project),
+                selectinload(ProjectMembership.conversations),
             )
         )
-        for row in last_msgs_result:
-            last_msg_map[row[0]] = row[1]
+        memberships = result.scalars().all()
 
-    items: list[MembershipInfo] = []
-    for m in memberships:
-        # Fetch project display name
-        project = m.project
-
-        # Fetch conversation id
-        conv = m.conversations[0] if m.conversations else None
-
-        last_msg = last_msg_map.get(m.id)
-
-        items.append(
-            MembershipInfo(
-                project_id=m.project_id,
-                display_name=project.display_name if project else None,
-                status=m.status,
-                conversation_id=conv.id if conv else None,
-                last_message_preview=last_msg.content[:MESSAGE_PREVIEW_MAX_LENGTH]
-                if last_msg
-                else None,
-                last_message_at=last_msg.created_at.isoformat() if last_msg else None,
+        # Batch: fetch last message per conversation to avoid N+1
+        membership_ids = [m.id for m in memberships]
+        last_msg_map: dict[int, Message] = {}
+        if membership_ids:
+            # Subquery for the max message id per conversation
+            latest_msg_subq = (
+                select(
+                    Conversation.membership_id,
+                    func.max(Message.id).label("max_msg_id"),
+                )
+                .join(Message, Message.conversation_id == Conversation.id)
+                .where(
+                    Conversation.membership_id.in_(membership_ids),
+                    or_(
+                        Message.client_msg_id.is_(None),
+                        ~Message.client_msg_id.startswith("feedback_action:"),
+                    ),
+                )
+                .group_by(Conversation.membership_id)
+                .subquery()
             )
-        )
+            last_msgs_result = await db.execute(
+                select(latest_msg_subq.c.membership_id, Message).join(
+                    Message, Message.id == latest_msg_subq.c.max_msg_id
+                )
+            )
+            for row in last_msgs_result:
+                last_msg_map[row[0]] = row[1]
 
-    return DashboardResponse(memberships=items)
+        items: list[MembershipInfo] = []
+        for m in memberships:
+            # Fetch project display name
+            project = m.project
+
+            # Fetch conversation id
+            conv = m.conversations[0] if m.conversations else None
+
+            last_msg = last_msg_map.get(m.id)
+
+            items.append(
+                MembershipInfo(
+                    project_id=m.project_id,
+                    display_name=project.display_name if project else None,
+                    status=m.status,
+                    conversation_id=conv.id if conv else None,
+                    last_message_preview=last_msg.content[:MESSAGE_PREVIEW_MAX_LENGTH]
+                    if last_msg
+                    else None,
+                    last_message_at=last_msg.created_at.isoformat()
+                    if last_msg
+                    else None,
+                )
+            )
+
+        return DashboardResponse(memberships=items)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to load dashboard")
+        raise HTTPException(status_code=500, detail="Failed to load dashboard")
 
 
 @router.get("/auth/me", tags=["auth"])
@@ -469,20 +534,26 @@ async def get_me(
     db: AsyncSession = Depends(get_db),
 ) -> UserMeResponse:
     """Return current user profile including email and display name."""
-    profile_result = await db.execute(
-        select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    return UserMeResponse(
-        user_id=user.id,
-        email=(
-            profile.email_raw or profile.email_normalized
-            if profile is not None
-            else None
-        ),
-        display_name=profile.display_name if profile else None,
-        is_admin=user.role == "admin",
-    )
+    try:
+        profile_result = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+        )
+        profile = profile_result.scalar_one_or_none()
+        return UserMeResponse(
+            user_id=user.id,
+            email=(
+                profile.email_raw or profile.email_normalized
+                if profile is not None
+                else None
+            ),
+            display_name=profile.display_name if profile else None,
+            is_admin=user.role == "admin",
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to load user profile")
+        raise HTTPException(status_code=500, detail="Failed to load user profile")
 
 
 @router.patch("/me", tags=["user"])
@@ -492,48 +563,126 @@ async def update_me(
     db: AsyncSession = Depends(get_db),
 ) -> UserMeResponse:
     """Update current user's email and/or display name."""
-    profile_result = await db.execute(
-        select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    if profile is None:
-        profile = FlowUserProfile(user_id=user.id)
-        db.add(profile)
+    try:
+        profile_result = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+        )
+        profile = profile_result.scalar_one_or_none()
+        if profile is None:
+            profile = FlowUserProfile(user_id=user.id)
+            db.add(profile)
 
-    if body.email is not None:
-        trimmed_email = str(body.email).strip()
-        profile.email_raw = trimmed_email
-        profile.email_normalized = trimmed_email.lower()
+        if body.email is not None:
+            trimmed_email = str(body.email).strip()
+            profile.email_raw = trimmed_email
+            profile.email_normalized = trimmed_email.lower()
 
-    if body.display_name is not None:
-        # None = don't update; empty string = invalid
-        trimmed = body.display_name.strip()
-        if len(trimmed) > 255:
+        if body.display_name is not None:
+            # None = don't update; empty string = invalid
+            trimmed = body.display_name.strip()
+            if len(trimmed) > 255:
+                raise HTTPException(
+                    status_code=422, detail="Display name too long (max 255)"
+                )
+            if len(trimmed) == 0:
+                raise HTTPException(
+                    status_code=422, detail="Display name cannot be empty"
+                )
+
+            profile.display_name = trimmed
+
+        await db.commit()
+
+        # Reload for response
+        profile_result = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+        )
+        profile = profile_result.scalar_one_or_none()
+        return UserMeResponse(
+            user_id=user.id,
+            email=(
+                profile.email_raw or profile.email_normalized
+                if profile is not None
+                else None
+            ),
+            display_name=profile.display_name if profile else None,
+            is_admin=user.role == "admin",
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to update user profile")
+        raise HTTPException(status_code=500, detail="Failed to update user profile")
+
+
+@router.post("/me/timezone", tags=["user"])
+async def update_timezone(
+    body: TimezoneUpdateRequest,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Store the user's IANA timezone. Called automatically by the frontend."""
+    try:
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            ZoneInfo(body.timezone)
+        except (ZoneInfoNotFoundError, KeyError):
             raise HTTPException(
-                status_code=422, detail="Display name too long (max 255)"
+                status_code=422, detail=f"Invalid IANA timezone: {body.timezone}"
             )
-        if len(trimmed) == 0:
-            raise HTTPException(status_code=422, detail="Display name cannot be empty")
 
-        profile.display_name = trimmed
+        profile_result = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+        )
+        profile = profile_result.scalar_one_or_none()
+        if profile is None:
+            profile = FlowUserProfile(user_id=user.id)
+            db.add(profile)
 
-    await db.commit()
+        profile.timezone = body.timezone
+        profile.tz_offset_minutes = body.offset_minutes
+        profile.tz_updated_at = datetime.now(UTC)
 
-    # Reload for response
-    profile_result = await db.execute(
-        select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    return UserMeResponse(
-        user_id=user.id,
-        email=(
-            profile.email_raw or profile.email_normalized
-            if profile is not None
-            else None
-        ),
-        display_name=profile.display_name if profile else None,
-        is_admin=user.role == "admin",
-    )
+        await db.commit()
+
+        # Recompute next_due_at_utc for floating notification rules
+        try:
+            from app.services.notification_engine import recompute_rule_due_time
+
+            mem_result = await db.execute(
+                select(ProjectMembership).where(
+                    ProjectMembership.user_id == user.id,
+                    ProjectMembership.status == "active",
+                )
+            )
+            memberships = mem_result.scalars().all()
+            for mem in memberships:
+                rule_result = await db.execute(
+                    select(NotificationRule, NotificationRuleState)
+                    .join(
+                        NotificationRuleState,
+                        NotificationRule.id == NotificationRuleState.rule_id,
+                    )
+                    .where(
+                        NotificationRule.membership_id == mem.id,
+                        NotificationRule.is_active.is_(True),
+                        NotificationRule.tz_policy == "floating_user_tz",
+                    )
+                )
+                for rule, state in rule_result.all():
+                    if state.locked_by is None:
+                        await recompute_rule_due_time(db, rule, state)
+            await db.commit()
+        except Exception:
+            logger.exception("Failed to recompute floating rules after timezone update")
+
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to update timezone")
+        raise HTTPException(status_code=500, detail="Failed to update timezone")
 
 
 async def _require_auth_context(request: Request) -> AuthContext:
@@ -548,22 +697,28 @@ async def auth_sessions(
     auth_ctx: AuthContext = Depends(_require_auth_context),
     db: AsyncSession = Depends(get_db),
 ) -> AuthSessionsResponse:
-    result = await db.execute(
-        select(Device)
-        .where(Device.user_id == auth_ctx.user_id)
-        .order_by(Device.created_at.desc())
-    )
-    sessions = [
-        AuthSessionItem(
-            device_id=device.id,
-            label=device.label,
-            created_at=device.created_at.isoformat(),
-            revoked_at=device.revoked_at.isoformat() if device.revoked_at else None,
-            is_current=device.id == auth_ctx.device_id,
+    try:
+        result = await db.execute(
+            select(Device)
+            .where(Device.user_id == auth_ctx.user_id)
+            .order_by(Device.created_at.desc())
         )
-        for device in result.scalars().all()
-    ]
-    return AuthSessionsResponse(sessions=sessions)
+        sessions = [
+            AuthSessionItem(
+                device_id=device.id,
+                label=device.label,
+                created_at=device.created_at.isoformat(),
+                revoked_at=device.revoked_at.isoformat() if device.revoked_at else None,
+                is_current=device.id == auth_ctx.device_id,
+            )
+            for device in result.scalars().all()
+        ]
+        return AuthSessionsResponse(sessions=sessions)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to load sessions")
+        raise HTTPException(status_code=500, detail="Failed to load sessions")
 
 
 @router.post("/auth/sessions/{device_id}/revoke", tags=["auth"])
@@ -572,16 +727,24 @@ async def revoke_auth_session(
     auth_ctx: AuthContext = Depends(_require_auth_context),
     db: AsyncSession = Depends(get_db),
 ) -> AuthSessionRevokeResponse:
-    result = await db.execute(
-        select(Device).where(Device.id == device_id, Device.user_id == auth_ctx.user_id)
-    )
-    device = result.scalar_one_or_none()
-    if device is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if device.revoked_at is None:
-        device.revoked_at = datetime.now(UTC)
-        await db.commit()
-    return AuthSessionRevokeResponse(ok=True)
+    try:
+        result = await db.execute(
+            select(Device).where(
+                Device.id == device_id, Device.user_id == auth_ctx.user_id
+            )
+        )
+        device = result.scalar_one_or_none()
+        if device is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if device.revoked_at is None:
+            device.revoked_at = datetime.now(UTC)
+            await db.commit()
+        return AuthSessionRevokeResponse(ok=True)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to revoke session")
+        raise HTTPException(status_code=500, detail="Failed to revoke session")
 
 
 @router.get("/admin/debug/status", tags=["admin"])
@@ -848,7 +1011,12 @@ async def _claim_invite_impl(
                 from app.agents.engine import process_turn as engine_process_turn
 
                 # Run engine with system trigger
-                assistant_content, _decision, _debug_info = await engine_process_turn(
+                (
+                    assistant_content,
+                    _decision,
+                    debug_info,
+                    participation_id,
+                ) = await engine_process_turn(
                     db=db,
                     conversation=conv,
                     membership_id=membership.id,
@@ -858,12 +1026,23 @@ async def _claim_invite_impl(
                     router_llm=llm,
                 )
 
+                current_condition = debug_info.get("condition")
+                if (
+                    not isinstance(current_condition, str)
+                    or current_condition == "NONE"
+                ):
+                    current_condition = None
                 # Persist assistant message
                 assistant_msg = Message(
                     conversation_id=conv.id,
                     role="assistant",
                     content=assistant_content,
                     server_msg_id=generate_server_msg_id(),
+                    condition_source=(
+                        f"COND_{current_condition}" if current_condition else "SYSTEM"
+                    ),
+                    metadata_={"debug_info": debug_info},
+                    participation_id=participation_id,
                 )
                 db.add(assistant_msg)
                 await db.flush()
@@ -912,34 +1091,42 @@ async def project_me(
     db: AsyncSession = Depends(get_db),
 ) -> MeResponse:
     """Return membership status, conversation id, and stored email."""
-    membership = await _get_membership(db, project_id, user.id)
+    try:
+        membership = await _get_membership(db, project_id, user.id)
 
-    # Get conversation
-    conv_result = await db.execute(
-        select(Conversation).where(Conversation.membership_id == membership.id)
-    )
-    conv = conv_result.scalar_one_or_none()
+        # Get conversation
+        conv_result = await db.execute(
+            select(Conversation).where(Conversation.membership_id == membership.id)
+        )
+        conv = conv_result.scalar_one_or_none()
 
-    # Get latest email contact
-    contact_result = await db.execute(
-        select(ParticipantContact)
-        .where(ParticipantContact.membership_id == membership.id)
-        .order_by(ParticipantContact.created_at.desc())
-        .limit(1)
-    )
-    contact = contact_result.scalar_one_or_none()
-    profile_result = await db.execute(
-        select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
-    )
-    profile = profile_result.scalar_one_or_none()
+        # Get latest email contact
+        contact_result = await db.execute(
+            select(ParticipantContact)
+            .where(ParticipantContact.membership_id == membership.id)
+            .order_by(ParticipantContact.created_at.desc())
+            .limit(1)
+        )
+        contact = contact_result.scalar_one_or_none()
+        profile_result = await db.execute(
+            select(FlowUserProfile).where(FlowUserProfile.user_id == user.id)
+        )
+        profile = profile_result.scalar_one_or_none()
 
-    return MeResponse(
-        membership_status=membership.status,
-        conversation_id=conv.id if conv else None,
-        email=contact.email_raw
-        if contact
-        else (profile.email_raw if profile else None),
-    )
+        return MeResponse(
+            membership_status=membership.status,
+            conversation_id=conv.id if conv else None,
+            email=contact.email_raw
+            if contact
+            else (profile.email_raw if profile else None),
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to load project membership info")
+        raise HTTPException(
+            status_code=500, detail="Failed to load project membership info"
+        )
 
 
 @router.get("/p/{project_id}/profile", tags=["profile"])
@@ -948,8 +1135,14 @@ async def get_profile(
     user: User = require_user(),
     db: AsyncSession = Depends(get_db),
 ) -> UserProfileData:
-    membership = await _get_membership(db, project_id, user.id)
-    return await load_user_profile(db, membership.id)
+    try:
+        membership = await _get_membership(db, project_id, user.id)
+        return await load_user_profile(db, membership.id)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to load profile")
+        raise HTTPException(status_code=500, detail="Failed to load profile")
 
 
 @router.put("/p/{project_id}/profile", tags=["profile"])
@@ -959,14 +1152,20 @@ async def put_profile(
     user: User = require_user(),
     db: AsyncSession = Depends(get_db),
 ) -> UserProfileData:
-    membership = await _get_membership(db, project_id, user.id)
-    current = await load_user_profile(db, membership.id)
-    merged = current.model_dump()
-    merged.update(body.model_dump())
-    profile = UserProfileData.model_validate(merged)
-    await save_user_profile(db, membership.id, profile)
-    await db.commit()
-    return profile
+    try:
+        membership = await _get_membership(db, project_id, user.id)
+        current = await load_user_profile(db, membership.id)
+        merged = current.model_dump()
+        merged.update(body.model_dump())
+        profile = UserProfileData.model_validate(merged)
+        await save_user_profile(db, membership.id, profile)
+        await db.commit()
+        return profile
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to update profile")
+        raise HTTPException(status_code=500, detail="Failed to update profile")
 
 
 # ---------------------------------------------------------------------------
@@ -981,24 +1180,39 @@ async def list_messages(
     db: AsyncSession = Depends(get_db),
 ) -> MessageListResponse:
     """Return persisted messages for a project conversation."""
-    membership = await _get_membership(db, project_id, user.id)
-    conv = await _get_conversation(db, membership.id)
-    result = await db.execute(
-        select(Message)
-        .where(Message.conversation_id == conv.id)
-        .order_by(Message.id.asc())
-    )
-    items = [
-        MessageItem(
-            message_id=msg.id,
-            server_msg_id=msg.server_msg_id,
-            role=msg.role,
-            content=msg.content,
-            created_at=msg.created_at.isoformat(),
+    try:
+        membership = await _get_membership(db, project_id, user.id)
+        conv = await _get_conversation(db, membership.id)
+        result = await db.execute(
+            select(Message)
+            .where(
+                Message.conversation_id == conv.id,
+                or_(
+                    Message.client_msg_id.is_(None),
+                    ~Message.client_msg_id.startswith(
+                        FEEDBACK_ACTION_CLIENT_MSG_PREFIX
+                    ),
+                ),
+            )
+            .order_by(Message.id.asc())
         )
-        for msg in result.scalars().all()
-    ]
-    return MessageListResponse(messages=items)
+        items = [
+            MessageItem(
+                message_id=msg.id,
+                server_msg_id=msg.server_msg_id,
+                role=msg.role,
+                content=msg.content,
+                created_at=msg.created_at.isoformat(),
+                metadata=msg.metadata_,
+            )
+            for msg in result.scalars().all()
+        ]
+        return MessageListResponse(messages=items)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to load messages")
+        raise HTTPException(status_code=500, detail="Failed to load messages")
 
 
 @router.post("/p/{project_id}/messages", tags=["messaging"])
@@ -1011,6 +1225,26 @@ async def send_message(
     """Persist user message, run engine turn, persist assistant reply."""
     membership = await _get_membership(db, project_id, user.id)
     conv = await _get_conversation(db, membership.id)
+
+    await db.execute(
+        update(ScheduledTask)
+        .where(
+            ScheduledTask.membership_id == membership.id,
+            ScheduledTask.task_type == "feedback_request",
+            ScheduledTask.status == "pending",
+        )
+        .values(status="cancelled")
+    )
+    if body.current_notification_id is not None:
+        await db.execute(
+            update(ScheduledTask)
+            .where(
+                ScheduledTask.parent_instance_id == body.current_notification_id,
+                ScheduledTask.membership_id == membership.id,
+                ScheduledTask.status == "pending",
+            )
+            .values(status="cancelled")
+        )
 
     # Eagerly capture IDs to survive potential rollback
     conv_id = conv.id
@@ -1188,7 +1422,12 @@ async def send_message(
             )
 
         try:
-            assistant_content, _decision, debug_info = await engine_process_turn(
+            (
+                assistant_content,
+                _decision,
+                debug_info,
+                participation_id,
+            ) = await engine_process_turn(
                 db=db,
                 conversation=conv,
                 membership_id=membership_id,
@@ -1202,11 +1441,19 @@ async def send_message(
             logger.exception("Engine process_turn failed")
             raise
 
+        current_condition = debug_info.get("condition")
+        if not isinstance(current_condition, str) or current_condition == "NONE":
+            current_condition = None
         assistant_msg = Message(
             conversation_id=conv.id,
             role="assistant",
             content=assistant_content,
             server_msg_id=asst_server_msg_id,
+            condition_source=(
+                f"COND_{current_condition}" if current_condition else "SYSTEM"
+            ),
+            metadata_={"debug_info": debug_info},
+            participation_id=participation_id,
         )
         db.add(assistant_msg)
         await db.flush()
@@ -1290,6 +1537,220 @@ async def send_message(
             except Exception:
                 logger.exception("Failed to mark turn as failed")
         raise
+
+
+async def _submit_feedback_event_impl(
+    body: FeedbackEventRequest,
+    resolved_project_id: str,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """Persist push action feedback and run an engine turn for contextual follow-up."""
+    try:
+        membership = await _get_membership(db, resolved_project_id, user.id)
+        notif_result = await db.execute(
+            select(Notification).where(
+                Notification.id == body.notification_id,
+                Notification.membership_id == membership.id,
+            )
+        )
+        notification = notif_result.scalar_one_or_none()
+        if notification is None:
+            raise HTTPException(status_code=404, detail="Notification not found")
+
+        conv = await _get_conversation(db, notification.membership_id)
+        poll_msg_result = await db.execute(
+            select(Message)
+            .where(
+                Message.conversation_id == conv.id,
+                Message.metadata_["type"].as_string() == "feedback_poll",
+                Message.metadata_["notification_id"].as_integer()
+                == body.notification_id,
+            )
+            .order_by(Message.id.desc())
+            .limit(1)
+        )
+        poll_msg = poll_msg_result.scalar_one_or_none()
+        if poll_msg is None:
+            fallback_result = await db.execute(
+                select(Message)
+                .where(
+                    Message.conversation_id == conv.id,
+                    Message.metadata_.is_not(None),
+                )
+                .order_by(Message.id.desc())
+            )
+            for candidate in fallback_result.scalars():
+                metadata = candidate.metadata_ or {}
+                if metadata.get("type") == "feedback_poll" and str(
+                    metadata.get("notification_id")
+                ) == str(body.notification_id):
+                    poll_msg = candidate
+                    break
+        if poll_msg is None:
+            raise HTTPException(status_code=404, detail="Poll message not found")
+
+        poll_metadata = dict(poll_msg.metadata_ or {})
+        if poll_metadata.get("status") == "completed":
+            if notification.read_at is None:
+                notification.read_at = datetime.now(UTC)
+                await db.commit()
+            return {"status": "already_recorded"}
+
+        if notification.read_at is None:
+            notification.read_at = datetime.now(UTC)
+
+        delivery_result = await db.execute(
+            select(NotificationDelivery)
+            .where(
+                NotificationDelivery.instance_id == notification.id,
+                NotificationDelivery.channel == "push_notify",
+            )
+            .order_by(NotificationDelivery.id.desc())
+        )
+        action_title = _resolve_feedback_action_title(
+            delivery_result.scalars().all(),
+            body.action_id,
+        )
+        selected_action_id = None
+        for action in poll_metadata.get("actions", []):
+            if action.get("id") == body.action_id:
+                selected_action_id = body.action_id
+                action_title = str(action.get("title") or action_title)
+                break
+        if selected_action_id is None:
+            raise HTTPException(status_code=400, detail="Invalid feedback action")
+
+        poll_metadata["status"] = "completed"
+        poll_metadata["selected_action_id"] = selected_action_id
+        await db.execute(
+            update(Message)
+            .where(Message.id == poll_msg.id)
+            .values({Message.metadata_: poll_metadata})
+        )
+
+        update_payload = {
+            "message_id": poll_msg.id,
+            "server_msg_id": poll_msg.server_msg_id,
+            "metadata": poll_metadata,
+        }
+        update_event = await persist_event(
+            db, conv.id, "message.updated", update_payload
+        )
+
+        user_msg = Message(
+            conversation_id=conv.id,
+            role="user",
+            content=_format_feedback_system_message(action_title, notification.id),
+            server_msg_id=generate_server_msg_id(),
+            client_msg_id=(
+                f"{FEEDBACK_ACTION_CLIENT_MSG_PREFIX}{notification.id}:{body.action_id}"
+            ),
+        )
+        db.add(user_msg)
+        await db.flush()
+
+        llm_key = os.environ.get("H4CKATH0N_OPENAI_API_KEY") or os.environ.get(
+            "OPENAI_API_KEY"
+        )
+        llm = (
+            ChatOpenAI(
+                model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+                api_key=llm_key,
+            )
+            if llm_key
+            else None
+        )
+        (
+            assistant_content,
+            decision,
+            debug_info,
+            participation_id,
+        ) = await engine_process_turn(
+            db=db,
+            conversation=conv,
+            membership_id=notification.membership_id,
+            user_msg=user_msg,
+            user_text=user_msg.content,
+            llm=llm,
+            router_llm=llm,
+        )
+
+        current_condition = debug_info.get("condition")
+        if not isinstance(current_condition, str) or current_condition == "NONE":
+            current_condition = None
+        asst_msg = Message(
+            conversation_id=conv.id,
+            role="assistant",
+            content=assistant_content,
+            server_msg_id=generate_server_msg_id(),
+            condition_source=(
+                f"COND_{current_condition}" if current_condition else "SYSTEM"
+            ),
+            metadata_={"debug_info": debug_info},
+            participation_id=participation_id,
+        )
+        db.add(asst_msg)
+        await db.flush()
+
+        route_to_prompt = {
+            "INTAKE": "intake_system",
+            "FEEDBACK": "feedback_system",
+            "COACH": "coach_system",
+        }
+        prompt_name = route_to_prompt.get(decision.route, "coach_system")
+        sse_payload = {
+            "message_id": asst_msg.id,
+            "server_msg_id": asst_msg.server_msg_id,
+            "role": "assistant",
+            "content": assistant_content,
+            "created_at": asst_msg.created_at.isoformat()
+            if asst_msg.created_at
+            else datetime.now(UTC).isoformat(),
+            "prompt_versions": prompt_version(prompt_name),
+        }
+        conv_event = await persist_event(db, conv.id, "message.final", sse_payload)
+        await db.commit()
+        _publish_event(
+            conv.id,
+            {
+                "event": "message.updated",
+                "id": str(update_event.id),
+                "data": json.dumps(update_payload),
+            },
+        )
+        _publish_event(
+            conv.id,
+            {
+                "event": "message.final",
+                "id": str(conv_event.id),
+                "data": json.dumps(sse_payload),
+            },
+        )
+        return {"status": "success"}
+    except IntegrityError:
+        await db.rollback()
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to store feedback event")
+        raise HTTPException(status_code=500, detail="Failed to store feedback event")
+
+
+@router.post("/p/{project_id}/chat/events/feedback", tags=["notifications"])
+async def submit_feedback_event(
+    project_id: str,
+    body: FeedbackEventRequest,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    return await _submit_feedback_event_impl(
+        body=body,
+        resolved_project_id=project_id,
+        user=user,
+        db=db,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1382,44 +1843,243 @@ async def event_stream(
 
 
 # ---------------------------------------------------------------------------
-# 6. VAPID public key
+# 6. Unified Notifications (cross-project)
 # ---------------------------------------------------------------------------
 
 
-@router.get("/p/{project_id}/push/vapid-public-key", tags=["push"])
-async def vapid_public_key(
-    project_id: str,
+@router.get("/notifications", tags=["notifications"])
+async def list_unified_notifications(
     user: User = require_user(),
     db: AsyncSession = Depends(get_db),
-) -> VapidPublicKeyResponse:
-    """Return the VAPID public key from environment."""
-    # Verify membership exists
-    await _get_membership(db, project_id, user.id)
+    project_id: str | None = None,
+    limit: int = 50,
+    cursor: str | None = None,
+) -> UnifiedNotificationListResponse:
+    """List notifications across all projects for the current user, ordered by time.
 
-    key = config.get_vapid_public_key()
-    if not key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="VAPID public key not configured",
+    Supports optional project_id filtering and cursor-based pagination.
+    """
+    import base64
+
+    try:
+        limit = min(limit, 200)
+
+        query = (
+            select(Notification, ProjectMembership.project_id, Project.display_name)
+            .join(
+                ProjectMembership,
+                Notification.membership_id == ProjectMembership.id,
+            )
+            .join(Project, ProjectMembership.project_id == Project.id)
+            .where(ProjectMembership.user_id == user.id)
         )
-    return VapidPublicKeyResponse(public_key=key)
+
+        if project_id is not None:
+            query = query.where(ProjectMembership.project_id == project_id)
+
+        if cursor is not None:
+            try:
+                cursor_id = int(base64.b64decode(cursor).decode())
+                query = query.where(Notification.id < cursor_id)
+            except Exception:
+                pass
+
+        query = query.order_by(Notification.id.desc()).limit(limit + 1)
+
+        result = await db.execute(query)
+        rows = result.all()
+
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+
+        next_cursor = None
+        if has_more and rows:
+            last_id = rows[-1][0].id
+            next_cursor = base64.b64encode(str(last_id).encode()).decode()
+
+        return UnifiedNotificationListResponse(
+            notifications=[
+                UnifiedNotificationItem(
+                    id=n.id,
+                    title=n.title,
+                    body=n.body,
+                    created_at=n.created_at.isoformat(),
+                    read_at=n.read_at.isoformat() if n.read_at else None,
+                    payload_json=n.payload_json or "{}",
+                    project_id=pid,
+                    project_display_name=display_name,
+                    membership_id=n.membership_id,
+                    rule_id=n.rule_id,
+                    local_date=n.local_date.isoformat() if n.local_date else None,
+                )
+                for n, pid, display_name in rows
+            ],
+            next_cursor=next_cursor,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to list unified notifications")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to load notifications",
+        )
+
+
+@router.get("/notifications/unread-count", tags=["notifications"])
+async def get_unified_unread_count(
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+    project_id: str | None = None,
+) -> NotificationUnreadCountResponse:
+    """Get count of unread notifications across all projects (or filtered by project)."""
+    try:
+        query = (
+            select(func.count(Notification.id))
+            .join(
+                ProjectMembership,
+                Notification.membership_id == ProjectMembership.id,
+            )
+            .where(
+                ProjectMembership.user_id == user.id,
+                Notification.read_at.is_(None),
+            )
+        )
+        if project_id is not None:
+            query = query.where(ProjectMembership.project_id == project_id)
+        result = await db.execute(query)
+        count = result.scalar() or 0
+        return NotificationUnreadCountResponse(count=count)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to get unified unread count")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to load unread count",
+        )
+
+
+@router.post("/notifications/{notification_id}/read", tags=["notifications"])
+async def mark_unified_notification_read(
+    notification_id: int,
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Mark a notification as read and enqueue exactly one push_dismiss delivery."""
+    try:
+        result = await db.execute(
+            select(Notification, ProjectMembership.project_id)
+            .join(
+                ProjectMembership,
+                Notification.membership_id == ProjectMembership.id,
+            )
+            .where(
+                Notification.id == notification_id,
+                ProjectMembership.user_id == user.id,
+            )
+        )
+        row = result.one_or_none()
+        if not row:
+            raise HTTPException(status_code=404, detail="Notification not found")
+
+        notification, _project_id = row
+        if not notification.read_at:
+            notification.read_at = datetime.now(UTC)
+
+            # Enqueue exactly ONE push_dismiss delivery — the worker fans out to all subscriptions
+            dismiss_payload = json.dumps(
+                {
+                    "data": {
+                        "action": "dismiss",
+                        "notification_id": notification_id,
+                    }
+                }
+            )
+            delivery = NotificationDelivery(
+                instance_id=notification.id,
+                membership_id=notification.membership_id,
+                user_id=user.id,
+                channel="push_dismiss",
+                payload_json=dismiss_payload,
+                run_at_utc=datetime.now(UTC),
+            )
+            db.add(delivery)
+            await db.commit()
+
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to mark notification as read")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to mark notification as read",
+        )
 
 
 # ---------------------------------------------------------------------------
-# 7. Push subscribe
+# 7. Web Push endpoints (unified, not per-project)
 # ---------------------------------------------------------------------------
 
 
-@router.post("/p/{project_id}/push/subscribe", tags=["push"])
-async def push_subscribe(
-    project_id: str,
+@router.get("/notifications/webpush/vapid-public-key", tags=["notifications"])
+async def webpush_vapid_public_key(
+    user: User = require_user(),
+) -> VapidPublicKeyResponse:
+    """Return the VAPID public key for Web Push subscription."""
+    try:
+        key = config.get_vapid_public_key()
+        if not key:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="VAPID public key not configured",
+            )
+        return VapidPublicKeyResponse(public_key=key)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to get VAPID public key")
+        raise HTTPException(status_code=500, detail="Failed to get VAPID public key")
+
+
+@router.post("/notifications/webpush/subscriptions", tags=["notifications"])
+async def webpush_subscribe(
     body: PushSubscribeRequest,
     user: User = require_user(),
     db: AsyncSession = Depends(get_db),
 ) -> PushSubscribeResponse:
-    """Store a push subscription for the current membership."""
+    """Create or upsert a push subscription for the current user (user-scoped)."""
     try:
-        return await _push_subscribe_impl(project_id, body, user, db)
+        # Check for existing subscription with same user+endpoint (regardless of revoked_at)
+        existing_result = await db.execute(
+            select(PushSubscription).where(
+                PushSubscription.user_id == user.id,
+                PushSubscription.endpoint == body.endpoint,
+            )
+        )
+        existing = existing_result.scalar_one_or_none()
+
+        if existing is not None:
+            existing.p256dh = body.keys.p256dh
+            existing.auth = body.keys.auth
+            existing.user_agent = body.user_agent or existing.user_agent
+            existing.revoked_at = None
+            existing.consecutive_gone_410_count = 0
+            existing.last_failure_at = None
+            await db.commit()
+            return PushSubscribeResponse(subscription_id=existing.id)
+        else:
+            sub = PushSubscription(
+                user_id=user.id,
+                endpoint=body.endpoint,
+                p256dh=body.keys.p256dh,
+                auth=body.keys.auth,
+                user_agent=body.user_agent or "",
+            )
+            db.add(sub)
+            await db.commit()
+            return PushSubscribeResponse(subscription_id=sub.id)
     except HTTPException:
         raise
     except Exception:
@@ -1427,173 +2087,68 @@ async def push_subscribe(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-async def _push_subscribe_impl(
-    project_id: str,
-    body: PushSubscribeRequest,
-    user: User,
-    db: AsyncSession,
-) -> PushSubscribeResponse:
-    membership = await _get_membership(db, project_id, user.id)
-
-    # Check for existing subscription with same endpoint
-    # membership_id scoping intentionally allows the same endpoint to be
-    # registered for multiple project memberships by the same device.
-    existing_result = await db.execute(
-        select(PushSubscription).where(
-            PushSubscription.membership_id == membership.id,
-            PushSubscription.endpoint == body.endpoint,
-            PushSubscription.revoked_at.is_(None),
-        )
-    )
-    existing = existing_result.scalar_one_or_none()
-
-    if existing is not None:
-        # Update keys in case they changed
-        existing.p256dh = body.keys.p256dh
-        existing.auth = body.keys.auth
-        existing.user_agent = body.user_agent or existing.user_agent
-        await db.commit()
-        await db.refresh(existing)
-        return PushSubscribeResponse(subscription_id=existing.id)
-
-    sub = PushSubscription(
-        membership_id=membership.id,
-        endpoint=body.endpoint,
-        p256dh=body.keys.p256dh,
-        auth=body.keys.auth,
-        user_agent=body.user_agent or "",
-    )
-    db.add(sub)
-    await db.commit()
-    await db.refresh(sub)
-
-    return PushSubscribeResponse(subscription_id=sub.id)
-
-
-# ---------------------------------------------------------------------------
-# 8. Push unsubscribe
-# ---------------------------------------------------------------------------
-
-
-@router.post("/p/{project_id}/push/unsubscribe", tags=["push"])
-async def push_unsubscribe(
-    project_id: str,
-    body: PushUnsubscribeRequest,
-    user: User = require_user(),
-    db: AsyncSession = Depends(get_db),
-) -> PushUnsubscribeResponse:
-    """Revoke a push subscription by endpoint."""
-    membership = await _get_membership(db, project_id, user.id)
-
-    result = await db.execute(
-        select(PushSubscription).where(
-            PushSubscription.membership_id == membership.id,
-            PushSubscription.endpoint == body.endpoint,
-            PushSubscription.revoked_at.is_(None),
-        )
-    )
-    sub = result.scalar_one_or_none()
-    if sub is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Subscription not found",
-        )
-
-    sub.revoked_at = datetime.now(UTC)
-    await db.commit()
-
-    return PushUnsubscribeResponse(ok=True)
-
-
-# ---------------------------------------------------------------------------
-# 9. Notifications
-# ---------------------------------------------------------------------------
-
-
-@router.get("/p/{project_id}/notifications", tags=["notifications"])
-async def list_notifications(
-    project_id: str,
-    user: User = require_user(),
-    db: AsyncSession = Depends(get_db),
-) -> NotificationListResponse:
-    """List notifications for the current membership."""
-    membership = await _get_membership(db, project_id, user.id)
-    result = await db.execute(
-        select(Notification)
-        .where(Notification.membership_id == membership.id)
-        .order_by(Notification.created_at.desc())
-        .limit(50)
-    )
-    notifications = result.scalars().all()
-    return NotificationListResponse(
-        notifications=[
-            NotificationItem(
-                id=n.id,
-                title=n.title,
-                body=n.body,
-                created_at=n.created_at.isoformat(),
-                read_at=n.read_at.isoformat() if n.read_at else None,
-            )
-            for n in notifications
-        ]
-    )
-
-
-@router.get("/p/{project_id}/notifications/unread-count", tags=["notifications"])
-async def get_unread_count(
-    project_id: str,
-    user: User = require_user(),
-    db: AsyncSession = Depends(get_db),
-) -> NotificationUnreadCountResponse:
-    """Get count of unread notifications."""
-    membership = await _get_membership(db, project_id, user.id)
-    result = await db.execute(
-        select(func.count(Notification.id)).where(
-            Notification.membership_id == membership.id, Notification.read_at.is_(None)
-        )
-    )
-    count = result.scalar() or 0
-    return NotificationUnreadCountResponse(count=count)
-
-
-@router.post(
-    "/p/{project_id}/notifications/{notification_id}/read", tags=["notifications"]
+@router.delete(
+    "/notifications/webpush/subscriptions/{subscription_id}", tags=["notifications"]
 )
-async def mark_notification_read(
-    project_id: str,
-    notification_id: int,
+async def webpush_unsubscribe(
+    subscription_id: int,
     user: User = require_user(),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, bool]:
-    """Mark a notification as read."""
-    membership = await _get_membership(db, project_id, user.id)
-    result = await db.execute(
-        select(Notification).where(
-            Notification.id == notification_id,
-            Notification.membership_id == membership.id,
+    """Remove a push subscription."""
+    try:
+        result = await db.execute(
+            select(PushSubscription).where(
+                PushSubscription.id == subscription_id,
+                PushSubscription.user_id == user.id,
+            )
         )
-    )
-    notification = result.scalar_one_or_none()
-    if not notification:
-        raise HTTPException(status_code=404, detail="Notification not found")
-
-    if not notification.read_at:
-        notification.read_at = datetime.now(UTC)
-
-        # Enqueue read receipt sync to other devices
-        await enqueue_outbox_event(
-            db,
-            project_id=project_id,
-            membership_id=membership.id,
-            event_type="notification_read_receipt",
-            payload={"notification_id": notification_id, "project_id": project_id},
-            dedupe_key=f"read_receipt:{notification_id}",
-            available_at=datetime.now(UTC),
-        )
-
+        sub = result.scalar_one_or_none()
+        if sub is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Subscription not found",
+            )
+        sub.revoked_at = datetime.now(UTC)
         await db.commit()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Push unsubscribe failed")
+        raise HTTPException(status_code=500, detail="Failed to unsubscribe")
 
-    return {"ok": True}
+
+@router.get("/notifications/webpush/subscriptions", tags=["notifications"])
+async def webpush_list_subscriptions(
+    user: User = require_user(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """List active push subscriptions for the current user (debug endpoint)."""
+    try:
+        result = await db.execute(
+            select(PushSubscription).where(
+                PushSubscription.user_id == user.id,
+                PushSubscription.revoked_at.is_(None),
+            )
+        )
+        subs = result.scalars().all()
+        return {
+            "subscriptions": [
+                {
+                    "id": s.id,
+                    "endpoint": s.endpoint,
+                    "user_agent": s.user_agent,
+                    "created_at": s.created_at.isoformat() if s.created_at else None,
+                }
+                for s in subs
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to list push subscriptions")
+        raise HTTPException(status_code=500, detail="Failed to list subscriptions")
 
 
 @router.post("/admin/projects", tags=["admin"])
@@ -1725,19 +2280,22 @@ async def admin_project_participants(
             profile.user_id: profile for profile in profiles_result.scalars().all()
         }
 
-    push_stats_by_membership: dict[int, dict[str, Any]] = {
-        membership_id: {"count": 0, "last_success_at": None, "last_failure_at": None}
-        for membership_id in membership_ids
-    }
-    if membership_ids:
+    push_stats_by_user: dict[str, dict[str, Any]] = {}
+    if user_ids:
         push_result = await db.execute(
             select(PushSubscription).where(
-                PushSubscription.membership_id.in_(membership_ids),
+                PushSubscription.user_id.in_(user_ids),
                 PushSubscription.revoked_at.is_(None),
             )
         )
         for sub in push_result.scalars().all():
-            stats = push_stats_by_membership[sub.membership_id]
+            if sub.user_id not in push_stats_by_user:
+                push_stats_by_user[sub.user_id] = {
+                    "count": 0,
+                    "last_success_at": None,
+                    "last_failure_at": None,
+                }
+            stats = push_stats_by_user[sub.user_id]
             stats["count"] += 1
             if sub.last_success_at and (
                 stats["last_success_at"] is None
@@ -1753,8 +2311,8 @@ async def admin_project_participants(
     participants: list[AdminParticipantItem] = []
     for membership in memberships:
         contact = latest_contact_by_membership.get(membership.id)
-        stats = push_stats_by_membership.get(
-            membership.id,
+        stats = push_stats_by_user.get(
+            membership.user_id,
             {"count": 0, "last_success_at": None, "last_failure_at": None},
         )
         participants.append(
@@ -1820,15 +2378,9 @@ async def admin_project_export(
     patch_result = await db.execute(
         select(PatchAuditLog).where(PatchAuditLog.membership_id.in_(membership_ids))
     )
-    outbox_result = await db.execute(
-        select(OutboxEvent).where(
-            OutboxEvent.project_id == project_id,
-            OutboxEvent.membership_id.in_(membership_ids),
-        )
-    )
     push_result = await db.execute(
         select(PushSubscription).where(
-            PushSubscription.membership_id.in_(membership_ids)
+            PushSubscription.user_id.in_([m.user_id for m in memberships])
         )
     )
 
@@ -1901,26 +2453,10 @@ async def admin_project_export(
             }
             for p in patch_result.scalars().all()
         ],
-        "outbox_events": [
-            {
-                "project_id": e.project_id,
-                "membership_id": e.membership_id,
-                "type": e.type,
-                "payload_json": e.payload_json,
-                "dedupe_key": e.dedupe_key,
-                "available_at": e.available_at.isoformat(),
-                "attempts": e.attempts,
-                "last_error": e.last_error,
-                "locked_until": e.locked_until.isoformat() if e.locked_until else None,
-                "locked_by": e.locked_by,
-                "claimed_at": e.claimed_at.isoformat() if e.claimed_at else None,
-            }
-            for e in outbox_result.scalars().all()
-        ],
         "push_subscriptions": [
             {
                 "subscription_id": s.id,
-                "membership_id": s.membership_id,
+                "user_id": s.user_id,
                 "endpoint": s.endpoint,
                 "created_at": s.created_at.isoformat(),
                 "revoked_at": s.revoked_at.isoformat() if s.revoked_at else None,
@@ -1944,11 +2480,9 @@ async def admin_push_channels(
 ) -> AdminPushChannelsResponse:
     result = await db.execute(
         select(PushSubscription, ProjectMembership, User, FlowUserProfile)
-        .join(ProjectMembership, PushSubscription.membership_id == ProjectMembership.id)
-        .outerjoin(User, User.id == ProjectMembership.user_id)
-        .outerjoin(
-            FlowUserProfile, FlowUserProfile.user_id == ProjectMembership.user_id
-        )
+        .join(ProjectMembership, PushSubscription.user_id == ProjectMembership.user_id)
+        .outerjoin(User, User.id == PushSubscription.user_id)
+        .outerjoin(FlowUserProfile, FlowUserProfile.user_id == PushSubscription.user_id)
         .where(
             ProjectMembership.project_id == project_id,
             PushSubscription.revoked_at.is_(None),
@@ -1964,7 +2498,7 @@ async def admin_push_channels(
             AdminPushChannelItem(
                 subscription_id=sub.id,
                 membership_id=membership.id,
-                user_id=membership.user_id,
+                user_id=sub.user_id,
                 user_email=user.email if user else None,
                 display_name=profile.display_name if profile else None,
                 endpoint_hint=endpoint_hint,
@@ -2008,6 +2542,10 @@ async def admin_push_test(
             "title": body.title,
             "body": body.body,
             "url": body.url,
+            "data": {
+                "url": body.url,
+                "project_id": body.project_id,
+            },
         }
     )
 
