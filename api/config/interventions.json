@@ -1,0 +1,14 @@
+{
+  "condition_A": [
+    "PLACEHOLDER: Condition A Variant 1 (Control)",
+    "PLACEHOLDER: Condition A Variant 2 (Control)",
+    "PLACEHOLDER: Condition A Variant 3 (Control)"
+  ],
+  "condition_B": [
+    "PLACEHOLDER: Condition B Variant 1 (Framing)",
+    "PLACEHOLDER: Condition B Variant 2 (Framing)",
+    "PLACEHOLDER: Condition B Variant 3 (Framing)",
+    "PLACEHOLDER: Condition B Variant 4 (Framing)",
+    "PLACEHOLDER: Condition B Variant 5 (Framing)"
+  ]
+}

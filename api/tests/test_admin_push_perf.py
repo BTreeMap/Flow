@@ -107,7 +107,7 @@ async def test_admin_push_test_performance(client, monkeypatch):
             await db.flush()
 
             sub = PushSubscription(
-                membership_id=membership.id,
+                user_id=f"u_test_{i:025d}",
                 endpoint=f"https://example.com/push/{i}",
                 p256dh="key",
                 auth="auth",

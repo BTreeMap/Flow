@@ -19,13 +19,18 @@ from app.config import clear_config_cache
 from app.id_utils import generate_project_id
 from app.models import (
     Base,
+    Conversation,
+    ConversationEvent,
     FlowUserProfile,
-    OutboxEvent,
+    Message,
+    NotificationDelivery,
+    Notification,
     ParticipantContact,
     PushSubscription,
     Project,
     ProjectInvite,
     ProjectMembership,
+    ScheduledTask,
 )
 from h4ckath0n.auth.models import Base as H4ckath0nBase, Device
 from h4ckath0n.realtime import AuthContext
@@ -340,6 +345,56 @@ async def test_dashboard_last_message(seeded_client: dict[str, Any]) -> None:
     assert mem["last_message_at"] is not None
 
 
+@pytest.mark.asyncio
+async def test_dashboard_hides_feedback_action_last_message(
+    seeded_client: dict[str, Any],
+) -> None:
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    # Activate
+    await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+
+    async with _test_session_factory() as db:
+        membership_result = await db.execute(
+            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+        )
+        membership = membership_result.scalar_one()
+        conv_result = await db.execute(
+            select(Conversation).where(Conversation.membership_id == membership.id)
+        )
+        conv = conv_result.scalar_one()
+
+        db.add(
+            Message(
+                conversation_id=conv.id,
+                role="assistant",
+                content="Visible assistant message",
+                server_msg_id="srv-visible-assistant-dashboard",
+            )
+        )
+        db.add(
+            Message(
+                conversation_id=conv.id,
+                role="user",
+                content="[System: User provided feedback 'Needs tweaks' on notification 1]",
+                server_msg_id="srv-feedback-hidden-dashboard",
+                client_msg_id="feedback_action:1:fb_1",
+            )
+        )
+        await db.commit()
+
+    resp = await client.get("/dashboard")
+    assert resp.status_code == 200
+    data = resp.json()
+    mem = data["memberships"][0]
+    assert mem["last_message_preview"] == "Visible assistant message"
+
+
 # ---------------------------------------------------------------------------
 # Messaging
 # ---------------------------------------------------------------------------
@@ -376,6 +431,349 @@ async def test_send_message(seeded_client: dict[str, Any]) -> None:
 
 
 @pytest.mark.asyncio
+async def test_send_message_cancels_pending_feedback_task(
+    seeded_client: dict[str, Any],
+) -> None:
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+
+    async with _test_session_factory() as db:
+        membership_result = await db.execute(
+            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+        )
+        membership = membership_result.scalar_one()
+        notification = Notification(
+            membership_id=membership.id,
+            title="Nudge",
+            body="Do one small step now",
+            payload_json="{}",
+        )
+        db.add(notification)
+        await db.flush()
+
+        task = ScheduledTask(
+            membership_id=membership.id,
+            parent_instance_id=notification.id,
+            task_type="feedback_request",
+            payload_json=json.dumps(
+                {
+                    "text": "How did this prompt work for you?",
+                    "actions": [
+                        {"action": "fb_0", "title": "Works perfectly"},
+                        {"action": "fb_1", "title": "Needs tweaks"},
+                    ],
+                }
+            ),
+            run_at_utc=datetime.now(UTC) + timedelta(hours=1),
+            status="pending",
+        )
+        db.add(task)
+        await db.commit()
+        task_id = task.id
+        notification_id = notification.id
+
+    resp = await client.post(
+        f"/p/{project_id}/messages",
+        json={
+            "text": "I already acted on it",
+            "client_msg_id": "cancel-feedback-1",
+            "current_notification_id": notification_id,
+        },
+    )
+    assert resp.status_code == 200
+
+    async with _test_session_factory() as db:
+        task_result = await db.execute(
+            select(ScheduledTask).where(ScheduledTask.id == task_id)
+        )
+        updated_task = task_result.scalar_one()
+        assert updated_task.status == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_send_message_cancels_all_pending_feedback_tasks_for_membership(
+    seeded_client: dict[str, Any],
+) -> None:
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+
+    async with _test_session_factory() as db:
+        membership_result = await db.execute(
+            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+        )
+        membership = membership_result.scalar_one()
+
+        task_a = ScheduledTask(
+            membership_id=membership.id,
+            task_type="feedback_request",
+            payload_json=json.dumps(
+                {
+                    "text": "A",
+                    "actions": [
+                        {"action": "fb_0", "title": "Works perfectly"},
+                        {"action": "fb_1", "title": "Needs tweaks"},
+                    ],
+                }
+            ),
+            run_at_utc=datetime.now(UTC) + timedelta(hours=1),
+            status="pending",
+        )
+        task_b = ScheduledTask(
+            membership_id=membership.id,
+            task_type="feedback_request",
+            payload_json=json.dumps(
+                {
+                    "text": "B",
+                    "actions": [
+                        {"action": "fb_0", "title": "Works perfectly"},
+                        {"action": "fb_1", "title": "Needs tweaks"},
+                    ],
+                }
+            ),
+            run_at_utc=datetime.now(UTC) + timedelta(hours=2),
+            status="pending",
+        )
+        db.add(task_a)
+        db.add(task_b)
+        await db.commit()
+        task_ids = [task_a.id, task_b.id]
+
+    resp = await client.post(
+        f"/p/{project_id}/messages",
+        json={"text": "Just chatting", "client_msg_id": "cancel-feedback-all-1"},
+    )
+    assert resp.status_code == 200
+
+    async with _test_session_factory() as db:
+        result = await db.execute(
+            select(ScheduledTask).where(ScheduledTask.id.in_(task_ids))
+        )
+        tasks = result.scalars().all()
+        assert len(tasks) == 2
+        assert all(task.status == "cancelled" for task in tasks)
+
+
+@pytest.mark.asyncio
+async def test_feedback_event_endpoint_creates_user_message(
+    seeded_client: dict[str, Any],
+) -> None:
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+
+    async with _test_session_factory() as db:
+        membership_result = await db.execute(
+            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+        )
+        membership = membership_result.scalar_one()
+        notification = Notification(
+            membership_id=membership.id,
+            title="Feedback Request",
+            body="How did this prompt work for you?",
+            payload_json="{}",
+        )
+        db.add(notification)
+        await db.flush()
+        delivery = NotificationDelivery(
+            instance_id=notification.id,
+            membership_id=membership.id,
+            user_id="u_testuser_000000000000000000",
+            channel="push_notify",
+            payload_json=json.dumps(
+                {
+                    "actions": [
+                        {"action": "fb_0", "title": "Works perfectly"},
+                        {"action": "fb_1", "title": "Needs tweaks"},
+                    ]
+                }
+            ),
+            run_at_utc=datetime.now(UTC),
+        )
+        db.add(delivery)
+        await db.commit()
+        notification_id = notification.id
+        membership_id = membership.id
+        conv_result = await db.execute(
+            select(Conversation).where(Conversation.membership_id == membership_id)
+        )
+        conv = conv_result.scalar_one()
+        poll_message = Message(
+            conversation_id=conv.id,
+            role="assistant",
+            content="How did this prompt work for you?",
+            server_msg_id="srv-feedback-poll-message",
+            client_msg_id="feedback:seeded",
+            metadata_={
+                "type": "feedback_poll",
+                "notification_id": notification_id,
+                "status": "pending",
+                "actions": [
+                    {"id": "fb_0", "title": "Works perfectly"},
+                    {"id": "fb_1", "title": "Needs tweaks"},
+                ],
+            },
+        )
+        db.add(poll_message)
+        await db.commit()
+
+    resp = await client.post(
+        f"/p/{project_id}/chat/events/feedback",
+        json={
+            "action_id": "fb_1",
+            "notification_id": notification_id,
+            "project_id": project_id,
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+
+    async with _test_session_factory() as db:
+        msg_result = await db.execute(
+            select(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(Conversation.membership_id == membership_id, Message.role == "user")
+            .order_by(Message.id.desc())
+        )
+        message = msg_result.scalars().first()
+        assert message is not None
+        assert (
+            message.content
+            == f"[System: User provided feedback 'Needs tweaks' on notification {notification_id}]"
+        )
+        asst_result = await db.execute(
+            select(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(
+                Conversation.membership_id == membership_id,
+                Message.role == "assistant",
+            )
+            .order_by(Message.id.desc())
+        )
+        asst_msg = asst_result.scalars().first()
+        assert asst_msg is not None
+
+        poll_result = await db.execute(
+            select(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(
+                Conversation.membership_id == membership_id,
+                Message.client_msg_id == "feedback:seeded",
+            )
+        )
+        poll_msg = poll_result.scalar_one()
+        assert poll_msg.metadata_ is not None
+        assert poll_msg.metadata_["status"] == "completed"
+        assert poll_msg.metadata_["selected_action_id"] == "fb_1"
+
+        event_result = await db.execute(
+            select(ConversationEvent)
+            .join(Conversation, ConversationEvent.conversation_id == Conversation.id)
+            .where(
+                Conversation.membership_id == membership_id,
+                ConversationEvent.event_type == "message.final",
+            )
+            .order_by(ConversationEvent.id.desc())
+        )
+        event = event_result.scalars().first()
+        assert event is not None
+        updated_event_result = await db.execute(
+            select(ConversationEvent)
+            .join(Conversation, ConversationEvent.conversation_id == Conversation.id)
+            .where(
+                Conversation.membership_id == membership_id,
+                ConversationEvent.event_type == "message.updated",
+            )
+            .order_by(ConversationEvent.id.desc())
+        )
+        updated_event = updated_event_result.scalars().first()
+        assert updated_event is not None
+
+    list_resp = await client.get(f"/p/{project_id}/messages")
+    assert list_resp.status_code == 200
+    visible = list_resp.json()["messages"]
+    assert all(
+        "[System: User provided feedback" not in item["content"] for item in visible
+    )
+    assert any(item["role"] == "assistant" for item in visible)
+
+
+@pytest.mark.asyncio
+async def test_list_messages_hides_feedback_action_messages(
+    seeded_client: dict[str, Any],
+) -> None:
+    client = seeded_client["client"]
+    project_id = seeded_client["project_id"]
+    invite_code = seeded_client["invite_code"]
+
+    await client.post(
+        f"/p/{project_id}/activate/claim",
+        json={"invite_code": invite_code},
+    )
+
+    async with _test_session_factory() as db:
+        membership_result = await db.execute(
+            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
+        )
+        membership = membership_result.scalar_one()
+        conv_result = await db.execute(
+            select(Conversation).where(Conversation.membership_id == membership.id)
+        )
+        conv = conv_result.scalar_one()
+
+        db.add(
+            Message(
+                conversation_id=conv.id,
+                role="user",
+                content="Visible user message",
+                server_msg_id="srv-visible-user",
+            )
+        )
+        db.add(
+            Message(
+                conversation_id=conv.id,
+                role="assistant",
+                content="Visible assistant message",
+                server_msg_id="srv-visible-assistant",
+            )
+        )
+        db.add(
+            Message(
+                conversation_id=conv.id,
+                role="user",
+                content="[System: User provided feedback 'Needs tweaks' on notification 1]",
+                server_msg_id="srv-feedback-hidden",
+                client_msg_id="feedback_action:1:fb_1",
+            )
+        )
+        await db.commit()
+
+    resp = await client.get(f"/p/{project_id}/messages")
+    assert resp.status_code == 200
+    messages = resp.json()["messages"]
+    assert len(messages) == 2
+    contents = [m["content"] for m in messages]
+    assert "Visible user message" in contents
+    assert "Visible assistant message" in contents
+
+
+@pytest.mark.asyncio
 async def test_send_message_no_membership(client: AsyncClient) -> None:
     resp = await client.post(
         "/p/p_nonexistent_00000000000000000/messages",
@@ -390,19 +788,18 @@ async def test_send_message_no_membership(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_push_subscribe(seeded_client: dict[str, Any]) -> None:
+async def test_webpush_subscribe(seeded_client: dict[str, Any]) -> None:
     client = seeded_client["client"]
     project_id = seeded_client["project_id"]
     invite_code = seeded_client["invite_code"]
 
-    # Activate
     await client.post(
         f"/p/{project_id}/activate/claim",
         json={"invite_code": invite_code},
     )
 
     resp = await client.post(
-        f"/p/{project_id}/push/subscribe",
+        "/notifications/webpush/subscriptions",
         json={
             "endpoint": "https://push.example.com/sub/abc",
             "keys": {"p256dh": "test_p256dh_key", "auth": "test_auth_key"},
@@ -415,8 +812,10 @@ async def test_push_subscribe(seeded_client: dict[str, Any]) -> None:
 
 
 @pytest.mark.asyncio
-async def test_push_subscribe_duplicate_updates(seeded_client: dict[str, Any]) -> None:
-    """Re-subscribing with same endpoint updates keys instead of creating duplicate."""
+async def test_webpush_subscribe_duplicate_updates(
+    seeded_client: dict[str, Any],
+) -> None:
+    """Re-subscribing with same endpoint updates keys (user-scoped)."""
     client = seeded_client["client"]
     project_id = seeded_client["project_id"]
     invite_code = seeded_client["invite_code"]
@@ -427,24 +826,25 @@ async def test_push_subscribe_duplicate_updates(seeded_client: dict[str, Any]) -
     )
 
     endpoint = "https://push.example.com/sub/dedup"
-    body = {
+    body: dict[str, Any] = {
         "endpoint": endpoint,
         "keys": {"p256dh": "key1", "auth": "auth1"},
     }
-    resp1 = await client.post(f"/p/{project_id}/push/subscribe", json=body)
+    resp1 = await client.post("/notifications/webpush/subscriptions", json=body)
     sub_id_1 = resp1.json()["subscription_id"]
 
     body["keys"] = {"p256dh": "key2", "auth": "auth2"}
-    resp2 = await client.post(f"/p/{project_id}/push/subscribe", json=body)
+    resp2 = await client.post("/notifications/webpush/subscriptions", json=body)
     sub_id_2 = resp2.json()["subscription_id"]
 
     assert sub_id_1 == sub_id_2  # same subscription updated
 
 
 @pytest.mark.asyncio
-async def test_push_subscribe_same_endpoint_across_projects(
+async def test_webpush_user_scoped_single_row(
     seeded_client: dict[str, Any],
 ) -> None:
+    """User-scoped: subscribing creates ONE row regardless of membership count."""
     client = seeded_client["client"]
     first_project_id = seeded_client["project_id"]
     first_invite_code = seeded_client["invite_code"]
@@ -473,27 +873,24 @@ async def test_push_subscribe_same_endpoint_across_projects(
         json={"invite_code": second_invite_code},
     )
 
+    # User-scoped subscribe: creates ONE row
     endpoint = "https://push.example.com/sub/shared-endpoint"
-    resp1 = await client.post(
-        f"/p/{first_project_id}/push/subscribe",
+    resp = await client.post(
+        "/notifications/webpush/subscriptions",
         json={"endpoint": endpoint, "keys": {"p256dh": "key1", "auth": "auth1"}},
     )
-    resp2 = await client.post(
-        f"/p/{second_project_id}/push/subscribe",
-        json={"endpoint": endpoint, "keys": {"p256dh": "key2", "auth": "auth2"}},
-    )
-    assert resp1.status_code == 200
-    assert resp2.status_code == 200
-    assert resp1.json()["subscription_id"] != resp2.json()["subscription_id"]
+    assert resp.status_code == 200
 
     async with _test_session_factory() as db:
-        result = await db.execute(select(PushSubscription))
+        result = await db.execute(
+            select(PushSubscription).where(PushSubscription.endpoint == endpoint)
+        )
         rows = result.scalars().all()
-        assert len(rows) == 2
+        assert len(rows) == 1  # user-scoped: one row per user+endpoint
 
 
 @pytest.mark.asyncio
-async def test_push_unsubscribe(seeded_client: dict[str, Any]) -> None:
+async def test_webpush_unsubscribe(seeded_client: dict[str, Any]) -> None:
     client = seeded_client["client"]
     project_id = seeded_client["project_id"]
     invite_code = seeded_client["invite_code"]
@@ -504,24 +901,26 @@ async def test_push_unsubscribe(seeded_client: dict[str, Any]) -> None:
     )
 
     endpoint = "https://push.example.com/sub/unsub"
-    await client.post(
-        f"/p/{project_id}/push/subscribe",
+    resp = await client.post(
+        "/notifications/webpush/subscriptions",
         json={
             "endpoint": endpoint,
             "keys": {"p256dh": "pk", "auth": "ak"},
         },
     )
+    sub_id = resp.json()["subscription_id"]
 
-    resp = await client.post(
-        f"/p/{project_id}/push/unsubscribe",
-        json={"endpoint": endpoint},
+    resp = await client.request(
+        "DELETE", f"/notifications/webpush/subscriptions/{sub_id}"
     )
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
 
 
 @pytest.mark.asyncio
-async def test_push_unsubscribe_nonexistent(seeded_client: dict[str, Any]) -> None:
+async def test_webpush_unsubscribe_nonexistent(
+    seeded_client: dict[str, Any],
+) -> None:
     client = seeded_client["client"]
     project_id = seeded_client["project_id"]
     invite_code = seeded_client["invite_code"]
@@ -531,10 +930,7 @@ async def test_push_unsubscribe_nonexistent(seeded_client: dict[str, Any]) -> No
         json={"invite_code": invite_code},
     )
 
-    resp = await client.post(
-        f"/p/{project_id}/push/unsubscribe",
-        json={"endpoint": "https://push.example.com/does-not-exist"},
-    )
+    resp = await client.request("DELETE", "/notifications/webpush/subscriptions/99999")
     assert resp.status_code == 404
 
 
@@ -607,26 +1003,13 @@ async def test_profile_put_enables_non_intake_route(
         == "I'm here to support your habit journey. How can I help you today?"
     )
 
-    # Profile PUT no longer enqueues outbox events
-    async with _test_session_factory() as db:
-        outbox_result = await db.execute(
-            select(OutboxEvent).where(OutboxEvent.project_id == project_id)
-        )
-        events = outbox_result.scalars().all()
-        assert len(events) == 0
+    # Profile PUT no longer enqueues outbox events (outbox removed)
 
     second_put_resp = await client.put(
         f"/p/{project_id}/profile",
         json={"prompt_anchor": "after dinner", "preferred_time": "19:30"},
     )
     assert second_put_resp.status_code == 200
-
-    async with _test_session_factory() as db:
-        outbox_result = await db.execute(
-            select(OutboxEvent).where(OutboxEvent.project_id == project_id)
-        )
-        events = outbox_result.scalars().all()
-        assert len(events) == 0
 
 
 @pytest.mark.asyncio
@@ -689,7 +1072,7 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
         json={"invite_code": invite_code},
     )
     await client.post(
-        f"/p/{project_id}/push/subscribe",
+        "/notifications/webpush/subscriptions",
         json={
             "endpoint": "https://push.example.com/sub/admin-export",
             "keys": {"p256dh": "pk", "auth": "ak"},
@@ -699,23 +1082,6 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
         f"/p/{project_id}/messages",
         json={"text": "hello export"},
     )
-    async with _test_session_factory() as db:
-        membership_result = await db.execute(
-            select(ProjectMembership).where(ProjectMembership.project_id == project_id)
-        )
-        membership = membership_result.scalar_one()
-        db.add(
-            OutboxEvent(
-                project_id=project_id,
-                membership_id=membership.id,
-                type="scheduled_nudge",
-                payload_json='{"project_id":"%s","topic":"Walk"}' % project_id,
-                dedupe_key=f"nudge:{membership.id}:2099-01-01",
-                available_at=datetime.now(UTC),
-            )
-        )
-        await db.commit()
-
     participants_after = await client.get(f"/admin/projects/{project_id}/participants")
     assert participants_after.status_code == 200
     participants = participants_after.json()["participants"]
@@ -729,9 +1095,7 @@ async def test_admin_project_and_invite_endpoints(client: AsyncClient) -> None:
     assert payload["messages"][0]["server_msg_id"] != ""
     assert "id" in payload["messages"][0]
     assert "client_msg_id" in payload["messages"][0]
-    assert payload["push_subscriptions"][0]["membership_id"] is not None
-    assert "dedupe_key" in payload["outbox_events"][0]
-    assert "locked_until" in payload["outbox_events"][0]
+    assert payload["push_subscriptions"][0]["user_id"] is not None
     assert invite_code not in json.dumps(payload)
 
 

@@ -54,6 +54,7 @@ class TestAgentToolPermissions:
             "propose_memory_patch",
             "propose_schedule_nudge",
             "propose_delete_schedule",
+            "record_daily_telemetry",
         }
 
 

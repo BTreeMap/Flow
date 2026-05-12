@@ -82,7 +82,7 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        text, decision, debug_info = await process_turn(
+        text, decision, debug_info, _participation_id = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,
@@ -108,7 +108,7 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        _text, _decision, debug_info = await process_turn(
+        _text, _decision, debug_info, _participation_id = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,
@@ -135,7 +135,7 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        _, decision, _ = await process_turn(
+        _, decision, _, _participation_id = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,
@@ -168,7 +168,7 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        _, decision, _ = await process_turn(
+        _, decision, _, _participation_id = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,
@@ -206,7 +206,7 @@ class TestEngineTurnPipeline:
         db.add(user_msg)
         await db.flush()
 
-        _, decision, _ = await process_turn(
+        _, decision, _, _participation_id = await process_turn(
             db=db,
             conversation=conv,
             membership_id=mid,

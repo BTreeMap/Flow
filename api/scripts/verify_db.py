@@ -26,11 +26,23 @@ async def main():
         tables = [row[0] for row in result.all()]
         print("Tables found:", tables)
 
-        if "nudge_schedules" in tables and "notifications" in tables:
-            print("SUCCESS: New tables found.")
-        else:
-            print("FAILURE: New tables missing.")
+        # Verify unified notification engine tables exist
+        required = [
+            "notifications",
+            "notification_rules",
+            "notification_rule_state",
+            "notification_deliveries",
+            "push_subscriptions",
+        ]
+        missing = [t for t in required if t not in tables]
+        if missing:
+            print(f"FAILURE: Missing tables: {missing}")
             sys.exit(1)
+        # Verify legacy tables have been dropped
+        legacy = [t for t in ["outbox_events", "nudge_schedules"] if t in tables]
+        if legacy:
+            print(f"WARNING: Legacy tables still present: {legacy}")
+        print("SUCCESS: Unified notification tables found.")
 
 
 if __name__ == "__main__":

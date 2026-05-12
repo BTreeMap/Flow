@@ -87,6 +87,25 @@ class TestRouterPromptConsistency:
 
 
 # ---------------------------------------------------------------------------
+# Prompt time context placeholders
+# ---------------------------------------------------------------------------
+
+
+class TestPromptTimeContext:
+    def test_specialist_prompts_have_time_placeholders(self) -> None:
+        for name in ("coach_system", "intake_system", "feedback_system"):
+            text = load_prompt(name)
+            assert "$current_date" in text, f"{name} missing $current_date"
+            assert "$current_time" in text, f"{name} missing $current_time"
+            assert "$timezone" in text, f"{name} missing $timezone"
+
+    def test_prompt_generator_has_authoritative_time_guidance(self) -> None:
+        text = load_prompt("prompt_generator_system")
+        assert "$current_time" in text
+        assert "authoritative" in text.lower()
+
+
+# ---------------------------------------------------------------------------
 # Deterministic routing still works with current prompts
 # ---------------------------------------------------------------------------
 

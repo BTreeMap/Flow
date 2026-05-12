@@ -57,10 +57,11 @@ _EXPECTED_TABLES = {
     "project_memberships",
     "participant_contacts",
     "conversations",
+    "participations",
     "messages",
+    "daily_intervention_logs",
     "conversation_runtime_state",
     "push_subscriptions",
-    "outbox_events",
     "user_profiles",
     "memory_items",
     "patch_audit_log",
@@ -68,6 +69,11 @@ _EXPECTED_TABLES = {
     "conversation_turns",
     "flow_user_profiles",
     "flow_alembic_version",
+    "notifications",
+    "notification_rules",
+    "notification_rule_state",
+    "notification_deliveries",
+    "scheduled_tasks",
 }
 
 
