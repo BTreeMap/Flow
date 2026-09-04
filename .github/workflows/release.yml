@@ -48,7 +48,7 @@ jobs:
         && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
         || 'sqlite+aiosqlite:///./data/test.db' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v8.1.0
         with:
@@ -78,7 +78,7 @@ jobs:
   frontend-unit-integration:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v8.1.0
         with:
@@ -120,7 +120,7 @@ jobs:
       web_dev_tags: ${{ steps.version.outputs.web_dev_tags }}
       web_release_tags: ${{ steps.version.outputs.web_release_tags }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -172,7 +172,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [compute-version]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         with:
@@ -200,7 +200,7 @@ jobs:
     env:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -239,7 +239,7 @@ jobs:
     env:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -278,7 +278,7 @@ jobs:
     env:
       WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download frontend archive
         uses: actions/download-artifact@v8
@@ -325,7 +325,7 @@ jobs:
     env:
       WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download frontend archive
         uses: actions/download-artifact@v8
@@ -689,7 +689,7 @@ jobs:
         && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
         || 'sqlite+aiosqlite:///./data/test.db' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v8.1.0
         with:
