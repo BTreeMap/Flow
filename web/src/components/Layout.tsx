@@ -58,20 +58,22 @@ export function Layout() {
     };
     window.addEventListener("theme-preference-change", onPreferenceChange);
     return () =>
-      window.removeEventListener("theme-preference-change", onPreferenceChange);
+      { window.removeEventListener("theme-preference-change", onPreferenceChange); };
   }, []);
 
   return (
-    <div className="min-h-screen bg-surface">
-      <nav className="border-b border-border bg-surface/80 backdrop-blur-sm sticky top-0 z-50">
+    <div className="min-h-screen">
+      <nav className="border-b border-divider bg-surface/70 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link
               to="/"
-              className="flex items-center gap-2 font-bold text-lg text-text"
+              className="flex items-center gap-2 display-sm text-[1.125rem] text-text"
             >
-              <Shield className="w-5 h-5 text-primary" />
-              <span>{"Flow"}</span>
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-sm bg-gradient-to-br from-primary/15 to-accent/10 ring-1 ring-inset ring-primary/10">
+                <Shield className="w-4 h-4 text-primary" />
+              </span>
+              <span className="tracking-[-0.01em]">{"Flow"}</span>
             </Link>
 
             {/* Desktop nav */}
@@ -149,7 +151,7 @@ export function Layout() {
                   </Link>
                   <Link
                     to="/register"
-                    className="px-4 py-1.5 text-sm bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors"
+                    className="px-4 py-1.5 text-sm bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-colors"
                   >
                     Register
                   </Link>
@@ -159,7 +161,7 @@ export function Layout() {
 
             {/* Mobile hamburger */}
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => { setMobileMenuOpen(!mobileMenuOpen); }}
               className="sm:hidden p-2 rounded-xl hover:bg-surface-alt transition-colors"
               aria-label="Toggle menu"
             >
@@ -200,7 +202,7 @@ export function Layout() {
                 <>
                   <Link
                     to="/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={() => { setMobileMenuOpen(false); }}
                     className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors"
                     data-testid="nav-dashboard-mobile"
                   >
@@ -209,7 +211,7 @@ export function Layout() {
                   </Link>
                   <Link
                     to="/settings"
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={() => { setMobileMenuOpen(false); }}
                     className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors"
                     data-testid="nav-settings-mobile"
                   >
@@ -219,7 +221,7 @@ export function Layout() {
                   {role === "admin" && (
                     <Link
                       to="/admin"
-                      onClick={() => setMobileMenuOpen(false)}
+                      onClick={() => { setMobileMenuOpen(false); }}
                       className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors"
                       data-testid="nav-admin-mobile"
                     >
@@ -243,14 +245,14 @@ export function Layout() {
                 <>
                   <Link
                     to="/login"
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={() => { setMobileMenuOpen(false); }}
                     className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors"
                   >
                     Login
                   </Link>
                   <Link
                     to="/register"
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={() => { setMobileMenuOpen(false); }}
                     className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl hover:bg-surface-alt transition-colors text-primary"
                   >
                     Register

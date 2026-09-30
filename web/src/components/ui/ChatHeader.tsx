@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
 import { ArrowLeft, MoreVertical, Bug } from "lucide-react";
 import { IconButton } from "./IconButton";
+import { Badge, type BadgeTone } from "../Badge";
 import { useState, useRef, useEffect } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "../../auth";
@@ -16,10 +17,10 @@ interface ChatHeaderProps {
   onToggleDebug?: () => void;
 }
 
-const statusColors = {
-  online: "bg-success/20 text-success",
-  reconnecting: "bg-warning/20 text-warning",
-  offline: "bg-text-subtle/20 text-text-subtle",
+const statusTone: Record<"online" | "reconnecting" | "offline", BadgeTone> = {
+  online: "success",
+  reconnecting: "warning",
+  offline: "neutral",
 };
 
 export function ChatHeader({
@@ -46,13 +47,13 @@ export function ChatHeader({
       }
     };
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    return () => { document.removeEventListener("mousedown", handleClick); };
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-2 h-[var(--header-h)] px-2 bg-surface/95 backdrop-blur-sm border-b border-divider pt-[env(safe-area-inset-top,0px)]">
+    <header className="sticky top-0 z-40 flex items-center gap-2 h-[var(--header-h)] px-2 bg-surface/80 backdrop-blur-xl border-b border-divider pt-[env(safe-area-inset-top,0px)]">
       {!hideBack && (
-        <IconButton label="Back" onClick={() => navigate(backTo)}>
+        <IconButton label="Back" onClick={() => void navigate(backTo)}>
           <ArrowLeft className="w-5 h-5" />
         </IconButton>
       )}
@@ -65,15 +66,13 @@ export function ChatHeader({
           {title}
         </h1>
         {connectionStatus && (
-          <span
-            className={`inline-flex items-center text-[11px] px-2 py-0.5 rounded-full ${statusColors[connectionStatus]}`}
-          >
+          <Badge tone={statusTone[connectionStatus]} className="text-[11px]">
             {connectionStatus === "online"
               ? "Online"
               : connectionStatus === "reconnecting"
                 ? "Reconnecting…"
                 : "Offline"}
-          </span>
+          </Badge>
         )}
       </div>
 
@@ -92,12 +91,12 @@ export function ChatHeader({
           <div className="relative" ref={menuRef}>
             <IconButton
               label="Menu"
-              onClick={() => setMenuOpen((v) => !v)}
+              onClick={() => { setMenuOpen((v) => !v); }}
             >
               <MoreVertical className="w-5 h-5" />
             </IconButton>
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-[var(--radius-md)] shadow-md py-1 z-50">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-md shadow-md py-1 z-50">
                 {menuItems.map((item) => (
                   <button
                     key={item.label}

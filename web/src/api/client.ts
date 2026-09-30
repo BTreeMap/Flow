@@ -11,7 +11,7 @@ import type { paths } from "./openapi";
 import { getOrMintToken, clearCachedToken } from "../auth/token";
 import { getDeviceIdentity } from "../auth/deviceKey";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 /**
  * Middleware that attaches the device-signed JWT to every request and
@@ -26,7 +26,7 @@ const authMiddleware: Middleware = {
     }
     return request;
   },
-  async onResponse({ response }) {
+  onResponse({ response }) {
     if (response.status === 401) {
       clearCachedToken();
     }

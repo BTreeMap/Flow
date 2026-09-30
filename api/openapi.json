@@ -1575,6 +1575,623 @@
         "title": "SendMessageRequest",
         "type": "object"
       },
+      "SparkCard": {
+        "properties": {
+          "action": {
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Action",
+            "type": "string"
+          },
+          "fit_score": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fit Score"
+          },
+          "frame": {
+            "enum": [
+              "calm",
+              "zoomies",
+              "silly",
+              "challenge",
+              "science"
+            ],
+            "title": "Frame",
+            "type": "string"
+          },
+          "reward": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Reward",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "frame",
+          "action",
+          "reward",
+          "why"
+        ],
+        "title": "SparkCard",
+        "type": "object"
+      },
+      "SparkCardSelectedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "event_type": {
+            "const": "card_selected",
+            "title": "Event Type",
+            "type": "string"
+          },
+          "rank": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_type",
+          "rank"
+        ],
+        "title": "SparkCardSelectedEvent",
+        "type": "object"
+      },
+      "SparkClientIdentity": {
+        "additionalProperties": false,
+        "description": "Pseudonymous identity inputs supplied on every Spark request.",
+        "properties": {
+          "fingerprint": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint"
+          },
+          "fingerprint_version": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint Version"
+          },
+          "installation_id": {
+            "format": "uuid",
+            "title": "Installation Id",
+            "type": "string"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 35,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "required": [
+          "installation_id"
+        ],
+        "title": "SparkClientIdentity",
+        "type": "object"
+      },
+      "SparkConditionCompletedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "clarity": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Clarity",
+            "type": "integer"
+          },
+          "event_type": {
+            "const": "condition_completed",
+            "title": "Event Type",
+            "type": "string"
+          },
+          "fit": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Fit",
+            "type": "integer"
+          },
+          "willing": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Willing",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_type",
+          "fit",
+          "clarity",
+          "willing"
+        ],
+        "title": "SparkConditionCompletedEvent",
+        "type": "object"
+      },
+      "SparkCueSelectedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "cue": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Cue",
+            "type": "string"
+          },
+          "event_type": {
+            "const": "cue_selected",
+            "title": "Event Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type",
+          "cue"
+        ],
+        "title": "SparkCueSelectedEvent",
+        "type": "object"
+      },
+      "SparkEventRequest": {
+        "additionalProperties": false,
+        "description": "An idempotent, immutable client-side Spark interaction event.",
+        "properties": {
+          "client_event_id": {
+            "format": "uuid",
+            "title": "Client Event Id",
+            "type": "string"
+          },
+          "condition": {
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "title": "Condition",
+            "type": "string"
+          },
+          "event": {
+            "discriminator": {
+              "mapping": {
+                "card_selected": "#/components/schemas/SparkCardSelectedEvent",
+                "condition_completed": "#/components/schemas/SparkConditionCompletedEvent",
+                "cue_selected": "#/components/schemas/SparkCueSelectedEvent",
+                "feedback_submitted": "#/components/schemas/SparkFeedbackSubmittedEvent",
+                "flow_started": "#/components/schemas/SparkFlowStartedEvent",
+                "frame_selected": "#/components/schemas/SparkFrameSelectedEvent",
+                "intake_answered": "#/components/schemas/SparkIntakeAnsweredEvent",
+                "timer_finished": "#/components/schemas/SparkTimerFinishedEvent"
+              },
+              "propertyName": "event_type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SparkFlowStartedEvent"
+              },
+              {
+                "$ref": "#/components/schemas/SparkIntakeAnsweredEvent"
+              },
+              {
+                "$ref": "#/components/schemas/SparkFrameSelectedEvent"
+              },
+              {
+                "$ref": "#/components/schemas/SparkCardSelectedEvent"
+              },
+              {
+                "$ref": "#/components/schemas/SparkTimerFinishedEvent"
+              },
+              {
+                "$ref": "#/components/schemas/SparkFeedbackSubmittedEvent"
+              },
+              {
+                "$ref": "#/components/schemas/SparkCueSelectedEvent"
+              },
+              {
+                "$ref": "#/components/schemas/SparkConditionCompletedEvent"
+              }
+            ],
+            "title": "Event"
+          },
+          "flow_id": {
+            "format": "uuid",
+            "title": "Flow Id",
+            "type": "string"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/SparkClientIdentity"
+          }
+        },
+        "required": [
+          "identity",
+          "flow_id",
+          "client_event_id",
+          "condition",
+          "event"
+        ],
+        "title": "SparkEventRequest",
+        "type": "object"
+      },
+      "SparkFeedbackSubmittedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "event_type": {
+            "const": "feedback_submitted",
+            "title": "Event Type",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "tried": {
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Tried",
+            "type": "integer"
+          },
+          "tweak": {
+            "default": "",
+            "maxLength": 400,
+            "title": "Tweak",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type",
+          "tried"
+        ],
+        "title": "SparkFeedbackSubmittedEvent",
+        "type": "object"
+      },
+      "SparkFlowStartedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "event_type": {
+            "const": "flow_started",
+            "title": "Event Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type"
+        ],
+        "title": "SparkFlowStartedEvent",
+        "type": "object"
+      },
+      "SparkFrameSelectedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "event_type": {
+            "const": "frame_selected",
+            "title": "Event Type",
+            "type": "string"
+          },
+          "frame": {
+            "enum": [
+              "calm",
+              "zoomies",
+              "silly",
+              "challenge",
+              "science"
+            ],
+            "title": "Frame",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type",
+          "frame"
+        ],
+        "title": "SparkFrameSelectedEvent",
+        "type": "object"
+      },
+      "SparkGenerateRequest": {
+        "properties": {
+          "adjustment_history": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Adjustment History",
+            "type": "array"
+          },
+          "base_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SparkCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "client_event_id": {
+            "format": "uuid",
+            "title": "Client Event Id",
+            "type": "string"
+          },
+          "condition": {
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "title": "Condition",
+            "type": "string"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "maxLength": 800,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          },
+          "flow_id": {
+            "format": "uuid",
+            "title": "Flow Id",
+            "type": "string"
+          },
+          "frame_preference": {
+            "anyOf": [
+              {
+                "enum": [
+                  "calm",
+                  "zoomies",
+                  "silly",
+                  "challenge",
+                  "science"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Preference"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/SparkClientIdentity"
+          }
+        },
+        "required": [
+          "identity",
+          "flow_id",
+          "client_event_id",
+          "condition"
+        ],
+        "title": "SparkGenerateRequest",
+        "type": "object"
+      },
+      "SparkGenerateResponse": {
+        "properties": {
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/SparkCard"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Cards",
+            "type": "array"
+          },
+          "condition": {
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "title": "Condition",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "prompt_version": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Prompt Version",
+            "type": "object"
+          },
+          "timer": {
+            "$ref": "#/components/schemas/SparkTimerPolicy"
+          }
+        },
+        "required": [
+          "condition",
+          "cards",
+          "model",
+          "prompt_version"
+        ],
+        "title": "SparkGenerateResponse",
+        "type": "object"
+      },
+      "SparkIntakeAnsweredEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "event_type": {
+            "const": "intake_answered",
+            "title": "Event Type",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "anchor",
+              "action"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type",
+          "field",
+          "value"
+        ],
+        "title": "SparkIntakeAnsweredEvent",
+        "type": "object"
+      },
+      "SparkTimerFinishedEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "completion": {
+            "enum": [
+              "completed",
+              "skipped"
+            ],
+            "title": "Completion",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "maximum": 300.0,
+            "minimum": 15.0,
+            "title": "Duration Seconds",
+            "type": "integer"
+          },
+          "duration_source": {
+            "enum": [
+              "study_default",
+              "participant"
+            ],
+            "title": "Duration Source",
+            "type": "string"
+          },
+          "elapsed_ms": {
+            "maximum": 3600000.0,
+            "minimum": 0.0,
+            "title": "Elapsed Ms",
+            "type": "integer"
+          },
+          "event_type": {
+            "const": "timer_finished",
+            "title": "Event Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type",
+          "completion",
+          "duration_seconds",
+          "elapsed_ms",
+          "duration_source"
+        ],
+        "title": "SparkTimerFinishedEvent",
+        "type": "object"
+      },
+      "SparkTimerPolicy": {
+        "description": "What the client is allowed to offer for the countdown length.\n\nServed on every generate response rather than from a second endpoint: it is\none small object on a payload the flow already fetches, it costs no extra\nround-trip, and it lands in the persisted ``generation_succeeded`` payload,\nso the policy in force is recorded per flow for free.",
+        "properties": {
+          "choices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "default_seconds": {
+            "default": 60,
+            "maximum": 300.0,
+            "minimum": 15.0,
+            "title": "Default Seconds",
+            "type": "integer"
+          },
+          "max_seconds": {
+            "default": 300,
+            "title": "Max Seconds",
+            "type": "integer"
+          },
+          "min_seconds": {
+            "default": 15,
+            "title": "Min Seconds",
+            "type": "integer"
+          }
+        },
+        "title": "SparkTimerPolicy",
+        "type": "object"
+      },
       "TimezoneUpdateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3993,6 +4610,83 @@
         "summary": "Put Profile",
         "tags": [
           "profile"
+        ]
+      }
+    },
+    "/spark/events": {
+      "post": {
+        "description": "Persist a strictly typed, idempotent Spark interaction event.",
+        "operationId": "spark_record_event_spark_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SparkEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Spark Record Event",
+        "tags": [
+          "spark"
+        ]
+      }
+    },
+    "/spark/generate": {
+      "post": {
+        "description": "Generate one or more Spark cards.\n\nIntentionally unauthenticated: Spark is a public, no-login prototype so\nanyone can try it without creating an account. The persisted research\nidentity is pseudonymous and is never an authentication factor.\n\nConditions A and B are served from the static, researcher-curated\nlibrary and never touch the LLM. Conditions C and D proxy to the LLM.",
+        "operationId": "spark_generate_spark_generate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SparkGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SparkGenerateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Spark Generate",
+        "tags": [
+          "spark"
         ]
       }
     }

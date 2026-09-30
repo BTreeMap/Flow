@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
-from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from app import config
 from app.id_utils import generate_project_id
 from app.models import (
@@ -24,6 +21,8 @@ from app.models import (
     ScheduledTask,
 )
 from app.worker.notification_worker import _process_rule, _process_scheduled_tasks
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 _engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
@@ -49,11 +48,13 @@ async def seeded_membership(monkeypatch: pytest.MonkeyPatch) -> dict[str, int]:
 
     monkeypatch.setattr(worker_module, "async_session_factory", _session_factory)
 
-    async def _fake_generate_custom_prompt(*args, **kwargs) -> str:
-        return "Take a 1-minute action now."
+    async def _fake_generate_condition_nudge(*args, **kwargs) -> tuple[str, str]:
+        return "Take a 1-minute action now.", "SYSTEM"
 
     monkeypatch.setattr(
-        worker_module, "_generate_custom_prompt", _fake_generate_custom_prompt
+        worker_module,
+        "_generate_condition_nudge",
+        _fake_generate_condition_nudge,
     )
 
     async with _session_factory() as db:

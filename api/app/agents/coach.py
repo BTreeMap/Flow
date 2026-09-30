@@ -7,7 +7,6 @@ with higher confidence thresholds.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable, Coroutine
 from typing import Any
 
@@ -16,18 +15,19 @@ from langgraph.graph.state import CompiledStateGraph
 
 from app.agents.runner import run_agent
 from app.prompt_loader import load_prompt
+from app.services.condition_filters import contains_condition_c_framing
 
 COACH_SYSTEM_PROMPT = load_prompt("coach_system")
 
 COACH_FALLBACK = "I'm here to support your habit journey. How can I help you today?"
 MAX_CONDITION_C_REWRITE_ATTEMPTS = 3
-CONDITION_C_PATTERN = re.compile(
-    r"(?i)\bif\b.*\bthen\b.*\bwill\b|commitment contract|I bet"
-)
 CONDITION_C_REWRITE_INSTRUCTION = (
-    "Your previous response contained explicit conditional planning. Rewrite the "
-    "message to be encouraging but remove any explicit 'if-then' structures or "
-    "strict behavioral framing."
+    "Your previous reply contained forbidden conditional planning, commitment, "
+    "or reward framing. Rewrite the reply so it is encouraging but contains "
+    "NO if/then or when/then structure, NO commitment contract, NO promise, "
+    "and NONE of these words: if-then, when-then, commit, commitment, contract, "
+    "promise, reward yourself, bet. Keep the same intent, the same length, "
+    "and the same supportive tone."
 )
 
 
@@ -60,7 +60,7 @@ async def run_coach(
             fallback_text=COACH_FALLBACK,
             on_token=on_token,
         )
-        if not CONDITION_C_PATTERN.search(assistant_text):
+        if not contains_condition_c_framing(assistant_text):
             return assistant_text, tool_calls
         if attempt < MAX_CONDITION_C_REWRITE_ATTEMPTS - 1:
             gated_history.append(AIMessage(content=assistant_text))

@@ -1,0 +1,44 @@
+# Pre-commit hooks for the Flow repository.
+# Install with:  pipx install pre-commit && pre-commit install
+# Run on demand: pre-commit run --all-files
+#
+# Backend hooks use the locally pinned ruff version so local runs match CI.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.0
+    hooks:
+      - id: ruff
+        name: ruff (lint, api)
+        args: [--fix]
+        files: ^api/
+      - id: ruff-format
+        name: ruff-format (api)
+        files: ^api/
+
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint (web)
+        entry: bash -c 'cd web && npx eslint'
+        language: system
+        files: ^web/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      - id: web-typecheck
+        name: tsc --noEmit (web)
+        entry: bash -c 'cd web && npm run typecheck'
+        language: system
+        files: ^web/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^web/src/api/openapi\.ts$
+      - id: end-of-file-fixer
+        exclude: ^web/src/api/openapi\.ts$
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-added-large-files
+        args: [--maxkb=1024]

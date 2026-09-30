@@ -12,12 +12,10 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from app.tools.proposal_tools import (
     ProposalCollector,
     make_proposal_tools,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -171,9 +169,8 @@ class TestMissingPayloadRejected:
 
     def test_profile_patch_without_patch_field_rejected(self) -> None:
         """propose_profile_patch must fail when 'patch' dict is missing."""
-        from pydantic import ValidationError
-
         from app.tools.proposal_tools import ProposeProfilePatchArgs
+        from pydantic import ValidationError
 
         with pytest.raises(ValidationError, match="patch"):
             ProposeProfilePatchArgs(
@@ -185,9 +182,8 @@ class TestMissingPayloadRejected:
 
     def test_memory_patch_without_items_field_rejected(self) -> None:
         """propose_memory_patch must fail when 'items' list is missing."""
-        from pydantic import ValidationError
-
         from app.tools.proposal_tools import ProposeMemoryPatchArgs
+        from pydantic import ValidationError
 
         with pytest.raises(ValidationError, match="items"):
             ProposeMemoryPatchArgs(

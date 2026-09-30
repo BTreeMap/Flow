@@ -3,13 +3,34 @@
 import json
 import logging
 import time
-from typing import Callable
+import uuid
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from app.logging_conf import request_id_var
+
 logger = logging.getLogger(__name__)
+
+REQUEST_ID_HEADER = "X-Request-ID"
+
+# Inbound headers that already identify this request, most trusted first. A
+# Cloudflare ray id is preferred over a fresh uuid because it is the one
+# identifier the *browser* can also see: a user reporting a failure can quote
+# the id from their network tab and it will match a log line here. Without that
+# shared handle, correlating a reported error to a server log means guessing
+# from timestamps.
+_INBOUND_ID_HEADERS = ("x-request-id", "cf-ray")
+
+
+def _resolve_request_id(request: Request) -> str:
+    for header in _INBOUND_ID_HEADERS:
+        value = request.headers.get(header)
+        if value:
+            return value[:64]
+    return uuid.uuid4().hex[:16]
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -21,6 +42,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Log request details, execute request, and log response details."""
         start_time = time.perf_counter()
+
+        request_id = _resolve_request_id(request)
+        token = request_id_var.set(request_id)
 
         # Capture request details
         method = request.method
@@ -69,6 +93,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             duration = (time.perf_counter() - start_time) * 1000
             logger.error(f"Request failed: {method} {url} - {e} ({duration:.2f}ms)")
+            request_id_var.reset(token)
             raise
 
         duration = (time.perf_counter() - start_time) * 1000
@@ -92,9 +117,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 # Only log body for non-streaming responses
                 try:
                     # Capture response body
-                    body_chunks = []
-                    async for chunk in response.body_iterator:
-                        body_chunks.append(chunk)
+                    body_chunks = [chunk async for chunk in response.body_iterator]
 
                     body = b"".join(body_chunks)
 
@@ -130,4 +153,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             else:
                 logger.debug("Response body: (streaming/binary - omitted)")
 
+        # Echo the id so a client (or a bug report) can name the exact request.
+        response.headers[REQUEST_ID_HEADER] = request_id
+        request_id_var.reset(token)
         return response

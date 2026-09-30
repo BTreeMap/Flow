@@ -4,7 +4,8 @@
 Validates that documentation stays in sync with the codebase:
   1. API route table in README.md matches the current OpenAPI schema.
   2. Env var table in README.md matches api/app/config.py and .env.example.
-  3. Relative markdown links in README.md and docs/**/*.md resolve to existing files.
+  3. Every env var read anywhere under api/app/ is documented in README.md.
+  4. Relative markdown links in README.md and docs/**/*.md resolve to existing files.
 
 Usage:
     python3 scripts/docs/check_docs.py
@@ -47,9 +48,10 @@ def info(msg: str) -> None:
 
 # ── 1. API route table vs OpenAPI schema ─────────────────────────────────
 
+
 def check_api_routes() -> None:
     """Compare documented route table against OpenAPI spec."""
-    print("\n[1/3] Checking API route table against OpenAPI schema …")
+    print("\n[1/4] Checking API route table against OpenAPI schema …")
 
     readme = (REPO / "README.md").read_text()
 
@@ -67,9 +69,7 @@ def check_api_routes() -> None:
     doc_routes: set[tuple[str, str]] = set()
     for line in table_text.strip().splitlines():
         # Match table rows like: | `GET` | `/healthz` | …
-        row = re.match(
-            r"\|\s*`(\w+)`\s*\|\s*`([^`]+)`\s*\|", line
-        )
+        row = re.match(r"\|\s*`(\w+)`\s*\|\s*`([^`]+)`\s*\|", line)
         if row:
             method = row.group(1).upper()
             path = row.group(2)
@@ -88,7 +88,15 @@ def check_api_routes() -> None:
 
     uv_bin = shutil.which("uv")
     if uv_bin:
-        cmd = [uv_bin, "run", "python", "-m", "scripts.dump_openapi", "--out", str(openapi_json)]
+        cmd = [
+            uv_bin,
+            "run",
+            "python",
+            "-m",
+            "scripts.dump_openapi",
+            "--out",
+            str(openapi_json),
+        ]
     else:
         cmd = [sys.executable, "-m", "scripts.dump_openapi", "--out", str(openapi_json)]
 
@@ -104,11 +112,20 @@ def check_api_routes() -> None:
         return
 
     import json
+
     schema = json.loads(openapi_json.read_text())
     openapi_routes: set[tuple[str, str]] = set()
     for path, methods in schema.get("paths", {}).items():
         for method in methods:
-            if method.upper() in ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"):
+            if method.upper() in (
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "HEAD",
+                "OPTIONS",
+            ):
                 openapi_routes.add((method.upper(), path))
 
     # WebSocket routes are not in OpenAPI, keep them in doc_routes for comparison
@@ -140,9 +157,10 @@ def check_api_routes() -> None:
 
 # ── 2. Env var table vs config.py and .env.example ──────────────────────
 
+
 def check_env_vars() -> None:
     """Compare documented env vars against config.py and .env.example."""
-    print("\n[2/3] Checking environment variable documentation …")
+    print("\n[2/4] Checking environment variable documentation …")
 
     readme = (REPO / "README.md").read_text()
 
@@ -206,11 +224,68 @@ def check_env_vars() -> None:
         info(f".env.example vars that are in config.py are all documented")
 
 
-# ── 3. Relative link hygiene ─────────────────────────────────────────────
+# ── 3. All env-var reads under api/app/ are documented ───────────────────
+
+# Env vars that may legitimately appear in app code but are not part of the
+# documented user-facing config (e.g. set by the runtime/platform itself).
+_ENV_ALLOWLIST: set[str] = set()
+
+
+def check_app_env_reads() -> None:
+    """Scan every os.environ.get/os.environ[]/os.getenv site under api/app/.
+
+    Every env var read by application code must appear in the README env
+    table (which check_env_vars() already pins to config.py + .env.example).
+    This catches drift like `FLOW_CRYPTO_MASTER_KEY` being read inline in
+    a module without being added to config.py / .env.example / README.
+    """
+    print("\n[3/4] Checking that every env var read by api/app/ is documented …")
+
+    readme = (REPO / "README.md").read_text()
+    m = re.search(
+        r"<!-- ENV_TABLE_START -->\s*\n(.*?)\n\s*<!-- ENV_TABLE_END -->",
+        readme,
+        re.DOTALL,
+    )
+    if not m:
+        error("README.md missing <!-- ENV_TABLE_START/END --> markers")
+        return
+    doc_vars: set[str] = set()
+    for line in m.group(1).strip().splitlines():
+        row = re.match(r"\|\s*`([^`]+)`\s*\|", line)
+        if row:
+            doc_vars.add(row.group(1))
+
+    # Scan api/app/**/*.py for env reads.
+    pattern = re.compile(
+        r'os\.environ\.get\(\s*"([^"]+)"|'
+        r'os\.environ\[\s*"([^"]+)"\s*\]|'
+        r'os\.getenv\(\s*"([^"]+)"'
+    )
+    read_vars: dict[str, list[str]] = {}
+    for py in (REPO / "api" / "app").rglob("*.py"):
+        rel = str(py.relative_to(REPO))
+        for match in pattern.finditer(py.read_text()):
+            name = next(g for g in match.groups() if g)
+            read_vars.setdefault(name, []).append(rel)
+
+    undocumented = {
+        v for v in read_vars if v not in doc_vars and v not in _ENV_ALLOWLIST
+    }
+    if undocumented:
+        for v in sorted(undocumented):
+            sites = ", ".join(sorted(set(read_vars[v])))
+            error(f"Env var `{v}` read in {sites} but missing from README env table")
+    else:
+        info(f"All {len(read_vars)} env vars read by api/app/ are documented")
+
+
+# ── 4. Relative link hygiene ─────────────────────────────────────
+
 
 def check_links() -> None:
     """Verify all relative markdown links resolve to existing files."""
-    print("\n[3/3] Checking relative markdown links …")
+    print("\n[4/4] Checking relative markdown links …")
 
     md_files = list(REPO.glob("docs/**/*.md")) + [REPO / "README.md"]
     broken = 0
@@ -238,7 +313,9 @@ def check_links() -> None:
                     display = target.relative_to(REPO)
                 except ValueError:
                     display = target
-                error(f"Broken link in {md_file.relative_to(REPO)}: [{match.group(1)}]({link}) → {display}")
+                error(
+                    f"Broken link in {md_file.relative_to(REPO)}: [{match.group(1)}]({link}) → {display}"
+                )
                 broken += 1
 
     if broken == 0:
@@ -247,6 +324,7 @@ def check_links() -> None:
 
 # ── Main ─────────────────────────────────────────────────────────────────
 
+
 def main() -> int:
     print("=" * 60)
     print("Documentation Drift Checker")
@@ -254,6 +332,7 @@ def main() -> int:
 
     check_api_routes()
     check_env_vars()
+    check_app_env_reads()
     check_links()
 
     print()

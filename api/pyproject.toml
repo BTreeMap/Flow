@@ -19,6 +19,9 @@ dependencies = [
     "langchain-core>=1.2.12",
     "asyncpg>=0.31.0",
     "alembic>=1.16.1",
+    "google-auth>=2.36.0",
+    "requests>=2.32.0",
+    "blake3>=1.0.9",
 ]
 
 [project.scripts]
@@ -34,5 +37,69 @@ packages = ["app"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-cov>=6.0.0",
     "ruff>=0.15.1",
+    "basedpyright>=1.31.0",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+src = ["app", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "C4",     # flake8-comprehensions
+    "PIE",    # flake8-pie
+    "RET",    # flake8-return
+    "TID",    # flake8-tidy-imports
+    "ASYNC",  # flake8-async
+    "PERF",   # perflint
+    "RUF",    # ruff-specific
+]
+ignore = [
+    "E501",   # line length handled by formatter
+    "B008",   # FastAPI Depends() in defaults is idiomatic
+    "RUF012", # mutable class attrs without ClassVar (SQLAlchemy/Pydantic noise)
+    "RUF001", # ambiguous unicode in strings (intentional in coaching copy)
+    "RUF002", # ambiguous unicode in docstrings (intentional in coaching copy)
+    "RUF003", # ambiguous unicode in comments (intentional in coaching copy)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011", "PERF", "RUF059"]
+"app/db_migrations/**" = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config --tb=short"
+filterwarnings = ["error::DeprecationWarning:app.*"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = ["app/db_migrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+# Ratcheted floor with headroom below the current ~72%. Raise as more
+# service/route/worker unit tests are added.
+fail_under = 71
+
+[tool.basedpyright]
+include = ["app"]
+exclude = ["app/db_migrations", "**/__pycache__"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false

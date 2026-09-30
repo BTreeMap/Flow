@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
-from typing import Any, AsyncGenerator
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from app.id_utils import generate_project_id
 from app.models import (
     Base,
@@ -25,10 +22,13 @@ from app.models import (
     ProjectInvite,
     ProjectMembership,
 )
-from app.services.event_service import load_events_since, persist_event
 from app.prompt_loader import prompt_hash, prompt_version
+from app.services.event_service import load_events_since, persist_event
 from h4ckath0n.auth.models import Base as H4ckath0nBase
 from h4ckath0n.realtime import AuthContext
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # ---------------------------------------------------------------------------
 # Fixtures (same pattern as test_api.py)
@@ -78,8 +78,8 @@ def _override_auth_context(
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    from app.main import app
     from app.db import get_db
+    from app.main import app
     from app.routes import _require_auth_context
     from h4ckath0n.auth.dependencies import _get_current_user, require_admin
 

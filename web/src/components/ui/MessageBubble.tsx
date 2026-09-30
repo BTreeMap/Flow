@@ -1,17 +1,18 @@
 import { memo } from "react";
 import { AssistantMarkdown } from "../chat/AssistantMarkdown";
 import { FeedbackPollWidget } from "../chat/FeedbackPollWidget";
+import { Badge, type BadgeTone } from "../Badge";
 import type { FeedbackPollMetadata } from "../../api/types";
 
-const conditionPillClass = {
-  A: "bg-blue-100 text-blue-800",
-  B: "bg-purple-100 text-purple-800",
-  C: "bg-amber-100 text-amber-800",
-  D: "bg-emerald-100 text-emerald-800",
+const conditionTone: Record<"A" | "B" | "C" | "D", BadgeTone> = {
+  A: "primary",
+  B: "accent",
+  C: "warning",
+  D: "success",
 } as const;
 
-function isKnownCondition(value: unknown): value is keyof typeof conditionPillClass {
-  return typeof value === "string" && value in conditionPillClass;
+function isKnownCondition(value: unknown): value is keyof typeof conditionTone {
+  return typeof value === "string" && value in conditionTone;
 }
 
 function safeStringify(value: unknown): string {
@@ -20,6 +21,13 @@ function safeStringify(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+interface ToolCall {
+  run_id?: string;
+  tool?: string;
+  args?: unknown;
+  error?: string;
 }
 
 interface MessageBubbleProps {
@@ -35,8 +43,7 @@ interface MessageBubbleProps {
     condition?: string;
     prompt_args?: Record<string, unknown>;
     tools?: string[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tool_calls?: any[];
+    tool_calls?: ToolCall[];
   };
   showDebug?: boolean;
 }
@@ -60,8 +67,8 @@ export const MessageBubble = memo(function MessageBubble({
 }: MessageBubbleProps) {
   if (role === "system") {
     return (
-      <div className="flex justify-center my-2">
-        <div className="bg-bubble-system text-text-muted text-[13px] px-3 py-1.5 rounded-[var(--radius-sm)] max-w-[85%] text-center">
+      <div className="flex justify-center my-3">
+        <div className="bg-bubble-system text-text-muted text-[12px] font-medium px-3 py-1 rounded-full max-w-[85%] text-center">
           {content}
         </div>
       </div>
@@ -69,7 +76,9 @@ export const MessageBubble = memo(function MessageBubble({
   }
 
   const isUser = role === "user";
-  const bubbleColor = isUser ? "bg-bubble-out" : "bg-bubble-in";
+  const bubbleColor = isUser
+    ? "bg-bubble-out border border-primary/10"
+    : "bg-bubble-in border border-border/60";
 
   // Grouping radius adjustment
   const baseRadius = "var(--radius-lg)";
@@ -85,12 +94,11 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <div
-      className={`flex flex-col ${isUser ? "items-end" : "items-start"} ${
-        isGroupContinuation ? "mt-[2px]" : "mt-2"
-      }`}
+      className={`flex flex-col ${isUser ? "items-end" : "items-start"} ${isGroupContinuation ? "mt-[2px]" : "mt-2"
+        }`}
     >
       <div
-        className={`${bubbleColor} text-text text-[15px] leading-[1.35] px-3 py-2 max-w-[78%] md:max-w-[65%] shadow-sm ${isUser ? "whitespace-pre-wrap" : ""}`}
+        className={`${bubbleColor} text-text text-[15px] leading-[1.4] px-3.5 py-2.5 max-w-[80%] md:max-w-[65%] shadow-xs ${isUser ? "whitespace-pre-wrap" : ""}`}
         style={{ borderRadius }}
       >
         {isUser ? (
@@ -119,15 +127,16 @@ export const MessageBubble = memo(function MessageBubble({
             <span className="opacity-75">Route:</span>
             <span className="font-semibold">{debugInfo.agent ?? "UNKNOWN"}</span>
             {debugInfo.condition && (
-              <span
-                className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
+              <Badge
+                tone={
                   isKnownCondition(debugInfo.condition)
-                    ? conditionPillClass[debugInfo.condition]
-                    : "bg-muted text-text-subtle"
-                }`}
+                    ? conditionTone[debugInfo.condition]
+                    : "neutral"
+                }
+                className="px-1.5 py-0.5 text-[9px] font-semibold"
               >
                 {debugInfo.condition}
-              </span>
+              </Badge>
             )}
           </div>
           {debugInfo.tools && debugInfo.tools.length > 0 && (
@@ -161,7 +170,7 @@ export const MessageBubble = memo(function MessageBubble({
                       </pre>
                     )}
                     {typeof tc?.error === "string" && (
-                      <span className="text-red-500 block">error: {tc.error}</span>
+                      <span className="text-danger block">error: {tc.error}</span>
                     )}
                   </li>
                 ))}

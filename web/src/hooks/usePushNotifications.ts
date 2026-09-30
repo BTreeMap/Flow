@@ -1,21 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../api/client";
 
-export function isIOS(): boolean {
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
-}
-
-export function isStandalone(): boolean {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in navigator &&
-      (navigator as unknown as { standalone: boolean }).standalone)
-  );
-}
-
 function extractErrorDetail(error: unknown, fallback: string): string {
   if (
     error &&
@@ -80,7 +65,7 @@ export function usePushNotifications() {
 
   // Check initial subscription status via backend
   useEffect(() => {
-    (async () => {
+    void (async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
         setInitializing(false);
         return;
@@ -107,8 +92,8 @@ export function usePushNotifications() {
           localStorage.removeItem(SUB_ID_STORAGE_KEY);
         }
         setSubscribed(registered);
-      } catch {
-        // ignore
+      } catch (err) {
+        console.warn("Failed to reconcile push subscription state", err);
       } finally {
         setInitializing(false);
       }
@@ -117,7 +102,7 @@ export function usePushNotifications() {
 
   // Check if VAPID is configured on the backend
   useEffect(() => {
-    (async () => {
+    void (async () => {
       const { error: apiError } = await api.GET(
         "/notifications/webpush/vapid-public-key",
       );

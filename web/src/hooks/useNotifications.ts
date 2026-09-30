@@ -41,8 +41,10 @@ export function useNotifications(projectId?: string) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void queryClient.invalidateQueries({
+        queryKey: ['notifications-unread-count'],
+      });
     },
   });
 

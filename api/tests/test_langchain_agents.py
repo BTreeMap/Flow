@@ -9,13 +9,12 @@ Validates:
 from __future__ import annotations
 
 from app.agents.engine import (
-    _build_profile_summary,
     _build_memory_summary,
+    _build_profile_summary,
     route_turn_deterministic,
 )
-from app.schemas.patches import UserProfileData, MemoryItemData
+from app.schemas.patches import MemoryItemData, UserProfileData
 from app.tools.proposal_tools import ProposalCollector, make_proposal_tools
-
 
 # ---------------------------------------------------------------------------
 # Proposal tool permissions

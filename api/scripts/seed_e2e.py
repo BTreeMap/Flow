@@ -1,16 +1,18 @@
 import asyncio
 import os
 import sys
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 # Add api directory to path to import app modules if needed
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from app.models import Project, ProjectInvite
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
+from app.models import Project, ProjectInvite
 
 DATABASE_URL = os.environ.get(
     "H4CKATH0N_DATABASE_URL", "sqlite+aiosqlite:////tmp/flow-e2e.db"
@@ -37,7 +39,7 @@ async def seed():
                 id=project_id,
                 display_name="E2E Project",
                 status="active",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
             session.add(project)
             print(f"SEED_INFO: Created project {project_id}")
@@ -57,7 +59,7 @@ async def seed():
             invite = ProjectInvite(
                 project_id=project_id,
                 invite_code_hash=code_hash,
-                expires_at=datetime.now(timezone.utc) + timedelta(days=365),
+                expires_at=datetime.now(UTC) + timedelta(days=365),
                 max_uses=None,  # Unlimited uses
                 uses=0,
                 label="e2e-test",
@@ -66,7 +68,7 @@ async def seed():
             print(f"SEED_INFO: Created invite {invite_code}")
         else:
             # Reset existing invite to be valid
-            invite.expires_at = datetime.now(timezone.utc) + timedelta(days=365)
+            invite.expires_at = datetime.now(UTC) + timedelta(days=365)
             invite.max_uses = None  # Unlimited
             invite.revoked_at = None
             print(f"SEED_INFO: Reset existing invite {invite_code}")

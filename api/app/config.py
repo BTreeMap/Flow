@@ -160,9 +160,93 @@ def get_port() -> int:
 
 
 @cache
+def get_host() -> str:
+    """Return the network interface the API server should bind to."""
+    return os.environ.get("API_HOST") or os.environ.get("HOST", "::")
+
+
+@cache
 def get_log_level() -> str:
     """Return the global log level for the application."""
     return os.environ.get("LOG_LEVEL", "INFO").upper()
+
+
+@cache
+def get_flow_crypto_master_key() -> str:
+    """Return Flow's Base64URL-encoded 32-byte cryptographic master key.
+
+    Feature code must obtain a domain-separated subkey from
+    ``app.services.crypto`` rather than using this value directly.
+    """
+    return os.environ.get("FLOW_CRYPTO_MASTER_KEY", "")
+
+
+# ---------------------------------------------------------------------------
+# Spark A/B Google Sheets source (additive; Sheets used only when configured)
+# ---------------------------------------------------------------------------
+
+
+@cache
+def get_spark_sheets_credentials_json() -> str:
+    """Return the Google service-account JSON string for Sheets read-only access.
+
+    Set ``SPARK_SHEETS_CREDENTIALS_JSON`` to the full service-account JSON
+    (the content of the downloaded key file, not a file path). It takes
+    precedence over ``SPARK_SHEETS_CREDENTIALS_FILE`` when both are set.
+    """
+    return os.environ.get("SPARK_SHEETS_CREDENTIALS_JSON", "")
+
+
+@cache
+def get_spark_sheets_credentials_file() -> str:
+    """Return the mounted service-account key-file path for Sheets access.
+
+    Set ``SPARK_SHEETS_CREDENTIALS_FILE`` to a readable Google service-account
+    JSON file. The file is used only when ``SPARK_SHEETS_CREDENTIALS_JSON`` is
+    empty. When neither credential source is set, the Spark A/B library falls
+    back to the bundled ``spark_library.json``.
+    """
+    return os.environ.get("SPARK_SHEETS_CREDENTIALS_FILE", "")
+
+
+@cache
+def get_spark_sheets_spreadsheet_id() -> str:
+    """Return the Google Sheets spreadsheet ID for the Spark A/B prompt library."""
+    return os.environ.get("SPARK_SHEETS_SPREADSHEET_ID", "")
+
+
+@cache
+def get_spark_sheets_range() -> str:
+    """Return the A1-notation range to fetch from the Spark spreadsheet.
+
+    Defaults to ``Sparks!A:E`` which reads all rows from a tab named
+    *Sparks* with columns: id, title, action, reward, tags.
+    """
+    return os.environ.get("SPARK_SHEETS_RANGE", "Sparks!A:E")
+
+
+@cache
+def get_spark_sheets_cache_ttl() -> float:
+    """Return the cache TTL in seconds for the Spark library dataset.
+
+    After the TTL expires the cached data is served immediately (stale-
+    while-revalidate) while a background refresh runs.  Defaults to 60 s.
+    """
+    val = os.environ.get("SPARK_SHEETS_CACHE_TTL_SECS", "60")
+    try:
+        return max(1.0, float(val))
+    except (ValueError, TypeError):
+        return 60.0
+
+
+@cache
+def get_spark_sheets_timeout() -> float:
+    """Return the Sheets API request timeout in seconds.  Defaults to 10 s."""
+    val = os.environ.get("SPARK_SHEETS_REQUEST_TIMEOUT_SECS", "10")
+    try:
+        return max(1.0, float(val))
+    except (ValueError, TypeError):
+        return 10.0
 
 
 def clear_config_cache() -> None:
@@ -182,5 +266,16 @@ def clear_config_cache() -> None:
     get_feedback_prompt_text.cache_clear()
     get_feedback_options.cache_clear()
     get_default_timezone.cache_clear()
+    get_host.cache_clear()
     get_port.cache_clear()
     get_log_level.cache_clear()
+    get_flow_crypto_master_key.cache_clear()
+    get_spark_sheets_credentials_json.cache_clear()
+    get_spark_sheets_credentials_file.cache_clear()
+    get_spark_sheets_spreadsheet_id.cache_clear()
+    get_spark_sheets_range.cache_clear()
+    get_spark_sheets_cache_ttl.cache_clear()
+    get_spark_sheets_timeout.cache_clear()
+    from app.services.crypto import clear_crypto_key_cache
+
+    clear_crypto_key_cache()

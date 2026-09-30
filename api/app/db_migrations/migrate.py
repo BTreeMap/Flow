@@ -31,10 +31,9 @@ def get_sync_url(async_url: str | None = None) -> str:
     """
     if async_url is None:
         async_url = config.get_database_url()
-    url = async_url.replace("sqlite+aiosqlite", "sqlite").replace(
+    return async_url.replace("sqlite+aiosqlite", "sqlite").replace(
         "postgresql+asyncpg", "postgresql+psycopg"
     )
-    return url
 
 
 def _make_config(sync_url: str | None = None) -> Config:

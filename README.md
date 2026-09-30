@@ -1,4 +1,4 @@
-# Flow: HCI Research Platform
+# Flow: Operational tooling for longitudinal behavioral interventions
 
 A production-shaped prototype for HCI research combining a multi-bot conversation engine built on LangChain primitives, React PWA frontend, passkey-first authentication (via [h4ckath0n](https://github.com/BTreeMap/h4ckath0n)), SSE-based real-time chat, and vendor-neutral Web Push notifications.
 
@@ -40,13 +40,13 @@ docker build -t flow:local api/
 FLOW_WEB_IMAGE=flow-web:local FLOW_IMAGE=flow:local docker compose up
 ```
 
-The stack runs at `http://localhost:8080`. Caddy serves the frontend and reverse proxies `/api/*` to the backend (stripping the `/api` prefix).
+The stack runs at `http://localhost:${PORT:-8080}`. Caddy serves the frontend and reverse proxies `/api/*` to the backend (stripping the `/api` prefix).
 
 #### Deployment architecture
 
 ```
 Cloudflare Tunnel (terminates TLS)
-  └─→ flow-web :8080 (Caddy, HTTP-only)
+  └─→ flow-web :${PORT:-8080} (Caddy, HTTP-only)
         ├─ /          → static frontend files
         └─ /api/*     → flow :8000 (prefix stripped)
 ```
@@ -135,19 +135,24 @@ Flow/
 │   │   │   └── tool_schemas.py   # Tool argument schemas
 │   │   ├── services/             # Business logic layer
 │   │   │   ├── profile_service.py    # Profile/memory persistence, validation, audit
-│   │   │   ├── event_service.py      # Event handling
-│   │   │   ├── outbox_service.py     # Outbox event persistence
-│   │   │   └── scheduler_service.py  # Scheduling logic
+│   │   │   ├── event_service.py      # SSE event persistence + replay
+│   │   │   ├── notification_engine.py # Scheduling, dedupe, lease, push delivery
+│   │   │   ├── randomization.py      # Deterministic 4-day block condition assignment
+│   │   │   ├── intervention_config.py # Static A/B nudge templates
+│   │   │   ├── feedback_script.py    # Deterministic A/B feedback state machine
+│   │   │   ├── condition_filters.py  # Condition-C framing regex filter
+│   │   │   ├── eod_summarizer.py     # End-of-day sterilized memory summaries
+│   │   │   └── prompt_context.py     # Prompt template context builder
 │   │   ├── tools/                # LangChain tools
 │   │   │   ├── proposal_tools.py     # propose_profile_patch, propose_memory_patch
 │   │   │   └── scheduler_tools.py    # Scheduling LangChain tools
-│   │   └── worker/               # Outbox event worker
+│   │   └── worker/               # Scheduled-task / notification worker
 │   ├── Dockerfile                # Backend container image
 │   ├── prompts/                  # System prompt templates
 │   ├── tests/                    # Backend test suite
 │   └── pyproject.toml
 ├── web/                          # React PWA frontend
-│   ├── Caddyfile                 # Caddy reverse proxy config (HTTP-only, :8080)
+│   ├── Caddyfile                 # Caddy reverse proxy config (HTTP-only, :8080 default)
 │   ├── Dockerfile                # flow-web container image (Caddy + static assets)
 │   ├── public/
 │   │   ├── manifest.json         # PWA web app manifest
@@ -169,9 +174,9 @@ Flow/
 │   └── package.json
 ├── docker-compose.yml            # Production-like local stack (flow-web + flow + postgres)
 ├── docs/
-│   ├── current-architecture.md           # Current architecture (authoritative)
-│   ├── legacy-conversation-flow-contract.md   # Legacy behavior reference (deprecated)
-│   └── parity-matrix.md                       # Legacy → new code mapping
+│   ├── README.md                 # Documentation index
+│   ├── current-architecture.md   # Conversation engine, experiment, EOD firewall
+│   └── release-process.md        # CI/CD, versioning, image signing
 ├── .env.example
 └── AGENTS.md                     # Agent behavior rules
 ```
@@ -205,6 +210,7 @@ All project-scoped endpoints require passkey authentication.
 | `POST` | `/auth/sessions/{device_id}/revoke` | auth | Revoke a passkey device |
 | `GET` | `/me` | user | Current user profile (email, display_name, is_admin) |
 | `PATCH` | `/me` | user | Update email and/or display name |
+| `POST` | `/me/timezone` | user | Store user's IANA timezone |
 | `GET` | `/dashboard` | dashboard | List user's project memberships |
 | `POST` | `/p/{project_id}/activate/claim` | activation | Claim invite code, create membership + conversation |
 | `GET` | `/p/{project_id}/me` | activation | Get membership status, conversation ID |
@@ -213,12 +219,16 @@ All project-scoped endpoints require passkey authentication.
 | `GET` | `/p/{project_id}/messages` | messaging | Get message history |
 | `POST` | `/p/{project_id}/messages` | messaging | Send message, get assistant reply |
 | `GET` | `/p/{project_id}/events` | streaming | SSE event stream for real-time updates |
-| `GET` | `/p/{project_id}/push/vapid-public-key` | push | Get VAPID public key for push subscription |
-| `POST` | `/p/{project_id}/push/subscribe` | push | Store a push subscription |
-| `POST` | `/p/{project_id}/push/unsubscribe` | push | Revoke a push subscription |
-| `GET` | `/p/{project_id}/notifications` | notifications | List notifications |
-| `GET` | `/p/{project_id}/notifications/unread-count` | notifications | Get unread notification count |
-| `POST` | `/p/{project_id}/notifications/{notification_id}/read` | notifications | Mark notification as read |
+| `POST` | `/p/{project_id}/chat/events/feedback` | notifications | Record push action feedback from service worker |
+| `GET` | `/notifications` | notifications | List unified notifications (optional project_id filter) |
+| `GET` | `/notifications/unread-count` | notifications | Get unread notification count (optional project_id filter) |
+| `POST` | `/notifications/{notification_id}/read` | notifications | Mark notification as read, enqueue push_dismiss delivery |
+| `GET` | `/notifications/webpush/vapid-public-key` | notifications | Get VAPID public key for push subscription |
+| `POST` | `/notifications/webpush/subscriptions` | notifications | Create/upsert push subscription (user-scoped) |
+| `DELETE` | `/notifications/webpush/subscriptions/{subscription_id}` | notifications | Revoke a push subscription |
+| `GET` | `/notifications/webpush/subscriptions` | notifications | List active push subscriptions (debug) |
+| `POST` | `/spark/generate` | spark | Generate an idempotent, pseudonymously logged Spark card response |
+| `POST` | `/spark/events` | spark | Record a typed, idempotent anonymous Spark interaction event |
 | `GET` | `/admin/debug/status` | admin | System debug status |
 | `POST` | `/admin/debug/llm-connectivity` | admin | Test LLM connectivity |
 | `POST` | `/admin/projects` | admin | Create a new project |
@@ -234,6 +244,24 @@ All project-scoped endpoints require passkey authentication.
 
 > This table is auto-verified by CI. See [Drift prevention](#drift-prevention).
 
+## Pre-push Quality Gate
+
+Run the standard local quality gate before every push:
+
+```bash
+bash scripts/ci/pre_push_quality_gate.sh
+```
+
+This runs backend and frontend static/test checks plus docs drift checks, and
+fails fast if any step is out of sync.
+
+Optional browser-dependent gates can be enabled when your environment supports
+them:
+
+```bash
+RUN_PLAYWRIGHT=1 RUN_COMPOSE_E2E=1 bash scripts/ci/pre_push_quality_gate.sh
+```
+
 ## Data Model
 
 | Table | ID Type | Description |
@@ -246,11 +274,20 @@ All project-scoped endpoints require passkey authentication.
 | `conversations` | auto-increment int | 1:1 with membership |
 | `messages` | auto-increment int | Chat history with `server_msg_id` (36-char string: `m` + 35 lowercase base32 chars; UUID-length for DB schema compatibility) |
 | `conversation_runtime_state` | FK to conversation | JSON blob for engine state |
+| `participations` | auto-increment int | One row per participant in a study; carries `study_start_date`, condition assignment salt |
+| `daily_intervention_logs` | auto-increment int | Per-day telemetry (condition assigned, extracted state, script answers) |
+| `daily_summaries` | auto-increment int | EOD sterilized cross-day memory (1 row per participation/day) |
+| `spark_participants` | auto-increment int | Anonymous Spark participants keyed only by a server-keyed-hash browser-local id |
+| `spark_fingerprint_observations` | auto-increment int | Keyed-hash Thumbmark observations for fingerprint stability/collision analysis |
+| `spark_interactions` | auto-increment int | Immutable typed Spark flow, generation, choice, feedback, and outcome events |
 | `user_profiles` | auto-increment int | **Store A** — structured profile JSON (1:1 with membership) |
 | `memory_items` | auto-increment int | **Store B** — semi-structured memory items per membership |
 | `patch_audit_log` | auto-increment int | Audit trail: proposals, decisions, commits |
+| `conversation_events` | auto-increment int | Durable SSE events for replay via `Last-Event-ID` |
+| `conversation_turns` | auto-increment int | Idempotent messaging (unique `client_msg_id` per conversation) |
 | `push_subscriptions` | auto-increment int | Web Push endpoints + crypto keys per device |
-| `outbox_events` | auto-increment int | Durable scheduled events with dedupe keys |
+| `scheduled_tasks` | auto-increment int | Durable scheduled work with lease + dedupe keys |
+| `notifications` / `notification_rules` / `notification_rule_state` / `notification_deliveries` | auto-increment int | Notification rule engine + delivery audit |
 
 ## Conversation Engine
 
@@ -286,10 +323,6 @@ Specialist bots propose changes via `propose_profile_patch` and `propose_memory_
 
 All proposals and decisions are logged in the `patch_audit_log` table.
 
-### Legacy Engine
-
-The legacy conversation flow engine was fully removed. The legacy behavioral contract (`docs/legacy-conversation-flow-contract.md`) is deprecated and retained for historical reference only.
-
 ## Frontend Pages
 
 | Route | Page | Description |
@@ -299,9 +332,13 @@ The legacy conversation flow engine was fully removed. The legacy behavioral con
 | `/login` | Login | Passkey login with return_to support |
 | `/dashboard` | Dashboard | List project threads (active/ended) |
 | `/p/:projectId/activate` | Activation | Join project via invite link; requests email only if missing |
+| `/p/:projectId/onboarding` | Onboarding | Post-activation onboarding flow |
+| `/p/:projectId/onboarding/notifications` | OnboardingNotifications | Enable push as part of onboarding |
 | `/p/:projectId/chat` | ChatThread | Send messages via POST, receive via SSE |
 | `/p/:projectId/notifications` | Notifications | PWA install guidance, enable push notifications |
-| `/settings` | Settings | User profile (email, display name), theme, devices, passkeys |
+| `/p/:projectId/updates` | ProjectUpdates | Per-project notification feed |
+| `/updates` | Updates | Global notification feed across projects |
+| `/settings` | Settings | User profile, theme, devices, passkeys |
 | `/admin` | Admin | Project management, invite generation, push testing, debug tools |
 
 ## PWA & Push Notifications
@@ -321,31 +358,14 @@ The legacy conversation flow engine was fully removed. The legacy behavioral con
 cd api && uv run pytest tests/ -v --tb=short
 ```
 
-Test modules:
+Key test areas (`api/tests/`):
 
-- `test_api.py` — API endpoint integration tests (messaging wired to new engine)
-- `test_api_schema_contracts.py` — OpenAPI schema contract tests
-- `test_admin_push_perf.py` — Admin push notification performance tests
-- `test_config.py` — Configuration loading and validation
-- `test_engine_integration.py` — Full turn pipeline with async DB, profile persistence, memory persistence, audit log
-- `test_id_utils.py` — Custom ID generation utilities
-- `test_langchain_agents.py` — Agent tool permissions and orchestrator pipeline
-- `test_langchain_tools.py` — LangChain tool schemas and invocation
-- `test_logging_middleware.py` — Logging middleware behavior
-- `test_migrations.py` — Database migration tests
-- `test_milestone2.py` — Milestone 2 feature integration tests
-- `test_new_architecture.py` — Router permissions, confidence thresholds, evidence spans, profile/memory validation, proposal tools, deterministic routing
-- `test_notifications_routes.py` — Notification endpoint tests
-- `test_nudge_integration.py` — Nudge scheduling integration tests
-- `test_outbox_worker.py` — Outbox worker processing tests
-- `test_prompts.py` — System prompt template tests
-- `test_read_receipt_logic.py` — Read receipt logic tests
-- `test_tool_trace.py` — Tool call tracing tests
-- `test_worker_logic.py` — Worker logic unit tests
-
-### Verify Patch Audit Behavior
-
-The audit trail can be inspected by querying the `patch_audit_log` table after processing messages. The `test_engine_integration.py::TestAuditLog` tests verify that proposals and commit decisions are properly recorded.
+- **Engine + Router**: `test_engine_integration.py`, `test_new_architecture.py`, `test_langchain_agents.py`, `test_langchain_tools.py`, `test_tool_trace.py`
+- **4-condition experiment**: `test_four_condition_experiment.py`, `test_prompt_context.py`
+- **EOD memory firewall**: `test_eod_summarizer.py`
+- **Notification worker / scheduling**: `test_notification_engine.py`, `test_notification_worker.py`, `test_notifications_routes.py`, `test_admin_push_perf.py`
+- **API + contracts**: `test_api.py`, `test_api_schema_contracts.py`, `test_timezone_endpoint.py`
+- **Infrastructure**: `test_config.py`, `test_logging_middleware.py`, `test_migrations.py`, `test_id_utils.py`, `test_prompts.py`, `test_milestone2.py`
 
 ### Frontend
 
@@ -354,13 +374,10 @@ cd web && npm test         # Unit tests (Vitest)
 cd web && npm run test:e2e # E2E tests (Playwright)
 ```
 
-## What Is Stubbed
+## Runtime Modes
 
-This is a prototype. The following are mocked or incomplete:
-
-- **LLM calls** — In stub mode (no `OPENAI_API_KEY`), specialist agents return fixed responses. Connect a real LLM (OpenAI, Anthropic, etc.) by passing `llm` and `router_llm` parameters to the engine.
-- **Web Push delivery** — Push delivery is implemented via `pywebpush` in the outbox worker. Configure `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to enable it.
-- **Message endpoint** — `POST /p/{project_id}/messages` runs the full Router + specialist pipeline. Without an OpenAI API key it operates in stub mode (deterministic routing, fixed responses); with a real API key it produces contextual LLM responses.
+- **LLM** — without `OPENAI_API_KEY` (or `H4CKATH0N_OPENAI_API_KEY`), specialist agents run in **stub mode** with deterministic responses. With a key set, the engine uses `ChatOpenAI` via LangChain.
+- **Web Push** — delivery is implemented via `pywebpush` in `app/worker/notification_worker.py`. Without both VAPID keys, push delivery is disabled and the rest of the stack still functions.
 
 ## Environment Variables
 
@@ -371,6 +388,11 @@ Configure in `.env` at the repository root (see `.env.example`):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `H4CKATH0N_ENV` | `development` | Environment mode (`development` / `production`) |
+| `WEB_PORT` | `8080` | Port the frontend container should listen on (falls back to `PORT`) |
+| `API_PORT` | `8000` | Port the backend API server should listen on (falls back to `PORT`) |
+| `PORT` | (none) | Fallback port for both (useful for platforms like Railway) |
+| `API_HOST` | `::` | Host/interface the backend API server binds to (falls back to `HOST`) |
+| `HOST` | `::` | Fallback bind host for the backend API server |
 | `H4CKATH0N_DATABASE_URL` | `sqlite+aiosqlite:///./data/flow-app.db` | SQLAlchemy async database URL |
 | `H4CKATH0N_RP_ID` | `localhost` | WebAuthn relying party ID |
 | `H4CKATH0N_ORIGIN` | (none) | Allowed origin for CORS and WebAuthn |
@@ -378,16 +400,51 @@ Configure in `.env` at the repository root (see `.env.example`):
 | `LOG_LEVEL` | `INFO` | Log level (backend logging) |
 | `FLOW_DATA_DIR` | `/app/data` or `./data` | Persistent data directory |
 | `FLOW_WORKER_ID` | hostname | Worker identifier for outbox lease |
+| `FLOW_PROMPTS_DIR` | (none) | Optional override directory for prompt text files; falls back to the mounted `prompts/` then the copy baked into the image |
+| `FLOW_BAKED_PROMPTS_DIR` | `/opt/flow/prompts` | Image-baked prompt directory outside `/app` used as the final fallback so bind-mounts under `/app` cannot shadow newly added prompts |
+| `FLOW_CONFIG_DIR` | (none) | Optional override directory for static JSON config files; falls back to the mounted `config/` then the copy baked into the image |
+| `FLOW_BAKED_CONFIG_DIR` | `/opt/flow/config` | Image-baked config directory outside `/app` used as the final fallback so bind-mounts under `/app` cannot shadow newly added config |
 | `LLM_MODEL` | `gpt-4o-mini` | LLM model name for OpenAI |
 | `OPENAI_API_KEY` | (none) | OpenAI API key for live LLM responses |
 | `H4CKATH0N_OPENAI_API_KEY` | (none) | Optional alternate name for the OpenAI key |
+| `FLOW_CRYPTO_MASTER_KEY` | (none) | **Required for 4-condition assignment and Spark telemetry.** Unpadded Base64URL for exactly 32 random bytes. BLAKE3 derives dedicated, domain-separated subkeys; never log or rotate during a study. |
 | `VAPID_PUBLIC_KEY` | `""` | VAPID public key for Web Push |
 | `VAPID_PRIVATE_KEY` | `""` | VAPID private key for Web Push (never log) |
 | `VAPID_CLAIM_SUB` | `mailto:flow@oss.joefang.org` | VAPID subject claim |
 | `FLOW_VAPID_PUBLIC_KEY` | (none) | Legacy alias for `VAPID_PUBLIC_KEY` |
 | `FLOW_VAPID_PRIVATE_KEY` | (none) | Legacy alias for `VAPID_PRIVATE_KEY` |
+| `FLOW_PUSH_GONE_410_THRESHOLD` | `2` | Consecutive 410 responses before revoking a push subscription |
+| `ENABLE_AUTOMATED_FEEDBACK` | `true` | Whether automated delayed feedback requests are enabled |
+| `FEEDBACK_DELAY_MINUTES` | `120` | Delay (minutes) before automated feedback is queued |
+| `FEEDBACK_PROMPT_TEXT` | `How did this prompt work for you?` | Global prompt text used for delayed feedback requests |
+| `FEEDBACK_OPTIONS` | `Works perfectly,Needs tweaks` | Up to two global feedback options for push action buttons |
+| `TZ` | `America/Toronto` | Default IANA timezone for the backend (e.g. `America/New_York`) |
+| `SPARK_SHEETS_SPREADSHEET_ID` | (none) | Google Sheets spreadsheet ID for Spark A/B prompt library; Sheets source activates only when this and one credential source are set |
+| `SPARK_SHEETS_CREDENTIALS_JSON` | (none) | Full service-account JSON for read-only Sheets access; takes precedence over `SPARK_SHEETS_CREDENTIALS_FILE`; never log this value |
+| `SPARK_SHEETS_CREDENTIALS_FILE` | (none) | Readable UTF-8 path to a mounted service-account JSON key file for read-only Sheets access; use instead of inline JSON and mount read-only |
+| `SPARK_SHEETS_RANGE` | `Sparks!A:E` | A1-notation range to fetch from the Spark spreadsheet (columns: id, title, action, reward, tags) |
+| `SPARK_SHEETS_CACHE_TTL_SECS` | `60` | Stale-while-revalidate TTL in seconds for the in-memory Spark library cache |
+| `SPARK_SHEETS_REQUEST_TIMEOUT_SECS` | `10` | HTTP request timeout in seconds for the Sheets API call |
 
 <!-- ENV_TABLE_END -->
+
+### Spark Sheets verification
+
+When the Sheets source is configured, API startup schedules a non-blocking
+remote warmup. It does not delay readiness. A successful remote fetch logs
+`Spark library loaded from remote Google Sheets`; a failed fetch logs the
+reason and falls back to the bundled library. The first A/B request awaits an
+in-progress warmup rather than starting a duplicate remote request. Startup,
+cold-start, and stale-cache refreshes all share one task per API process: cold
+requests await it, while stale requests continue serving their immutable last-
+good snapshot. Application shutdown cancels and joins that task. Multiple API
+replicas maintain independent read-only caches and may each refresh their own
+snapshot.
+
+Every A/B `/spark/generate` response reports the actual cached dataset source
+at `prompt_version.source`: `google-sheets` after a validated remote fetch, or
+`bundled-file` when the fallback is serving. This is authoritative even when
+the two datasets have identical content hashes.
 
 ## Drift Prevention
 

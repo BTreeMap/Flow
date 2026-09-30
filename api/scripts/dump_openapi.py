@@ -24,7 +24,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Import the app to extract its OpenAPI schema
-    from app.main import app  # noqa: E402
+    from app.main import app
 
     schema = app.openapi()
     out_path = Path(args.out)

@@ -193,12 +193,15 @@ All proposals are logged in the `patch_audit_log` table:
 | `user_profiles` | Store A — structured profile JSON (1:1 with membership) |
 | `memory_items` | Store B — individual memory items per membership |
 | `patch_audit_log` | Audit trail for all proposals and decisions |
-| `conversations` | Chat conversations (1:1 with membership) |
-| `messages` | Chat message history |
-| `conversation_runtime_state` | Runtime state for conversation protocol (JSON blob) |
+| `conversations` / `messages` | Chat history (1:1 conversation per membership) |
+| `conversation_runtime_state` | Runtime state for conversation protocol (JSON) |
 | `conversation_events` | Persisted SSE events for durable replay |
-| `conversation_turns` | Idempotent messaging deduplication (client_msg_id) |
-| `outbox_events` | Scheduled/async event queue with dedup and leasing |
+| `conversation_turns` | Idempotent messaging dedupe (`client_msg_id`) |
+| `participations` | One row per participant in a study (carries `study_start_date`) |
+| `daily_intervention_logs` | Per-day telemetry per participation |
+| `daily_summaries` | EOD sterilized cross-day memory (see below) |
+| `scheduled_tasks` | Durable scheduled work with lease + dedupe keys |
+| `notifications` / `notification_rules` / `notification_rule_state` / `notification_deliveries` | Notification engine state + delivery audit |
 
 ---
 
@@ -234,15 +237,14 @@ The `/p/{project_id}/events` SSE endpoint supports durable replay:
 
 ---
 
-## Worker Semantics
+## Notification Worker
 
-The outbox worker (`app.worker.outbox_worker`) processes scheduled events:
+Scheduled nudges and notifications are driven by two cooperating components:
 
-- After persisting a scheduled prompt message and committing, **push delivery is best-effort**.
-- Push failures or timeouts are logged per-subscription but do **not** cause the outbox event to retry.
-- This prevents duplicate messages from push delivery failures.
-- Events are claimed with lease fields (`locked_until`, `locked_by`, `claimed_at`) and use 5-minute lock TTL.
-- Failed events retry with exponential backoff; dead-letter after max attempts.
+- `app/services/notification_engine.py` — inserts `scheduled_tasks` rows with idempotent dedupe keys and 5-minute leases (`locked_until`, `locked_by`, `claimed_at`); handles retry with exponential backoff and dead-letter after max attempts.
+- `app/worker/notification_worker.py` — claims due tasks, generates the nudge (static template for A/B, LLM with regex-gated regen for C, framed LLM for D), persists the assistant `Message` with `condition_source` tagging, then attempts Web Push delivery.
+
+**Push delivery is best-effort.** Push failures or timeouts after the message is persisted are logged per-subscription but do **not** retry the scheduled task. This prevents duplicate messages when push transport fails after the message has already been written.
 
 ---
 
@@ -253,7 +255,7 @@ The outbox worker (`app.worker.outbox_worker`) processes scheduled events:
 | `api/app/agents/engine.py` | Main turn engine: `process_turn()` |
 | `api/app/agents/intake.py` | Intake specialist agent |
 | `api/app/agents/feedback.py` | Feedback specialist agent |
-| `api/app/agents/coach.py` | Coach specialist agent |
+| `api/app/agents/coach.py` | Coach specialist agent (incl. Condition-C regex rewrite) |
 | `api/app/agents/runner.py` | Agent runner (LangChain invoke wrapper + tool trace) |
 | `api/app/agents/tool_trace.py` | Tool call tracing callback |
 | `api/app/tools/proposal_tools.py` | Proposal tools + ProposalCollector |
@@ -261,17 +263,221 @@ The outbox worker (`app.worker.outbox_worker`) processes scheduled events:
 | `api/app/prompt_loader.py` | Prompt file loader with caching and versioning |
 | `api/app/services/profile_service.py` | Profile/memory persistence + validation |
 | `api/app/services/event_service.py` | SSE event persistence and replay |
-| `api/app/services/outbox_service.py` | Outbox event persistence |
-| `api/app/services/scheduler_service.py` | Scheduling logic |
-| `api/app/schemas/patches.py` | All Pydantic schemas for proposals |
-| `api/app/schemas/router.py` | RouteDecision (INTAKE/FEEDBACK/COACH) |
-| `api/app/worker/outbox_worker.py` | Outbox event processing worker |
+| `api/app/services/notification_engine.py` | Scheduled-task scheduling, lease, retry, push delivery |
+| `api/app/worker/notification_worker.py` | Worker loop: claims tasks, generates nudges, persists, pushes |
+| `api/app/schemas/patches.py` | Pydantic schemas for proposals |
+| `api/app/schemas/router.py` | RouteDecision schema |
 | `api/app/db_migrations/migrate.py` | Alembic migration runner |
 
 ---
 
-## Deprecation Notes
+## 4-Condition Randomized Block Experiment
 
-- The legacy conversation flow engine (`api/app/engine/`) has been fully removed. 
-- The legacy behavioral contract (`docs/legacy-conversation-flow-contract.md`) is deprecated and for historical reference only.
-- New work should use the Router + specialist architecture defined here.
+The platform supports a four-condition microcoaching study (codenamed
+`microcoach_v1`). Conditions vary the prompt-generation source and the
+psychological framing applied to nudges:
+
+| Code | Prompt source | Framing | Feedback path |
+|------|---------------|---------|---------------|
+| **A** | Static template (`api/config/interventions.json` → `condition_A`) | None | Deterministic script, no LLM, no profile/memory writes |
+| **B** | Static template (`condition_B`) | Implementation Intention + Commitment Contract | Deterministic script, no LLM, no profile/memory writes |
+| **C** | LLM (`prompts/prompt_generator_condition_c.txt`) | **Strictly forbidden** (regex-gated post-filter + regen) | LLM (`feedback_system.txt`) with profile/memory adaptation |
+| **D** | LLM (`prompts/prompt_generator_condition_d.txt`) | Required (If/Then + Commitment in every nudge) | LLM (`feedback_system.txt`) with profile/memory adaptation |
+
+### Assignment
+
+Every participant is enrolled in a `Participation` row when they pass the
+INTAKE phase. The daily condition is computed deterministically by
+`app/services/randomization.py::get_daily_condition()` using BLAKE3 keyed mode
+over `(participation_id, block_index)` with a BLAKE3-derived randomization
+subkey to pick a Latin square from the 24 possible 4-day permutations. This
+guarantees:
+
+- balanced exposure (every block uses each condition exactly once),
+- reproducible audit (the same inputs always produce the same assignment),
+- independence between participants.
+
+`FLOW_CRYPTO_MASTER_KEY` must be an unpadded Base64URL encoding of exactly 32
+random bytes. `app.services.crypto` derives the dedicated randomization subkey
+in BLAKE3's dedicated derive-key mode; the master secret is never used directly.
+
+Static A/B template selection is separate from condition assignment. It uses an
+unkeyed BLAKE3 content hash over `(participation_id, day_index, static_nudge)`
+to choose a reproducible template and is not a security boundary.
+
+### Master-key rotation
+
+The current master key is applied to every existing and new `Participation`
+when its condition is resolved. Changing the master key therefore changes the
+deterministic assignment for future days; existing `DailyInterventionLog` rows
+retain the previously delivered conditions for analysis. Keep a stable key for
+the duration of a study unless a deliberate reassignment is intended.
+
+### Anti-contamination guardrails
+
+The dominant validity threat is the LLM in Condition C implicitly mimicking
+the framing it produced under Conditions B / D. Three independent
+guardrails protect against this:
+
+1. **Condition-source tagging.** Every assistant `Message` and every
+   nudge created by the worker is tagged with `condition_source`
+   (`COND_A` / `COND_B` / `COND_C` / `COND_D` / `SYSTEM`).
+2. **History filtering.** When the engine assembles chat history for a
+   Condition C turn it (a) drops any message whose `condition_source` is
+   `COND_B` or `COND_D`, and (b) restricts the window to the trailing 24
+   hours. See `CONDITION_C_EXCLUDED_SOURCES` and the `timedelta(hours=24)`
+   filter in `app/agents/engine.py::process_turn`.
+3. **Regex framing filter.** Both the Coach turn path
+   (`app/agents/coach.py`) and the worker nudge path
+   (`app/worker/notification_worker.py::_generate_condition_nudge`) run
+   Condition C output through
+   `app/services/condition_filters.py::contains_condition_c_framing`. On
+   match the prompt is regenerated up to three times with an explicit
+   "remove the framing" instruction; if the model still drifts, the worker
+   falls back to a safe neutral string (`CONDITION_C_SAFE_FALLBACK`) and
+   the Coach returns its last attempt while logging the failure.
+
+### Static-feedback bypass for A / B
+
+The research design forbids any LLM intervention on the feedback path for
+the two control conditions (otherwise the dynamic user model would
+silently adapt and confound the comparison). The engine therefore short-
+circuits the FEEDBACK route under conditions A and B and calls
+`app/services/feedback_script.py::run_static_feedback` instead of the
+`run_feedback` LangChain agent. The script:
+
+- asks one fixed question at a time (attempt → yes/no follow-up → close),
+- stores raw answers in `DailyInterventionLog.extracted_state["script"]`
+  for observational analysis,
+- **never** emits a `propose_profile_patch` or `propose_memory_patch`.
+
+The turn is tagged `RouteDecision(route="STATIC_FEEDBACK", ...)`. The
+`STATIC_TEMPLATE` and `STATIC_FEEDBACK` route literals are engine-internal
+markers — the Router LLM is post-validated and is **never** allowed to
+emit them (see `route_turn_llm` coercion).
+
+### Telemetry
+
+`DailyInterventionLog` rows are heartbeated once per day per participant
+with `(intervention_date, study_day_index, assigned_condition,
+extracted_state)`. The FEEDBACK bot in conditions C and D may push
+factual state into `extracted_state` via the `record_daily_telemetry`
+tool; the static A / B script writes its raw answers there directly.
+
+### Configuration knobs
+
+| Setting | Where | Purpose |
+|---------|-------|---------|
+| `FLOW_CRYPTO_MASTER_KEY` | env | One Base64URL-encoded 32-byte master secret. BLAKE3 derives domain-separated subkeys; missing or invalid makes the engine fail and makes the worker use the generic prompt. Do not rotate during a study. |
+| `api/config/interventions.json` | repo | Lists of static nudge templates for A and B. Underscore-prefixed keys (e.g. `_comment`) are ignored. |
+| `MAX_CONDITION_C_REGEN_ATTEMPTS` | `notification_worker.py` | Worker-side regen budget before the safe fallback fires. |
+| `MAX_CONDITION_C_REWRITE_ATTEMPTS` | `coach.py` | Coach-side regen budget for chat turns. |
+
+### Key code entry points (experiment-specific)
+
+| File | Purpose |
+|------|---------|
+| `api/app/services/randomization.py` | Deterministic 4-day block assignment |
+| `api/app/services/intervention_config.py` | Loads + samples static templates for A/B |
+| `api/app/services/condition_filters.py` | Shared Condition-C framing regex |
+| `api/app/services/feedback_script.py` | Deterministic A/B feedback script |
+| `api/prompts/prompt_generator_condition_c.txt` | Condition C nudge prompt (no framing) |
+| `api/prompts/prompt_generator_condition_d.txt` | Condition D nudge prompt (If/Then + commitment) |
+| `api/app/worker/notification_worker.py::_generate_condition_nudge` | Worker-side condition dispatcher |
+| `api/tests/test_four_condition_experiment.py` | Coverage for all of the above |
+
+## Daily Memory Condensation (EOD Semantic Firewall)
+
+### Problem
+
+Conditions C and D both need access to multi-day participant context (anchor,
+barrier, last successful prompt, etc.) so the LLM can stay coherent across the
+study. Feeding raw `chat_history` from prior days reintroduces exactly the
+framing the experiment is trying to isolate: a Condition D message ("If it's
+8am and I'm at my desk, then I will do one pushup. We agreed.") would leak into
+Condition C's context window on the next day and contaminate the comparison.
+
+The fix is a per-day **sterilized rolling summary** that both C and D read in
+place of raw history. Both arms see identical condensed memory, so cross-day
+recall is preserved while framing differences remain isolated to that day's
+generation step.
+
+### Storage
+
+A dedicated table `daily_summaries` (migration `0012`) stores one row per
+`(participation_id, summary_date)` with columns:
+
+- `summary_text` (≤60 words, 1-2 sentences)
+- `previous_summary_text` (what was fed in as prior context — for audit)
+- `message_count` (raw turns synthesized that day)
+- `sterilization_status` ∈ `{clean, regenerated, fallback}`
+- `prompt_sha256` (anchors the row to a specific prompt version)
+
+This store has its **own writer** (the summarizer service) and is **not**
+subject to the Router single-writer rule that governs `UserProfile` and
+`Memory`. The summarizer is treated as a deterministic transformation of
+already-committed chat history, not as a behavior-changing patch.
+
+### Lazy hot-path catch-up
+
+There is no cron. Before the engine or worker invokes the C/D code path for a
+participant, it calls:
+
+```
+await ensure_summaries_up_to(db, participation, yesterday)
+summary = await load_latest_summary(db, participation.id)
+```
+
+`ensure_summaries_up_to` walks day-by-day from the last committed summary
+(or `study_start_date`) up to `yesterday`, producing one row per day. It is
+idempotent (existing rows are skipped) and bounded (30-day safety budget per
+call). Days with no participant activity write a placeholder row so the chain
+never has gaps.
+
+A/B days are summarized too, even though A/B themselves never read summaries —
+this keeps the **incremental synthesis** chain unbroken so that when a
+participant rotates back to C or D the next block, the summary still reflects
+the full study.
+
+### Sterilization pipeline
+
+`summarize_day` →
+
+1. Format that day's chat log (`_format_chat_log`, assistant turns truncated).
+2. Render `eod_summarizer_system.txt` with `$previous_memory`,
+   `$daily_chat_log`, etc. The prompt explicitly forbids framing vocabulary
+   (`promise`, `commit`, `if/then`, `reward`, `bet`, ...).
+3. LLM call (15-20s timeout, `ChatOpenAI`).
+4. **Regex-gated regen** via `contains_condition_c_framing` (the same filter
+   the worker uses on Condition C nudges). On a hit, retry up to
+   `MAX_REGEN_ATTEMPTS=2` with an "ADDITIONAL INSTRUCTION" reminder.
+5. On persistent framing or LLM failure, fall back to a **deterministic
+   skeleton** built from `DailyInterventionLog.extracted_state.script.attempted`
+   ("User completed the habit." / "User did not complete the habit.").
+6. `_truncate_to_word_cap` enforces the 60-word cap as a final safety net.
+
+Every row records which path produced it via `sterilization_status`, so the
+analysis pipeline can drop or downweight non-`clean` rows if needed.
+
+### Consumption
+
+- **Engine (chat turns):** for C/D, the latest summary is prepended as a
+  `SystemMessage` ("Sterilized cross-day memory ...") in front of the day's
+  filtered chat history. The existing 24h + `condition_source` filter for C is
+  kept as defense-in-depth.
+- **Worker (nudges):** `_llm_generate_nudge` accepts `daily_summary=` and
+  appends it to the `HumanMessage` for the prompt-generator. A/B static
+  templates ignore the summary entirely.
+
+Both arms read the **same** sterilized text — that is the firewall.
+
+### Key code entry points (summarizer)
+
+| File | Purpose |
+|------|---------|
+| `api/prompts/eod_summarizer_system.txt` | Sterilization system prompt + forbidden-word list |
+| `api/app/services/eod_summarizer.py` | `summarize_day` / `ensure_summaries_up_to` / `load_latest_summary` + fallback chain |
+| `api/app/models.py::DailySummary` | ORM model |
+| `api/app/db_migrations/versions/0012_add_daily_summaries_table.py` | Migration |
+| `api/tests/test_eod_summarizer.py` | Coverage (clean, regen, fallback, idempotency, chaining, engine/worker injection) |
+

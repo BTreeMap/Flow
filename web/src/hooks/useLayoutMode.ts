@@ -18,7 +18,7 @@ const PHONE_QUERY = "(max-width: 599px), ((max-height: 599px) and (max-width: 95
 function subscribe(cb: () => void) {
   const mql = window.matchMedia(PHONE_QUERY);
   mql.addEventListener("change", cb);
-  return () => mql.removeEventListener("change", cb);
+  return () => { mql.removeEventListener("change", cb); };
 }
 
 function getSnapshot(): LayoutMode {

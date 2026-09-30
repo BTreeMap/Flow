@@ -1,16 +1,17 @@
 import time
+from unittest.mock import MagicMock
+
 import pytest
 import pytest_asyncio
-from unittest.mock import MagicMock
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from app.models import Base, PushSubscription, ProjectMembership, Project
+from app.config import clear_config_cache
 from app.db import get_db
 from app.id_utils import generate_project_id
-from app.config import clear_config_cache
+from app.main import app
+from app.models import Base, Project, ProjectMembership, PushSubscription
 from h4ckath0n.auth.dependencies import _get_current_user
 from h4ckath0n.auth.models import Base as H4ckath0nBase
-from app.main import app
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 # Setup test DB
 _test_engine = create_async_engine("sqlite+aiosqlite://", echo=False)

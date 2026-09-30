@@ -13,13 +13,15 @@ export function FeedbackPollWidget({
   projectId,
 }: FeedbackPollWidgetProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleVote = async (actionId: string) => {
     if (isSubmitting || metadata.status === "completed") return;
     setIsSubmitting(true);
+    setError(null);
     try {
       const token = await getOrMintToken("http");
-      await fetch(`/api/p/${projectId}/chat/events/feedback`, {
+      const res = await fetch(`/api/p/${projectId}/chat/events/feedback`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -31,12 +33,16 @@ export function FeedbackPollWidget({
           project_id: projectId,
         }),
       });
+      if (!res.ok) {
+        throw new Error(`Feedback request failed with status ${res.status}`);
+      }
     } catch (err) {
       console.error(
         "Feedback dispatch failed",
         { projectId, notificationId: metadata.notification_id, actionId },
         err,
       );
+      setError("Couldn't record your response. Please try again.");
       setIsSubmitting(false);
     }
   };
@@ -51,13 +57,12 @@ export function FeedbackPollWidget({
             key={action.id}
             disabled={isCompleted || isSubmitting}
             onClick={() => void handleVote(action.id)}
-            className={`flex items-center justify-between w-full text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
-              isCompleted
+            className={`flex items-center justify-between w-full text-left px-4 py-3 rounded-xl border transition-all duration-200 ${isCompleted
                 ? isSelected
                   ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-surface-2 border-transparent text-text-subtle opacity-60 cursor-default"
                 : "bg-surface hover:bg-surface-2 border-divider active:scale-[0.98]"
-            }`}
+              }`}
           >
             <span className="font-medium text-[15px]">{action.title}</span>
             {isCompleted && isSelected ? (
@@ -68,6 +73,11 @@ export function FeedbackPollWidget({
           </button>
         );
       })}
+      {error !== null && (
+        <p className="text-[13px] text-danger px-1" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

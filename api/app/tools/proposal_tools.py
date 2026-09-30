@@ -7,7 +7,6 @@ from typing import Any
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Tool argument schemas
 # ---------------------------------------------------------------------------
@@ -134,10 +133,7 @@ def _make_telemetry_tool(collector: ProposalCollector, source_bot: str) -> Any:
     def record_daily_telemetry(state_updates: dict[str, Any]) -> str:
         """Record factual behavioral state updates (e.g. steps, barriers) into today's telemetry log."""
         collector.telemetry_proposals.append(
-            {
-                "state_updates": state_updates,
-                "source_bot": source_bot,
-            }
+            {"state_updates": state_updates, "source_bot": source_bot}
         )
         return "Telemetry successfully recorded. Proceed to close the conversation."
 

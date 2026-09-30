@@ -24,7 +24,7 @@ interface ServerPublicKeyOptions {
   rp?: { name: string; id: string };
   rpId?: string;
   user?: { id: string; name: string; displayName: string };
-  pubKeyCredParams?: Array<{ type: string; alg: number }>;
+  pubKeyCredParams?: { type: string; alg: number }[];
   timeout?: number;
   attestation?: string;
   authenticatorSelection?: {
@@ -33,16 +33,16 @@ interface ServerPublicKeyOptions {
     requireResidentKey?: boolean;
     userVerification?: string;
   };
-  excludeCredentials?: Array<{
+  excludeCredentials?: {
     id: string;
     type: string;
     transports?: string[];
-  }>;
-  allowCredentials?: Array<{
+  }[];
+  allowCredentials?: {
     id: string;
     type: string;
     transports?: string[];
-  }>;
+  }[];
   userVerification?: string;
 }
 
