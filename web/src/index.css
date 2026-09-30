@@ -2,62 +2,231 @@
 @source "../node_modules/streamdown/dist/*.js";
 
 @theme {
-  /* Brand */
-  --color-primary: #6366f1;
-  --color-primary-hover: #4f46e5;
+  /* ----------------------------------------------------------------------
+   * Claude design system — warm editorial.
+   *
+   * The trinity is cream canvas + coral accent + dark warm-ink surfaces.
+   * Deliberately warm and humanist where most AI products use cool blue and
+   * slate; the cream tint IS the brand differentiator, so nothing here is
+   * pure white or a cool gray.
+   *
+   * Raw ramps come first, semantic tokens alias onto them. Component code
+   * never names a hex value — retheming happens here and nowhere else.
+   * See DESIGN_SYSTEM.md.
+   * -------------------------------------------------------------------- */
+
+  /* --- Coral: the brand voltage. Scarce on elements, generous on bands. -- */
+  --color-coral-50: #faf0ec;
+  --color-coral-100: #f4e0d8;
+  --color-coral-200: #e9c2b3;
+  --color-coral-300: #dda38d;
+  --color-coral-400: #d28d74;
+  /* The literal brand coral. Decorative fills only — it cannot carry text. */
+  --color-coral-brand: #cc785c;
+  --color-coral-500: #b55839;
+  --color-coral-600: #a9583e;
+  --color-coral-700: #8a462f;
+  --color-coral-800: #5f3021;
+  --color-coral-900: #341a12;
+  --color-coral-950: #1e0f0a;
+
+  /* --- Cream: the canvas backbone, from page floor to dark product chrome. */
+  --color-cream-50: #faf9f5;
+  --color-cream-100: #f5f0e8;
+  --color-cream-200: #efe9de;
+  --color-cream-300: #e8e0d2;
+  --color-cream-400: #e6dfd8;
+  --color-cream-500: #a09d96;
+  --color-cream-600: #8e8b82;
+  --color-cream-700: #6c6a64;
+  --color-cream-800: #3d3d3a;
+  --color-cream-900: #252523;
+  --color-cream-950: #141413;
+
+  /* --- Dark warm-ink surfaces: code chrome, footers, featured tiers. ----- */
+  --color-ink-800: #252320;
+  --color-ink-900: #1f1e1b;
+  --color-ink-950: #181715;
+
+  /* ----------------------------------------------------------------------
+   * Semantic tokens (light mode). Dark overrides live in [data-theme=dark].
+   * -------------------------------------------------------------------- */
+
+  /* Brand.
+     `primary` is one lightness step below the literal brand coral (#cc785c):
+     white-on-#cc785c measures 3.28:1, which fails WCAG AA for the 14px button
+     label the design puts on it. Hue and saturation are unchanged, so the
+     coral character survives; `coral-brand` keeps the exact value for
+     decorative fills that carry no text. See DESIGN_SYSTEM.md §5. */
+  --color-primary: var(--color-coral-500);
+  --color-primary-hover: var(--color-coral-600);
   --color-on-primary: #ffffff;
   --color-primary-foreground: #ffffff;
+  --color-primary-dark: var(--color-coral-600);
+  --color-accent: #377e70;
 
-  /* Surfaces */
-  --color-bg: #f2f3f5;
-  --color-surface: #ffffff;
-  --color-surface-2: #f9fafb;
-  --color-surface-3: #f1f5f9;
-  --color-surface-alt: #f9fafb;
-  --color-surface-muted: #f3f4f6;
-  --color-surface-hover: #f3f4f6;
+  /* Surfaces. Cards separate from the canvas by hairline, not by fill —
+     "color-block first, shadow rare". Pure white is off-brand. */
+  --color-bg: var(--color-cream-50);
+  --color-surface: var(--color-cream-50);
+  --color-surface-2: var(--color-cream-100);
+  --color-surface-3: var(--color-cream-200);
+  --color-surface-alt: var(--color-cream-100);
+  --color-surface-muted: var(--color-cream-200);
+  --color-surface-hover: var(--color-cream-200);
+  --color-surface-strong: var(--color-cream-300);
+  /* Dark product surfaces, available in both modes: the cream-to-dark
+     contrast is the pacing mechanism, not a dark-mode-only affordance. */
+  --color-surface-dark: var(--color-ink-950);
+  --color-surface-dark-soft: var(--color-ink-900);
+  --color-surface-dark-elevated: var(--color-ink-800);
+  --color-on-dark: var(--color-cream-50);
+  --color-on-dark-soft: var(--color-cream-500);
 
   /* Text */
-  --color-text: #111827;
-  --color-text-muted: #6b7280;
-  --color-text-subtle: #9ca3af;
-  --color-primary-dark: #4338ca;
+  --color-text: var(--color-cream-950);
+  --color-text-strong: var(--color-cream-900);
+  --color-text-body: var(--color-cream-800);
+  --color-text-muted: var(--color-cream-700);
+  --color-text-subtle: var(--color-cream-600);
 
-  /* Borders */
-  --color-border: #e5e7eb;
-  --color-divider: #f3f4f6;
+  /* Borders — one elevation step, not ink lines. */
+  --color-border: var(--color-cream-400);
+  --color-divider: #ebe6df;
 
   /* Status */
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-danger-hover: #dc2626;
-  --color-error: #ef4444;
+  --color-success: #3d804d;
+  --color-warning: #956c0c;
+  --color-danger: #c64545;
+  --color-danger-hover: #a63636;
+  --color-on-danger: #ffffff;
+  --color-error: #c64545;
+  --color-info: #377e70;
 
   /* Chat */
-  --color-chat-bg: #efeae2;
-  --color-bubble-in: #ffffff;
-  --color-bubble-out: #dcf8c6;
-  --color-bubble-system: #e2e8f0;
+  --color-chat-bg: var(--color-cream-50);
+  --color-bubble-in: var(--color-cream-100);
+  --color-bubble-out: var(--color-coral-100);
+  --color-bubble-system: var(--color-cream-200);
 
-  /* Focus */
-  --color-focus: #6366f180;
+  /* Focus — a coral ring, matching text-input-focused. */
+  --color-focus: color-mix(in srgb, var(--color-coral-brand) 45%, transparent);
 
-  /* Radii */
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-pill: 999px;
+  /* ----------------------------------------------------------------------
+   * Spark framing accents.
+   *
+   * The design's surface trinity admits no fourth tone, but the Spark study
+   * needs five mutually distinguishable vibe markers. They are resolved as
+   * *content accents*, never surfaces: each is desaturated and warmed to sit
+   * on cream, and coral itself is withheld so the brand CTA stays scarce.
+   * -------------------------------------------------------------------- */
+  --color-frame-calm: #3f7e70;
+  --color-frame-calm-tint: #e4efec;
+  --color-frame-zoomies: #a46424;
+  --color-frame-zoomies-tint: #f6ebdc;
+  --color-frame-silly: #b2537a;
+  --color-frame-silly-tint: #f4e6ec;
+  --color-frame-challenge: #a04a3c;
+  --color-frame-challenge-tint: #f4e4e0;
+  --color-frame-science: #5a6f9c;
+  --color-frame-science-tint: #e7eaf2;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+  /* ----------------------------------------------------------------------
+   * Typography. The display/body split is the brand voice and is unbreakable:
+   * a serif display over a humanist sans body. Copernicus and StyreneB are
+   * licensed, so the stacks walk to the closest widely-available faces —
+   * Iowan/Palatino/Georgia for display, Inter/system humanist for body.
+   * -------------------------------------------------------------------- */
+  --font-sans: "Inter", "Inter var", system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Tiempos Headline", "Iowan Old Style", "Palatino Linotype",
+    Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+
+  /* Display steps carry their own negative tracking; without it the serif
+     reads as off-brand. Weight stays 400 — never bold. */
+  --tracking-display-xl: -1.5px;
+  --tracking-display-lg: -1px;
+  --tracking-display-md: -0.5px;
+  --tracking-display-sm: -0.3px;
+  /* Uppercase eyebrow/caption tracking opens up rather than tightening. */
+  --tracking-caption: 1.5px;
+
+  /* Radii — hierarchical: controls 8px, cards 12px, marquee 16px. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* Elevation — the system is color-block first. Shadows stay faint and rare;
+     most depth comes from cream-vs-dark surface contrast. */
+  --shadow-xs: 0 1px 2px rgba(20, 20, 19, 0.04);
+  --shadow-sm: 0 1px 3px rgba(20, 20, 19, 0.08);
+  --shadow-md: 0 2px 8px -2px rgba(20, 20, 19, 0.1);
+  --shadow-lg: 0 8px 24px -8px rgba(20, 20, 19, 0.14);
+  --shadow-primary: 0 1px 3px rgba(20, 20, 19, 0.08);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Layout constants */
   --header-h: 56px;
   --bottomnav-h: 56px;
   --composer-h: 56px;
   --tap: 44px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Type scale as utilities.
+ *
+ * Each display step bundles family + size + weight + tracking, because those
+ * four always travel together: a serif headline that loses its negative
+ * tracking or picks up a bold weight reads as off-brand. Exposing them as one
+ * class stops components re-deriving the combination by hand.
+ * ------------------------------------------------------------------------ */
+@utility display-xl {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 3.25rem;
+  line-height: 1.05;
+  letter-spacing: var(--tracking-display-xl);
+}
+
+@utility display-lg {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 2.5rem;
+  line-height: 1.1;
+  letter-spacing: var(--tracking-display-lg);
+}
+
+@utility display-md {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 2rem;
+  line-height: 1.15;
+  letter-spacing: var(--tracking-display-md);
+}
+
+@utility display-sm {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-display-sm);
+}
+
+/* Uppercase eyebrow above a display headline. */
+@utility eyebrow {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
 }
 
 @layer base {
@@ -76,12 +245,27 @@
 
   body {
     @apply bg-bg text-text antialiased;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0
-      env(safe-area-inset-left);
+    font-family: var(--font-sans);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  }
+
+  /* Editorial display voice: serif, regular weight, negative tracking. The
+     serif character is the brand — a sans headline would read as generic. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: var(--tracking-display-md);
+  }
+
+  h1 {
+    letter-spacing: var(--tracking-display-lg);
   }
 
   /* Prevent iOS Safari auto-zoom on focus for all form controls */
   @supports (-webkit-touch-callout: none) {
+
     input,
     textarea,
     select {
@@ -95,43 +279,112 @@ html[data-theme="light"] {
 }
 
 html[data-theme="dark"] {
-  --color-primary: #818cf8;
-  --color-primary-hover: #6366f1;
-  --color-on-primary: #ffffff;
-  --color-primary-foreground: #ffffff;
+  /* Dark mode inhabits the same warm-ink product surfaces the light theme
+     already uses for code chrome, so the two modes share one vocabulary.
+     Coral holds its hue: it reads correctly on warm dark without lightening. */
+  --color-primary: var(--color-coral-400);
+  --color-primary-hover: var(--color-coral-300);
+  --color-on-primary: var(--color-cream-950);
+  --color-primary-foreground: var(--color-cream-950);
+  --color-primary-dark: var(--color-coral-300);
+  --color-accent: #7fcfc0;
 
-  --color-bg: #0b0f1a;
-  --color-surface: #111827;
-  --color-surface-2: #1e293b;
-  --color-surface-3: #1e293b;
-  --color-surface-alt: #1e293b;
-  --color-surface-muted: #1e293b;
-  --color-surface-hover: #1e293b;
+  --color-bg: var(--color-ink-950);
+  --color-surface: var(--color-ink-900);
+  --color-surface-2: var(--color-ink-800);
+  --color-surface-3: var(--color-ink-800);
+  --color-surface-alt: var(--color-ink-800);
+  --color-surface-muted: var(--color-ink-800);
+  --color-surface-hover: var(--color-ink-800);
+  --color-surface-strong: var(--color-ink-800);
+  --color-surface-dark: var(--color-ink-950);
+  --color-surface-dark-soft: var(--color-ink-900);
+  --color-surface-dark-elevated: var(--color-ink-800);
 
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --color-text-subtle: #64748b;
-  --color-primary-dark: #a5b4fc;
+  --color-text: var(--color-cream-50);
+  --color-text-strong: var(--color-cream-50);
+  --color-text-body: var(--color-cream-100);
+  --color-text-muted: var(--color-cream-500);
+  --color-text-subtle: var(--color-cream-600);
 
-  --color-border: #334155;
-  --color-divider: #1e293b;
+  --color-border: #34312c;
+  --color-divider: #2a2823;
 
-  --color-success: #4ade80;
-  --color-warning: #fbbf24;
-  --color-danger: #f87171;
-  --color-danger-hover: #ef4444;
-  --color-error: #f87171;
+  --color-success: #6fc482;
+  --color-warning: #d4a017;
+  --color-danger: #e07070;
+  --color-danger-hover: #c64545;
+  --color-on-danger: var(--color-cream-950);
+  --color-error: #e07070;
+  --color-info: #7fcfc0;
 
-  --color-chat-bg: #0b141a;
-  --color-bubble-in: #1e293b;
-  --color-bubble-out: #054640;
-  --color-bubble-system: #1e293b;
+  --color-chat-bg: var(--color-ink-950);
+  --color-bubble-in: var(--color-ink-800);
+  --color-bubble-out: var(--color-coral-800);
+  --color-bubble-system: var(--color-ink-800);
 
-  --color-focus: #818cf880;
+  --color-focus: color-mix(in srgb, var(--color-coral-400) 45%, transparent);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+  /* Vibe accents lighten so they hold contrast on warm dark. */
+  --color-frame-calm: #7fcfc0;
+  --color-frame-calm-tint: #22322f;
+  --color-frame-zoomies: #e0a35c;
+  --color-frame-zoomies-tint: #35291b;
+  --color-frame-silly: #d98cae;
+  --color-frame-silly-tint: #33222a;
+  --color-frame-challenge: #d98a78;
+  --color-frame-challenge-tint: #342420;
+  --color-frame-science: #92a4d0;
+  --color-frame-science-tint: #23262f;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 2px 8px -2px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  --shadow-primary: 0 1px 3px rgba(0, 0, 0, 0.35);
 
   color-scheme: dark;
 }
 
+@layer base {
+
+  /* Editorial text selection */
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
+    color: var(--color-text);
+  }
+
+  /* Quiet, slim scrollbars that match the palette */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text-subtle);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from functools import lru_cache
-from pathlib import Path
 
-_INTERVENTION_CONFIG_PATH = (
-    Path(__file__).resolve().parents[2] / "config" / "interventions.json"
-)
+from app.config_loader import resolve_config_path
+from app.services.crypto import content_hexdigest
+
+_INTERVENTION_CONFIG_FILENAME = "interventions.json"
 
 
 @lru_cache(maxsize=1)
 def _load_interventions_config() -> dict[str, list[str]]:
-    with _INTERVENTION_CONFIG_PATH.open(encoding="utf-8") as config_file:
+    config_path = resolve_config_path(_INTERVENTION_CONFIG_FILENAME)
+    with config_path.open(encoding="utf-8") as config_file:
         raw = json.load(config_file)
 
     if not isinstance(raw, dict):
@@ -24,6 +24,10 @@ def _load_interventions_config() -> dict[str, list[str]]:
     for key, value in raw.items():
         if not isinstance(key, str):
             raise ValueError("Intervention config keys must be strings")
+        # Allow leading-underscore keys (e.g. "_comment") as JSON-friendly
+        # metadata that the loader ignores.
+        if key.startswith("_"):
+            continue
         if not isinstance(value, list):
             raise ValueError(f"Intervention config key '{key}' must map to a list")
         parsed[key] = []
@@ -57,8 +61,6 @@ def get_static_intervention(
     if not condition_array:
         raise ValueError(f"No interventions configured for condition '{condition}'")
 
-    hash_hex = hashlib.sha256(
-        f"{participation_id}:{day_index}:{salt}".encode("utf-8")
-    ).hexdigest()
+    hash_hex = content_hexdigest(f"{participation_id}:{day_index}:{salt}".encode())
     array_index = int(hash_hex, 16) % len(condition_array)
     return condition_array[array_index]

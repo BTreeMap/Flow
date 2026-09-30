@@ -203,7 +203,7 @@ docker run \
   --read-only \
   --tmpfs /tmp \
   -p 8000:8000 \
-  ghcr.io/<owner>/<repo>-backend:latest
+  ghcr.io/<owner>/<repo>:latest
 ```
 
 ### Supply chain security

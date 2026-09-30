@@ -820,6 +820,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/spark/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Spark Record Event
+         * @description Persist a strictly typed, idempotent Spark interaction event.
+         */
+        post: operations["spark_record_event_spark_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spark/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Spark Generate
+         * @description Generate one or more Spark cards.
+         *
+         *     Intentionally unauthenticated: Spark is a public, no-login prototype so
+         *     anyone can try it without creating an account. The persisted research
+         *     identity is pseudonymous and is never an authentication factor.
+         *
+         *     Conditions A and B are served from the static, researcher-curated
+         *     library and never touch the LLM. Conditions C and D proxy to the LLM.
+         */
+        post: operations["spark_generate_spark_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1452,6 +1499,249 @@ export interface components {
             current_notification_id?: number | null;
             /** Text */
             text: string;
+        };
+        /** SparkCard */
+        SparkCard: {
+            /** Action */
+            action: string;
+            /** Fit Score */
+            fit_score?: number | null;
+            /**
+             * Frame
+             * @enum {string}
+             */
+            frame: "calm" | "zoomies" | "silly" | "challenge" | "science";
+            /** Reward */
+            reward: string;
+            /** Title */
+            title: string;
+            /** Why */
+            why: string;
+        };
+        /** SparkCardSelectedEvent */
+        SparkCardSelectedEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event_type: "card_selected";
+            /** Rank */
+            rank: number;
+        };
+        /**
+         * SparkClientIdentity
+         * @description Pseudonymous identity inputs supplied on every Spark request.
+         */
+        SparkClientIdentity: {
+            /** Fingerprint */
+            fingerprint?: string | null;
+            /** Fingerprint Version */
+            fingerprint_version?: string | null;
+            /**
+             * Installation Id
+             * Format: uuid
+             */
+            installation_id: string;
+            /** Locale */
+            locale?: string | null;
+            /** Timezone */
+            timezone?: string | null;
+        };
+        /** SparkConditionCompletedEvent */
+        SparkConditionCompletedEvent: {
+            /** Clarity */
+            clarity: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event_type: "condition_completed";
+            /** Fit */
+            fit: number;
+            /** Willing */
+            willing: number;
+        };
+        /** SparkCueSelectedEvent */
+        SparkCueSelectedEvent: {
+            /** Confidence */
+            confidence?: number | null;
+            /** Cue */
+            cue: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event_type: "cue_selected";
+        };
+        /**
+         * SparkEventRequest
+         * @description An idempotent, immutable client-side Spark interaction event.
+         */
+        SparkEventRequest: {
+            /**
+             * Client Event Id
+             * Format: uuid
+             */
+            client_event_id: string;
+            /**
+             * Condition
+             * @enum {string}
+             */
+            condition: "A" | "B" | "C" | "D";
+            /** Event */
+            event: components["schemas"]["SparkFlowStartedEvent"] | components["schemas"]["SparkIntakeAnsweredEvent"] | components["schemas"]["SparkFrameSelectedEvent"] | components["schemas"]["SparkCardSelectedEvent"] | components["schemas"]["SparkTimerFinishedEvent"] | components["schemas"]["SparkFeedbackSubmittedEvent"] | components["schemas"]["SparkCueSelectedEvent"] | components["schemas"]["SparkConditionCompletedEvent"];
+            /**
+             * Flow Id
+             * Format: uuid
+             */
+            flow_id: string;
+            identity: components["schemas"]["SparkClientIdentity"];
+        };
+        /** SparkFeedbackSubmittedEvent */
+        SparkFeedbackSubmittedEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event_type: "feedback_submitted";
+            /** Reason */
+            reason?: string | null;
+            /** Tried */
+            tried: number;
+            /**
+             * Tweak
+             * @default
+             */
+            tweak: string;
+        };
+        /** SparkFlowStartedEvent */
+        SparkFlowStartedEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event_type: "flow_started";
+        };
+        /** SparkFrameSelectedEvent */
+        SparkFrameSelectedEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event_type: "frame_selected";
+            /**
+             * Frame
+             * @enum {string}
+             */
+            frame: "calm" | "zoomies" | "silly" | "challenge" | "science";
+        };
+        /** SparkGenerateRequest */
+        SparkGenerateRequest: {
+            /** Adjustment History */
+            adjustment_history?: string[];
+            base_card?: components["schemas"]["SparkCard"] | null;
+            /**
+             * Client Event Id
+             * Format: uuid
+             */
+            client_event_id: string;
+            /**
+             * Condition
+             * @enum {string}
+             */
+            condition: "A" | "B" | "C" | "D";
+            /** Context */
+            context?: string | null;
+            /**
+             * Flow Id
+             * Format: uuid
+             */
+            flow_id: string;
+            /** Frame Preference */
+            frame_preference?: ("calm" | "zoomies" | "silly" | "challenge" | "science") | null;
+            identity: components["schemas"]["SparkClientIdentity"];
+        };
+        /** SparkGenerateResponse */
+        SparkGenerateResponse: {
+            /** Cards */
+            cards: components["schemas"]["SparkCard"][];
+            /**
+             * Condition
+             * @enum {string}
+             */
+            condition: "A" | "B" | "C" | "D";
+            /** Model */
+            model: string;
+            /** Prompt Version */
+            prompt_version: {
+                [key: string]: string;
+            };
+            timer?: components["schemas"]["SparkTimerPolicy"];
+        };
+        /** SparkIntakeAnsweredEvent */
+        SparkIntakeAnsweredEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event_type: "intake_answered";
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "anchor" | "action";
+            /** Value */
+            value: string;
+        };
+        /** SparkTimerFinishedEvent */
+        SparkTimerFinishedEvent: {
+            /**
+             * Completion
+             * @enum {string}
+             */
+            completion: "completed" | "skipped";
+            /** Duration Seconds */
+            duration_seconds: number;
+            /**
+             * Duration Source
+             * @enum {string}
+             */
+            duration_source: "study_default" | "participant";
+            /** Elapsed Ms */
+            elapsed_ms: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event_type: "timer_finished";
+        };
+        /**
+         * SparkTimerPolicy
+         * @description What the client is allowed to offer for the countdown length.
+         *
+         *     Served on every generate response rather than from a second endpoint: it is
+         *     one small object on a payload the flow already fetches, it costs no extra
+         *     round-trip, and it lands in the persisted ``generation_succeeded`` payload,
+         *     so the policy in force is recorded per flow for free.
+         */
+        SparkTimerPolicy: {
+            /** Choices */
+            choices?: number[];
+            /**
+             * Default Seconds
+             * @default 60
+             */
+            default_seconds: number;
+            /**
+             * Max Seconds
+             * @default 300
+             */
+            max_seconds: number;
+            /**
+             * Min Seconds
+             * @default 15
+             */
+            min_seconds: number;
         };
         /** TimezoneUpdateRequest */
         TimezoneUpdateRequest: {
@@ -3057,6 +3347,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserProfileData"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spark_record_event_spark_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SparkEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spark_generate_spark_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SparkGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SparkGenerateResponse"];
                 };
             };
             /** @description Validation Error */

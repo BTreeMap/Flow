@@ -35,8 +35,9 @@ export function isTokenValid(usage: TokenUsage = "http"): boolean {
 export async function getOrMintToken(
   usage: TokenUsage = "http",
 ): Promise<string> {
-  if (isTokenValid(usage)) {
-    return tokenCache.get(usage)!.token;
+  const cached = tokenCache.get(usage);
+  if (cached && isTokenValid(usage)) {
+    return cached.token;
   }
   return mintToken(usage);
 }

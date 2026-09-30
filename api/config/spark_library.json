@@ -1,0 +1,68 @@
+{
+  "_comment": "Researcher-curated static Spark prompts for conditions A and B -- Spark's non-adaptive control groups, which (unlike C/D) never call an LLM. Source: workplace movement-break / desk-exercise / exercise-snack research, each rewritten into a self-contained, low-risk, timed format. Entry text must NEVER name a duration: the participant sets the countdown and the app shows it, so write 'until the timer ends', never 'for 60 seconds'. Where a prompt had a later revision, only the latest (V2) text is kept; external video links were removed (we don't want them for now) and minor grammar was polished. Tags reuse the five Spark vibes from web/src/pages/spark/sparkData.ts (calm, zoomies, silly, challenge, science); an entry may carry more than one tag, and every tag must have at least two entries (enforced by app/services/spark_library.py and api/tests/test_api.py). KNOWN GAP: a 10th entry ('C5') was planned by the research team but its source text was never provided -- add it here once available; nothing else needs to change for that.",
+  "sparks": [
+    {
+      "id": "C1",
+      "tags": ["zoomies"],
+      "title": "Stand & Reach Reset",
+      "action": "Stand up and gently reach your arms overhead, roll your shoulders, and alternate lifting each knee. Keep moving comfortably until the timer ends.",
+      "reward": "Notice whether your body feels a little more awake afterward."
+    },
+    {
+      "id": "C2",
+      "tags": ["calm"],
+      "title": "Tree Pose Balance",
+      "action": "Stand beside a wall or chair. Place one foot lightly against your ankle or lower leg and balance for 30 seconds, then switch sides for 30 seconds. Use the wall whenever you need it -- you're done after both sides.",
+      "reward": "See whether you feel a little steadier or more focused."
+    },
+    {
+      "id": "C3",
+      "tags": ["calm"],
+      "title": "Desk Shoulder & Neck Release",
+      "action": "Let your arms hang loosely. Roll your shoulders backward five times, slowly turn your head from side to side, then reach both arms upward. Repeat gently until the timer ends.",
+      "reward": "Notice whether your neck or shoulders feel less tense."
+    },
+    {
+      "id": "C4",
+      "tags": ["zoomies", "challenge"],
+      "title": "March or Stairs Burst",
+      "action": "March in place at a comfortable but energetic pace until the timer ends, letting your arms move naturally. Need more intensity? Use a nearby flight of stairs instead.",
+      "reward": "Notice whether you feel more alert when the timer ends."
+    },
+    {
+      "id": "C6",
+      "tags": ["calm", "science"],
+      "title": "Tension Scan & Release",
+      "action": "Pause and notice where your body feels most tense right now -- shoulders, back, hips, or legs. Choose just one area and gently move or stretch it for the rest of the minute.",
+      "reward": "When the timer ends, notice whether that area feels the same or slightly different."
+    },
+    {
+      "id": "C7",
+      "tags": ["zoomies", "challenge", "silly"],
+      "title": "Pick Your Move",
+      "action": "What's one small healthy choice you can make right now? Stand up and do a few squats, stretch your arms and shoulders, or march in place until the timer ends.",
+      "reward": "Pick one and go for it -- you've got this!"
+    },
+    {
+      "id": "C8",
+      "tags": ["zoomies"],
+      "title": "Energy Check Burst",
+      "action": "Check in: is your energy low, steady, or restless right now? Try a quick burst of activity to reset.",
+      "reward": "See how your energy shifts!"
+    },
+    {
+      "id": "C9",
+      "tags": ["zoomies", "silly"],
+      "title": "Jumping Jack Reset",
+      "action": "How does your body feel right now? Take the time on the clock for a quick set of jumping jacks.",
+      "reward": "Notice how your body feels different afterward."
+    },
+    {
+      "id": "C10",
+      "tags": ["calm", "science"],
+      "title": "Posture Realign",
+      "action": "What's your posture like right now -- slouching, tensed up, or sitting comfortably? Take a moment to realign for the next sixty seconds.",
+      "reward": "Small changes make a big difference!"
+    }
+  ]
+}

@@ -19,7 +19,7 @@ export async function createAuthWebSocket(
   if (onMessage) {
     ws.addEventListener("message", (event) => {
       try {
-        const data = JSON.parse(event.data as string);
+        const data: unknown = JSON.parse(event.data as string);
         onMessage(data);
       } catch {
         onMessage(event.data);

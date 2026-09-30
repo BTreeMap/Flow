@@ -6,9 +6,7 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from app.config import clear_config_cache, get_default_timezone
-
 
 # ---------------------------------------------------------------------------
 # Default timezone fallback (config helper)
@@ -57,9 +55,8 @@ class TestWorkerPromptContext:
         """Profile preferred_time=11:15, but actual fire time is 17:00 Toronto.
         Time and display_name should be baked directly into the SystemMessage —
         no ChatPromptTemplate involved."""
-        from langchain_core.messages import HumanMessage, SystemMessage
-
         from app.schemas.patches import UserProfileData
+        from langchain_core.messages import HumanMessage, SystemMessage
 
         profile = UserProfileData(
             prompt_anchor="morning jog",
@@ -87,26 +84,31 @@ class TestWorkerPromptContext:
         mock_llm.ainvoke = fake_ainvoke
 
         with (
-            patch("app.worker.notification_worker.config") as mock_config,
+            patch("app.worker.nudge.config") as mock_config,
             patch(
-                "app.worker.notification_worker.load_user_profile",
+                "app.worker.nudge.load_user_profile",
                 new_callable=AsyncMock,
             ) as mock_load,
             patch(
-                "app.worker.notification_worker.ChatOpenAI",
+                "app.worker.nudge.make_chat_llm",
                 return_value=mock_llm,
             ),
             patch(
-                "app.worker.notification_worker.get_prompt_context_for_membership",
+                "app.worker.nudge.get_prompt_context_for_membership",
                 new_callable=AsyncMock,
                 return_value=fake_prompt_ctx,
+            ),
+            patch(
+                "app.worker.nudge._resolve_condition_for_membership",
+                new_callable=AsyncMock,
+                return_value=(None, None, None),
             ),
         ):
             mock_config.get_openai_api_key.return_value = "fake-key"
             mock_config.get_llm_model.return_value = "gpt-4o-mini"
             mock_load.return_value = profile
 
-            from app.worker.notification_worker import _generate_custom_prompt
+            from app.worker.nudge import _generate_custom_prompt
 
             fake_db = MagicMock()
             result = await _generate_custom_prompt(fake_db, 1, "Daily Nudge")
@@ -254,8 +256,6 @@ class TestDisplayNameFromFlowUserProfile:
     @pytest.mark.asyncio
     async def test_get_display_name_returns_name_from_flow_profile(self) -> None:
         """get_display_name_for_membership fetches from FlowUserProfile."""
-        from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
         from app.id_utils import generate_project_id
         from app.models import (
             Base,
@@ -264,6 +264,7 @@ class TestDisplayNameFromFlowUserProfile:
             ProjectMembership,
         )
         from app.services.profile_service import get_display_name_for_membership
+        from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
         engine = create_async_engine("sqlite+aiosqlite://", echo=False)
         session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -299,11 +300,10 @@ class TestDisplayNameFromFlowUserProfile:
     @pytest.mark.asyncio
     async def test_get_display_name_returns_none_when_no_profile(self) -> None:
         """get_display_name_for_membership returns None when FlowUserProfile is absent."""
-        from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
         from app.id_utils import generate_project_id
         from app.models import Base, Project, ProjectMembership
         from app.services.profile_service import get_display_name_for_membership
+        from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
         engine = create_async_engine("sqlite+aiosqlite://", echo=False)
         session_factory = async_sessionmaker(engine, expire_on_commit=False)

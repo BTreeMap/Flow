@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
 from datetime import date, datetime
+
+from app.services.crypto import keyed_digest
 
 CONDITION_PERMUTATIONS: tuple[tuple[str, str, str, str], ...] = (
     ("A", "B", "C", "D"),
@@ -37,14 +38,12 @@ def get_daily_condition(
     participation_id: int,
     study_start_date: datetime,
     current_date: date,
-    salt: str,
+    key: bytes,
 ) -> str:
     """Return the deterministic condition assignment for a given study day."""
     day_index = (current_date - study_start_date.date()).days
     block_index = day_index // 4
     intra_block_step = day_index % 4
-    digest = hashlib.sha256(
-        f"{participation_id}:{block_index}:{salt}".encode("utf-8")
-    ).hexdigest()
-    permutation_index = int(digest, 16) % 24
+    digest = keyed_digest(key, f"{participation_id}:{block_index}".encode())
+    permutation_index = int.from_bytes(digest, "big") % 24
     return CONDITION_PERMUTATIONS[permutation_index][intra_block_step]

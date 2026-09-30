@@ -10,6 +10,10 @@ build/
 venv/
 api/.venv/
 .pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
 
 # Node
 node_modules/

@@ -4,53 +4,15 @@ import { MessageSquare, Search } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { getOrMintToken } from "../../auth/token";
 import { ListRow } from "../ui/ListRow";
-import type { DashboardResponse, MembershipInfo } from "../../api/types";
+import { Avatar } from "./Avatar";
+import {
+  getDisplayPreview,
+  isUnread,
+  formatTime,
+} from "../../utils/membership";
+import type { DashboardResponse } from "../../api/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
-
-function getDisplayPreview(preview: string | null | undefined): string {
-  if (!preview) return "No messages yet";
-  return preview.startsWith("[System:") ? "Feedback submitted" : preview;
-}
-
-function getLastOpenedAt(projectId: string): string | null {
-  return localStorage.getItem(`chat-opened:${projectId}`);
-}
-
-function isUnread(m: MembershipInfo): boolean {
-  if (!m.last_message_at) return false;
-  const opened = getLastOpenedAt(m.project_id);
-  if (!opened) return true;
-  return m.last_message_at > opened;
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) {
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return d.toLocaleDateString([], { weekday: "short" });
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
-}
-
-function Avatar({ name }: { name: string }) {
-  const initials = (name || "?")
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  return (
-    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[15px] font-semibold shrink-0">
-      {initials}
-    </div>
-  );
-}
 
 interface ChatListPaneProps {
   /** When true, renders compact (inside side rail shell) */
@@ -69,7 +31,7 @@ export function ChatListPane({ embedded }: ChatListPaneProps) {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`Failed to load chats (${res.status})`);
-      return res.json();
+      return (await res.json()) as DashboardResponse;
     },
   });
 
@@ -114,9 +76,9 @@ export function ChatListPane({ embedded }: ChatListPaneProps) {
             type="text"
             placeholder="Search"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); }}
             data-testid="chat-search"
-            className="w-full pl-9 pr-4 py-2 bg-surface-2 text-[16px] text-text placeholder:text-text-subtle rounded-[var(--radius-pill)] border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus transition-colors"
+            className="w-full pl-9 pr-4 py-2 bg-surface-2 text-[16px] text-text placeholder:text-text-subtle rounded-pill border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus transition-colors"
           />
         </div>
       </div>
@@ -136,11 +98,13 @@ export function ChatListPane({ embedded }: ChatListPaneProps) {
         )}
 
         {!isLoading && memberships.length === 0 && !error && (
-          <div className="flex flex-col items-center justify-center py-16 text-text-muted">
-            <MessageSquare className="w-12 h-12 mb-3 opacity-30" />
-            <p className="text-[15px]">No chats yet</p>
-            <p className="text-[13px] mt-1">
-              Use an invite link to join a research project.
+          <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/15 to-accent/10 flex items-center justify-center mb-4 ring-1 ring-inset ring-primary/10">
+              <MessageSquare className="w-7 h-7 text-primary" />
+            </div>
+            <p className="text-[16px] font-semibold text-text">No chats yet</p>
+            <p className="text-[13px] text-text-muted mt-1 max-w-[15rem]">
+              Use an invite link to join a research project and start coaching.
             </p>
           </div>
         )}

@@ -14,8 +14,6 @@ Validates:
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from app.schemas.patches import (
     COACH_ALLOWED_FIELDS,
     CONFIDENCE_THRESHOLDS,
@@ -34,7 +32,7 @@ from app.services.profile_service import (
     validate_memory_patch,
     validate_profile_patch,
 )
-
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # Permission matrix constants
@@ -44,16 +42,16 @@ from app.services.profile_service import (
 class TestPermissionMatrix:
     def test_intake_allowed_fields(self) -> None:
         """Intake can only set onboarding fields."""
-        assert INTAKE_ALLOWED_FIELDS == {
+        assert {
             "prompt_anchor",
             "preferred_time",
             "habit_domain",
             "motivational_frame",
-        }
+        } == INTAKE_ALLOWED_FIELDS
 
     def test_feedback_allowed_fields(self) -> None:
         """Feedback can set rolling coaching fields."""
-        assert FEEDBACK_ALLOWED_FIELDS == {
+        assert {
             "last_barrier",
             "last_tweak",
             "last_successful_prompt",
@@ -61,11 +59,11 @@ class TestPermissionMatrix:
             "intensity",
             "tone_tags",
             "tone_scores",
-        }
+        } == FEEDBACK_ALLOWED_FIELDS
 
     def test_coach_has_no_direct_fields(self) -> None:
         """Coach can only propose candidates, no direct fields."""
-        assert COACH_ALLOWED_FIELDS == set()
+        assert set() == COACH_ALLOWED_FIELDS
 
     def test_get_allowed_fields_intake(self) -> None:
         assert get_allowed_fields("INTAKE") == INTAKE_ALLOWED_FIELDS

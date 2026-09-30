@@ -50,16 +50,8 @@ export function applyThemePreference(pref: ThemePreference): "light" | "dark" {
 
 export function subscribeToSystemThemeChanges(cb: () => void): () => void {
   const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  if (typeof mediaQuery.addEventListener === "function") {
-    mediaQuery.addEventListener("change", cb);
-  } else {
-    mediaQuery.addListener(cb);
-  }
+  mediaQuery.addEventListener("change", cb);
   return () => {
-    if (typeof mediaQuery.removeEventListener === "function") {
-      mediaQuery.removeEventListener("change", cb);
-    } else {
-      mediaQuery.removeListener(cb);
-    }
+    mediaQuery.removeEventListener("change", cb);
   };
 }

@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
+from app.models import Base, FlowUserProfile
+from h4ckath0n.auth.models import Base as H4ckath0nBase
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-from app.models import Base, FlowUserProfile
-from h4ckath0n.auth.models import Base as H4ckath0nBase
 
 _test_engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 _test_session_factory = async_sessionmaker(_test_engine, expire_on_commit=False)
@@ -39,8 +39,8 @@ def _override_require_user(
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    from app.main import app
     from app.db import get_db
+    from app.main import app
     from h4ckath0n.auth.dependencies import _get_current_user
 
     async with _test_engine.begin() as conn:

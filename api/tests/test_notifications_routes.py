@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
-from typing import Any, AsyncGenerator
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from app.id_utils import generate_project_id
 from app.models import (
     Base,
@@ -29,6 +26,9 @@ from app.models import (
 )
 from h4ckath0n.auth.models import Base as H4ckath0nBase
 from h4ckath0n.realtime import AuthContext
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 _test_engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 _test_session_factory = async_sessionmaker(_test_engine, expire_on_commit=False)
@@ -71,8 +71,8 @@ def _override_auth_context(
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    from app.main import app
     from app.db import get_db
+    from app.main import app
     from app.routes import _require_auth_context
     from h4ckath0n.auth.dependencies import _get_current_user
 
@@ -306,9 +306,14 @@ async def test_unified_notification_read_not_found(
 
 @pytest.mark.asyncio
 async def test_webpush_vapid_key(client: AsyncClient) -> None:
-    """GET /notifications/webpush/vapid-public-key returns 503 when not configured."""
+    """An unconfigured VAPID key is our gap, so it reports as a 5xx.
+
+    Previously 503. A missing key in our own deployment is not something the
+    caller can act on, and the project reports only caller-actionable failures
+    as 4xx.
+    """
     resp = await client.get("/notifications/webpush/vapid-public-key")
-    assert resp.status_code == 503
+    assert resp.status_code == 500
 
 
 @pytest.mark.asyncio
@@ -663,8 +668,7 @@ async def test_cross_project_delete_protection(
         )
         rule_b_after = rule_result.scalar_one()
         assert rule_b_after.is_active is True, (
-            "Rule from membership B must remain active when processed "
-            "under membership A's context"
+            "Rule from membership B must remain active when processed under membership A's context"
         )
 
 

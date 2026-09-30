@@ -1,4 +1,5 @@
 import type { ReactNode, MouseEvent } from "react";
+import { Badge } from "../Badge";
 
 interface ListRowProps {
   avatar?: ReactNode;
@@ -27,29 +28,27 @@ export function ListRow({
       onKeyDown={
         onClick
           ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onClick(e as unknown as MouseEvent);
-              }
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onClick(e as unknown as MouseEvent);
             }
+          }
           : undefined
       }
-      className={`flex items-center gap-3 px-4 h-[72px] hover:bg-surface-2 active:bg-surface-3 transition-colors cursor-pointer ${className}`}
+      className={`group flex items-center gap-3 px-3 mx-1 h-[72px] rounded-md hover:bg-surface-2 active:bg-surface-3 transition-colors duration-150 cursor-pointer ${className}`}
     >
       {avatar && <div className="shrink-0">{avatar}</div>}
       <div className="flex-1 min-w-0">
-        <p className="text-[16px] font-medium text-text truncate">{primary}</p>
+        <p className={`text-[15px] truncate ${unread ? "font-semibold text-text" : "font-medium text-text"}`}>{primary}</p>
         {secondary && (
-          <p className="text-[13px] text-text-muted truncate leading-tight">
+          <p className={`text-[13px] truncate leading-tight mt-0.5 ${unread ? "text-text-muted" : "text-text-subtle"}`}>
             {secondary}
           </p>
         )}
       </div>
-      <div className="shrink-0 flex flex-col items-end gap-1">
+      <div className="shrink-0 flex flex-col items-end gap-1.5">
         {trailing}
-        {unread && (
-          <span className="w-2 h-2 rounded-full bg-primary" />
-        )}
+        {unread && <Badge dot tone="primary" />}
       </div>
     </div>
   );

@@ -12,11 +12,21 @@ class RouteDecision(BaseModel):
 
     The ``route`` field determines which specialist agent handles the turn.
     ``reason`` is log-only and must never be shown to the user.
+
+    ``INTAKE``/``FEEDBACK``/``COACH`` are the three specialist routes the
+    Router LLM may emit. ``STATIC_TEMPLATE`` and ``STATIC_FEEDBACK`` are
+    synthetic post-routing markers the engine assigns when an experimental
+    control condition (A or B) bypasses the LLM with a deterministic
+    nudge or scripted feedback turn. The Router LLM never emits these.
     """
 
-    route: Literal["INTAKE", "FEEDBACK", "COACH"] = Field(
-        ..., description="Target specialist module: INTAKE, FEEDBACK, or COACH"
-    )
+    route: Literal[
+        "INTAKE",
+        "FEEDBACK",
+        "COACH",
+        "STATIC_TEMPLATE",
+        "STATIC_FEEDBACK",
+    ] = Field(..., description="Target specialist module or static-condition marker")
     reason: str | None = Field(
         default=None,
         description="Log-only justification for the routing decision",

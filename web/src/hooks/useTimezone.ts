@@ -27,7 +27,7 @@ export function useTimezone() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const prev: TzReportState = JSON.parse(stored);
+        const prev = JSON.parse(stored) as TzReportState;
         const sameTimezone = prev.timezone === timezone;
         const withinWindow = Date.now() - prev.ts < SIX_HOURS_MS;
         if (sameTimezone && withinWindow) return;

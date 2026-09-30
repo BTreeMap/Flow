@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { MemoryRouter } from "react-router";
 import { Settings } from "./Settings";
 
 // ── mock api client (typed openapi-fetch) ─────────────────────────
@@ -34,7 +35,11 @@ function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  return (
+    <MemoryRouter>
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    </MemoryRouter>
+  );
 }
 
 function mockMatchMedia(matches: boolean) {
@@ -187,14 +192,15 @@ describe("Settings – passkey rename", () => {
     const input = screen.getByTestId("passkey-name-input");
     fireEvent.change(input, { target: { value: "Work Key" } });
     fireEvent.click(screen.getByTestId("passkey-name-save"));
-    await waitFor(() =>
+    await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
         `/auth/passkeys/${samplePasskeys[0]!.id}`,
         expect.objectContaining({
           method: "PATCH",
           body: JSON.stringify({ name: "Work Key" }),
         }),
-      ),
+      );
+    },
     );
   });
 
@@ -297,6 +303,16 @@ describe("Settings – sessions", () => {
     expect(screen.queryByText("No sessions found.")).not.toBeInTheDocument();
     // Error alert should be present with stable data-testid
     expect(screen.getByTestId("sessions-error")).toBeInTheDocument();
+  });
+});
+
+describe("Settings – spark entry", () => {
+  it("renders link to the Spark prototype", async () => {
+    render(<Settings />, { wrapper });
+    expect(await screen.findByTestId("settings-spark-link")).toHaveAttribute(
+      "href",
+      "/spark",
+    );
   });
 });
 

@@ -24,7 +24,7 @@ services:
       WEB_PORT: "${WEB_PORT:-8080}"
     depends_on:
       flow:
-        condition: service_started
+        condition: service_healthy
     networks:
       - flow-net
 
@@ -39,7 +39,18 @@ services:
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       FLOW_DATA_DIR: /app/data
+      API_HOST: "${API_HOST:-::}"
       API_PORT: "${API_PORT:-8000}"
+      TZ: ${TZ:-America/Toronto}
+
+      # One Base64URL-encoded 32-byte master key. BLAKE3 derives dedicated
+      # subkeys for condition randomization and Spark pseudonymous identity.
+      FLOW_CRYPTO_MASTER_KEY: ${FLOW_CRYPTO_MASTER_KEY:-}
+
+      # VAPID Web Push (push disabled if either is empty).
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_CLAIM_SUB: ${VAPID_CLAIM_SUB:-mailto:admin@example.com}
 
       # Default is Postgres (production-shaped). Override to sqlite in CI/local if desired.
       H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-postgresql+asyncpg://flow:flow@postgres:5432/flow}
@@ -70,6 +81,16 @@ services:
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       FLOW_DATA_DIR: /app/data
+      TZ: ${TZ:-America/Toronto}
+
+      # Same master key as the API; worker derives the randomization subkey.
+      FLOW_CRYPTO_MASTER_KEY: ${FLOW_CRYPTO_MASTER_KEY:-}
+
+      # VAPID Web Push — the worker is the only push sender. Push disabled if empty.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_CLAIM_SUB: ${VAPID_CLAIM_SUB:-mailto:admin@example.com}
+
       H4CKATH0N_DATABASE_URL: ${H4CKATH0N_DATABASE_URL:-postgresql+asyncpg://flow:flow@postgres:5432/flow}
     volumes:
       - flow-data:/app/data
@@ -80,7 +101,7 @@ services:
       - flow-net
 
   postgres:
-    image: postgres:18.3
+    image: postgres:18.4
     hostname: postgres
     environment:
       POSTGRES_USER: flow
@@ -108,3 +129,8 @@ networks:
   flow-net:
     name: flow-net
     driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+        - subnet: fd00:f100::/64

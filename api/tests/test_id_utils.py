@@ -1,9 +1,9 @@
 import base64
+import logging
 import re
 import secrets
 import sys
 from unittest.mock import MagicMock
-import logging
 
 # Only mock h4ckath0n if it's not already available.
 # This prevents breaking CI where h4ckath0n is available and used by other tests.

@@ -1,4 +1,4 @@
-FROM caddy:2.11.2-alpine
+FROM caddy:2.11.4-alpine
 
 # OCI labels for traceability
 ARG BUILD_DATE
@@ -33,6 +33,11 @@ RUN set -eux; \
 
 # Run as non-root user
 USER caddy
+
+# Liveness probe: busybox wget against the served SPA root on $WEB_PORT. Shell
+# form so the runtime $WEB_PORT (set by compose / entrypoint) is substituted.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=5 \
+    CMD wget -q -O /dev/null "http://localhost:${WEB_PORT:-8080}/" || exit 1
 
 ENTRYPOINT ["/usr/local/bin/flow-web-entrypoint.sh"]
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

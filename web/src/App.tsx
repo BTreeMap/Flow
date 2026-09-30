@@ -16,6 +16,7 @@ import { OnboardingNotifications } from "./pages/OnboardingNotifications";
 import { ChatThread } from "./pages/ChatThread";
 import { Notifications } from "./pages/Notifications";
 import { Admin } from "./pages/Admin";
+import { Spark } from "./pages/Spark";
 import { useVisualViewport } from "./hooks/useVisualViewport";
 
 export function App() {
@@ -103,6 +104,8 @@ export function App() {
             </ProtectedRoute>
           }
         />
+        {/* Spark is an unauthenticated public prototype: no login required. */}
+        <Route path="/spark" element={<Spark />} />
       </Route>
 
       {/* Chat with responsive shell (immersive or split view) */}

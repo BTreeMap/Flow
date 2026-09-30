@@ -22,10 +22,7 @@ FEEDBACK_SYSTEM_PROMPT = (
     "the system assistant."
 )
 
-FEEDBACK_FALLBACK = (
-    "I'd love to hear how things went with your habit today. "
-    "Feel free to share any updates!"
-)
+FEEDBACK_FALLBACK = "I'd love to hear how things went with your habit today. Feel free to share any updates!"
 
 
 async def run_feedback(

@@ -61,6 +61,13 @@ export type TimezoneUpdateRequest =
 export type DashboardResponse = components["schemas"]["DashboardResponse"];
 export type MembershipInfo = components["schemas"]["MembershipInfo"];
 export type FeedbackPollMetadata = components["schemas"]["FeedbackPollMetadata"];
+export type SparkCard = components["schemas"]["SparkCard"];
+export type SparkGenerateRequest =
+  components["schemas"]["SparkGenerateRequest"];
+export type SparkGenerateResponse =
+  components["schemas"]["SparkGenerateResponse"];
+export type SparkClientIdentity = components["schemas"]["SparkClientIdentity"];
+export type SparkEventRequest = components["schemas"]["SparkEventRequest"];
 
 // ── Notification types (unified) ──────────────────────────────────────────
 
@@ -118,6 +125,8 @@ type _AssertWebpushSubscriptionsGet =
   paths["/notifications/webpush/subscriptions"]["get"];
 type _AssertWebpushSubscriptionDelete =
   paths["/notifications/webpush/subscriptions/{subscription_id}"]["delete"];
+type _AssertSparkGeneratePost = paths["/spark/generate"]["post"];
+type _AssertSparkEventsPost = paths["/spark/events"]["post"];
 
 // Suppress "declared but never read" – they exist purely for the type check.
 export type {
@@ -145,4 +154,6 @@ export type {
   _AssertWebpushSubscriptionsPost,
   _AssertWebpushSubscriptionsGet,
   _AssertWebpushSubscriptionDelete,
+  _AssertSparkGeneratePost,
+  _AssertSparkEventsPost,
 };

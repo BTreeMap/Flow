@@ -1,22 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { isIOS, isStandalone } from "../utils/pwa";
 
 const DISMISS_KEY = "install-dismissed-at";
 const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-function isIOS(): boolean {
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
-}
-
-function isStandalone(): boolean {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in navigator &&
-      (navigator as unknown as { standalone: boolean }).standalone)
-  );
-}
 
 function isDismissed(): boolean {
   const ts = localStorage.getItem(DISMISS_KEY);
@@ -39,7 +25,7 @@ export function useInstallPrompt() {
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
-    const installedHandler = () => setInstalled(true);
+    const installedHandler = () => { setInstalled(true); };
 
     window.addEventListener("beforeinstallprompt", handler);
     window.addEventListener("appinstalled", installedHandler);

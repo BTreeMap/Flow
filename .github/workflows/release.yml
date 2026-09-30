@@ -48,17 +48,17 @@ jobs:
         && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
         || 'sqlite+aiosqlite:///./data/test.db' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
-          version: "0.11.13"
+          version: "0.12.3"
 
       - name: Set up Python
         run: uv python install
 
       - name: Restore uv cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/uv
           key: uv-${{ runner.os }}-${{ hashFiles('api/uv.lock') }}
@@ -78,16 +78,16 @@ jobs:
   frontend-unit-integration:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
-          version: "0.11.13"
+          version: "0.12.3"
 
       - name: Set up Python
         run: uv python install
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
           cache: npm
@@ -120,7 +120,7 @@ jobs:
       web_dev_tags: ${{ steps.version.outputs.web_dev_tags }}
       web_release_tags: ${{ steps.version.outputs.web_release_tags }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -172,9 +172,9 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [compute-version]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
           cache: npm
@@ -200,7 +200,7 @@ jobs:
     env:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -239,7 +239,7 @@ jobs:
     env:
       IMAGE_BASE: ${{ needs.compute-version.outputs.image_base }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -278,7 +278,7 @@ jobs:
     env:
       WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download frontend archive
         uses: actions/download-artifact@v8
@@ -325,7 +325,7 @@ jobs:
     env:
       WEB_IMAGE_BASE: ${{ needs.compute-version.outputs.web_image_base }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download frontend archive
         uses: actions/download-artifact@v8
@@ -472,7 +472,7 @@ jobs:
           cosign sign --yes "${{ env.WEB_IMAGE_BASE }}@${DIGEST}"
 
       - name: Cache Trivy DB
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/trivy
           key: trivy-db-${{ github.run_id }}
@@ -689,17 +689,17 @@ jobs:
         && 'postgresql+asyncpg://flow:flow@localhost:5432/flow_test'
         || 'sqlite+aiosqlite:///./data/test.db' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
-          version: "0.11.13"
+          version: "0.12.3"
 
       - name: Set up Python
         run: uv python install
 
       - name: Restore uv cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/uv
           key: uv-${{ runner.os }}-${{ hashFiles('api/uv.lock') }}
@@ -709,7 +709,7 @@ jobs:
         working-directory: api
         run: uv sync --frozen
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
           cache: npm
@@ -721,7 +721,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}

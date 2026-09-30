@@ -83,6 +83,22 @@ def test_get_port(monkeypatch):
     assert config.get_port() == 8000
 
 
+def test_get_host_defaults_and_overrides(monkeypatch):
+    monkeypatch.delenv("API_HOST", raising=False)
+    monkeypatch.delenv("HOST", raising=False)
+    config.clear_config_cache()
+    assert config.get_host() == "::"
+
+    monkeypatch.setenv("HOST", "0.0.0.0")
+    monkeypatch.delenv("API_HOST", raising=False)
+    config.clear_config_cache()
+    assert config.get_host() == "0.0.0.0"
+
+    monkeypatch.setenv("API_HOST", "::1")
+    config.clear_config_cache()
+    assert config.get_host() == "::1"
+
+
 def test_get_log_level(monkeypatch):
     monkeypatch.delenv("LOG_LEVEL", raising=False)
     assert config.get_log_level() == "INFO"
@@ -138,3 +154,17 @@ def test_feedback_options(monkeypatch):
     monkeypatch.setenv("FEEDBACK_OPTIONS", " , ")
     config.clear_config_cache()
     assert config.get_feedback_options() == ["Works perfectly", "Needs tweaks"]
+
+
+def test_get_flow_crypto_master_key(monkeypatch):
+    monkeypatch.delenv("FLOW_CRYPTO_MASTER_KEY", raising=False)
+    assert config.get_flow_crypto_master_key() == ""
+
+    monkeypatch.setenv(
+        "FLOW_CRYPTO_MASTER_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    )
+    config.clear_config_cache()
+    assert (
+        config.get_flow_crypto_master_key()
+        == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    )

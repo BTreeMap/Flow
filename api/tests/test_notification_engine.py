@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncGenerator
 from datetime import UTC, date, datetime, timedelta
-from typing import AsyncGenerator
 from zoneinfo import ZoneInfo
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from app.id_utils import generate_project_id
 from app.models import (
     Base,
@@ -32,6 +29,8 @@ from app.services.notification_engine import (
     recompute_rule_due_time,
     validate_iana_timezone,
 )
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 _engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
@@ -179,10 +178,10 @@ class TestComputeNextDueUtc:
 
     def test_no_timezone_defaults_to_app_default(self) -> None:
         """When no user timezone is set, default to app default (America/Toronto)."""
-        from app.config import clear_config_cache
-
         # Ensure TZ env does not interfere
         import os
+
+        from app.config import clear_config_cache
 
         old_tz = os.environ.pop("TZ", None)
         clear_config_cache()

@@ -22,28 +22,34 @@ export function Activation() {
   // Redirect unauthenticated users to register with return_to
   if (!authLoading && !isAuthenticated) {
     const returnTo = `/p/${projectId}/activate?invite=${encodeURIComponent(inviteCode)}`;
-    navigate(`/register?return_to=${encodeURIComponent(returnTo)}`, {
+    void navigate(`/register?return_to=${encodeURIComponent(returnTo)}`, {
       replace: true,
     });
     return null;
   }
 
   const doClaim = async () => {
+    if (!projectId) return;
     setError(null);
     setSubmitting(true);
     try {
       const { error: apiError, response } = await api.POST(
         "/p/{project_id}/activate/claim",
         {
-          params: { path: { project_id: projectId! } },
+          params: { path: { project_id: projectId } },
           body: { invite_code: inviteCode },
         },
       );
 
       if (response.status === 409) {
         // Check for EMAIL_REQUIRED
-        const body = apiError as unknown as { code?: string; message?: string };
-        if (body?.code === "EMAIL_REQUIRED") {
+        const code =
+          typeof apiError === "object" &&
+            apiError !== null &&
+            "code" in apiError
+            ? (apiError as { code?: string }).code
+            : undefined;
+        if (code === "EMAIL_REQUIRED") {
           setNeedsEmail(true);
           setSubmitting(false);
           return;
@@ -53,14 +59,14 @@ export function Activation() {
       if (apiError) {
         const detail =
           typeof apiError === "object" &&
-          apiError !== null &&
-          "detail" in apiError
+            apiError !== null &&
+            "detail" in apiError
             ? (apiError as { detail?: string }).detail
             : undefined;
         throw new Error(detail || `Activation failed (${response.status})`);
       }
 
-      navigate(`/p/${projectId}/onboarding/notifications`);
+      void navigate(`/p/${projectId}/onboarding/notifications`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Activation failed");
     } finally {
@@ -68,7 +74,8 @@ export function Activation() {
     }
   };
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+
+  const handleEmailSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     const trimmed = email.trim();
     if (!trimmed) {
@@ -93,7 +100,7 @@ export function Activation() {
     }
   };
 
-  const handleJoin = async (e: React.FormEvent) => {
+  const handleJoin = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     await doClaim();
   };
@@ -102,7 +109,7 @@ export function Activation() {
     <div className="max-w-md mx-auto">
       <Card>
         <CardHeader>
-          <h1 className="text-xl font-bold text-text">Join Project</h1>
+          <h1 className="display-sm text-[1.25rem] text-text">Join Project</h1>
           <p className="text-sm text-text-muted mt-1">
             You've been invited to join a research project.
           </p>
@@ -117,7 +124,7 @@ export function Activation() {
           )}
 
           {needsEmail ? (
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <form onSubmit={(e) => void handleEmailSubmit(e)} className="space-y-4">
               <Alert variant="info">
                 Add your email to continue joining this project.
               </Alert>
@@ -126,7 +133,7 @@ export function Activation() {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); }}
                 required
                 autoFocus
               />
@@ -139,7 +146,7 @@ export function Activation() {
               </Button>
             </form>
           ) : (
-            <form onSubmit={handleJoin} className="space-y-4">
+            <form onSubmit={(e) => void handleJoin(e)} className="space-y-4">
               <Button
                 type="submit"
                 disabled={submitting || !inviteCode}

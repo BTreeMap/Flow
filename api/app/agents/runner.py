@@ -33,7 +33,7 @@ async def run_agent(
         A tuple of (final_text, tool_calls) where tool_calls is a chronological
         list of tool invocations recorded during the agent run.
     """
-    messages = list(chat_history) + [HumanMessage(content=user_text)]
+    messages = [*chat_history, HumanMessage(content=user_text)]
     final_content = ""
     tracer = ToolCallTraceHandler()
 

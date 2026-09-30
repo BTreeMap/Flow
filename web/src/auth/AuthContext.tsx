@@ -71,7 +71,7 @@ function buildState(partial: Omit<AuthState, "user" | "loading">): AuthState {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? "/api";
   const [state, setState] = useState<AuthState>(
     buildState({
       isAuthenticated: false,
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check existing device identity on mount
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const identity = await getDeviceIdentity();
         if (identity) {
@@ -229,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         displayName: null,
       }),
     );
-    navigate("/");
+    void navigate("/");
   }, [navigate]);
 
   return (

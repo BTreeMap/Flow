@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
-from pydantic import ValidationError
-
 from app.routes import (
     AdminCreateInviteRequest,
     AdminDebugStatusResponse,
@@ -25,6 +23,8 @@ from app.routes import (
     SendMessageRequest,
     UserMeUpdateRequest,
 )
+from app.schemas.spark_research import SparkEventRequest
+from pydantic import ValidationError
 
 
 @pytest.mark.parametrize(
@@ -79,6 +79,25 @@ from app.routes import (
                 "prompt": "ping",
                 "max_tokens": 64,
                 "temperature": 0.2,
+            },
+        ),
+        (
+            SparkEventRequest,
+            {
+                "identity": {
+                    "installation_id": "00000000-0000-4000-8000-000000000001",
+                    "fingerprint": "test-thumbmark",
+                    "fingerprint_version": "1.10.0",
+                },
+                "flow_id": "00000000-0000-4000-8000-000000000002",
+                "client_event_id": "00000000-0000-4000-8000-000000000003",
+                "condition": "C",
+                "event": {
+                    "event_type": "feedback_submitted",
+                    "tried": 1,
+                    "reason": "No time",
+                    "tweak": "Make it easier",
+                },
             },
         ),
     ],
@@ -153,6 +172,16 @@ def test_major_request_models_reject_missing_required_fields(
             },
         ),
         (AdminLLMConnectivityRequest, {"prompt": "hello", "extra": "bad"}),
+        (
+            SparkEventRequest,
+            {
+                "identity": {"installation_id": "00000000-0000-4000-8000-000000000001"},
+                "flow_id": "00000000-0000-4000-8000-000000000002",
+                "client_event_id": "00000000-0000-4000-8000-000000000003",
+                "condition": "C",
+                "event": {"event_type": "flow_started", "unexpected": True},
+            },
+        ),
     ],
 )
 def test_major_request_models_reject_unknown_fields(

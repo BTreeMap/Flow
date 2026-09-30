@@ -1,12 +1,12 @@
 import asyncio
-import sys
 import os
+import sys
 
 # Add api directory to sys.path
 sys.path.append(os.getcwd())
 
+from app.db import engine, init_db
 from sqlalchemy import text
-from app.db import init_db, engine
 
 
 async def main():

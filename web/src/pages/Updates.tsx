@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Bell, Download, Clock } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
+import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { useInstallPrompt } from "../hooks/useInstallPrompt";
 import api from "../api/client";
@@ -45,7 +46,7 @@ export function Updates() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["unified-notifications"] });
+      void queryClient.invalidateQueries({ queryKey: ["unified-notifications"] });
     },
   });
 
@@ -55,7 +56,7 @@ export function Updates() {
     if (!n.read_at) {
       markReadMutation.mutate(n.id);
     }
-    navigate(`/p/${n.project_id}/chat?nid=${n.id}`);
+    void navigate(`/p/${n.project_id}/chat?nid=${n.id}`);
   };
 
   return (
@@ -65,7 +66,7 @@ export function Updates() {
       <div className="flex-1">
         {/* Install CTA */}
         {canPrompt && !installed && (
-          <div className="mx-4 mt-3 mb-1 flex items-center gap-3 p-3 bg-surface rounded-[var(--radius-md)] border border-border">
+          <div className="mx-4 mt-3 mb-1 flex items-center gap-3 p-3 bg-surface rounded-md border border-border">
             <Download className="w-5 h-5 text-primary shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-[14px] font-medium text-text">
@@ -113,7 +114,7 @@ export function Updates() {
               key={n.id}
               type="button"
               className={`w-full text-left px-4 py-3 border-b border-border hover:bg-surface-2 transition-colors ${!n.read_at ? "bg-primary/5" : ""}`}
-              onClick={() => handleClick(n)}
+              onClick={() => { handleClick(n); }}
             >
               <div className="flex items-start gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${!n.read_at ? "bg-primary/20" : "bg-surface-2"}`}>
@@ -137,7 +138,7 @@ export function Updates() {
                   </p>
                 </div>
                 {!n.read_at && (
-                  <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
+                  <Badge dot tone="primary" className="shrink-0 mt-2" />
                 )}
               </div>
             </button>

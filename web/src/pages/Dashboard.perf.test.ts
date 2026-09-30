@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { MembershipInfo } from "../api/types";
-import { sortMemberships, filterMemberships } from "./Dashboard";
+import { sortMemberships, filterMemberships } from "../utils/membership";
 
 // Mock data generator
 function generateMemberships(count: number): MembershipInfo[] {

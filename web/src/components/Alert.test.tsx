@@ -25,9 +25,9 @@ describe("Alert", () => {
   it("renders warning variant correctly", () => {
     render(<Alert variant="warning">Warning Alert</Alert>);
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveClass("bg-yellow-500/10");
-    expect(alert).toHaveClass("text-yellow-600");
-    expect(alert).toHaveClass("border-yellow-500/20");
+    expect(alert).toHaveClass("bg-warning/10");
+    expect(alert).toHaveClass("text-warning");
+    expect(alert).toHaveClass("border-warning/20");
   });
 
   it("renders error variant correctly", () => {

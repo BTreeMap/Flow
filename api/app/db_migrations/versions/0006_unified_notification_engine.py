@@ -157,8 +157,7 @@ def upgrade() -> None:
     conn = op.get_bind()
     rows = conn.execute(
         sa.text(
-            "SELECT id, membership_id, topic, cron_rule, is_active, created_at "
-            "FROM nudge_schedules"
+            "SELECT id, membership_id, topic, cron_rule, is_active, created_at FROM nudge_schedules"
         )
     ).fetchall()
     for row in rows:

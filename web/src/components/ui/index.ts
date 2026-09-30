@@ -1,4 +1,8 @@
 export { IconButton } from "./IconButton";
+export { Chip } from "./Chip";
+export { ChipGroup } from "./ChipGroup";
+export type { ChipOption } from "./ChipGroup";
+export { ScaleControl } from "./ScaleControl";
 export { PageHeader } from "./PageHeader";
 export { ListRow } from "./ListRow";
 export { BottomNav } from "./BottomNav";

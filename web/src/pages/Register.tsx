@@ -46,7 +46,7 @@ export function Register() {
 
   const handleEmailSubmit = () => {
     const trimmed = email.trim();
-    if (!trimmed || !trimmed.includes("@")) {
+    if (!trimmed?.includes("@")) {
       setError("Please enter a valid email address");
       return;
     }
@@ -91,7 +91,7 @@ export function Register() {
         },
       });
       if (apiError) throw new Error("Failed to save profile");
-      navigate(returnTo);
+      void navigate(returnTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save profile");
     } finally {
@@ -108,9 +108,8 @@ export function Register() {
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className={`h-2 rounded-full transition-all ${
-              i <= stepIndex ? "w-8 bg-primary" : "w-8 bg-border"
-            }`}
+            className={`h-2 rounded-full transition-all ${i <= stepIndex ? "w-8 bg-primary" : "w-8 bg-border"
+              }`}
           />
         ))}
       </div>
@@ -118,7 +117,7 @@ export function Register() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-xl">
+            <div className="p-2.5 bg-gradient-to-br from-primary/15 to-accent/10 rounded-md ring-1 ring-inset ring-primary/10">
               {step === "email" ? (
                 <Mail className="w-5 h-5 text-primary" />
               ) : step === "passkey" ? (
@@ -128,7 +127,7 @@ export function Register() {
               )}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-text">
+              <h2 className="display-sm text-[1.25rem] text-text">
                 {step === "email"
                   ? "Your Email"
                   : step === "passkey"
@@ -159,7 +158,7 @@ export function Register() {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); }}
                 onKeyDown={(e) => e.key === "Enter" && handleEmailSubmit()}
                 data-testid="register-email"
                 autoFocus
@@ -183,7 +182,7 @@ export function Register() {
                 login.
               </p>
               <Button
-                onClick={handlePasskeyEnroll}
+                onClick={() => void handlePasskeyEnroll()}
                 disabled={loading}
                 className="w-full"
                 data-testid="register-submit"
@@ -200,13 +199,15 @@ export function Register() {
                 label="Display Name"
                 placeholder="Enter your name"
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleFinish()}
+                onChange={(e) => { setDisplayName(e.target.value); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleFinish();
+                }}
                 data-testid="register-display-name"
                 autoFocus
               />
               <Button
-                onClick={handleFinish}
+                onClick={() => void handleFinish()}
                 disabled={loading || !displayName.trim()}
                 className="w-full"
                 data-testid="register-finish"

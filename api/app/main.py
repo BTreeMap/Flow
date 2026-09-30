@@ -9,17 +9,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-
-from app import config
-from app.db import init_db, engine as app_engine
-from app.db_migrations.migrate import upgrade_to_head
-from app.logging_conf import configure_logging
-from app.middleware import add_csp_middleware
-from app.middleware_logging import LoggingMiddleware
-from app.routes import router
+from fastapi.exception_handlers import http_exception_handler
 from h4ckath0n import create_app
 from h4ckath0n.realtime import (
     AuthError,
@@ -27,8 +17,20 @@ from h4ckath0n.realtime import (
     authenticate_websocket,
     sse_response,
 )
+from pydantic import BaseModel
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
-configure_logging()
+from app import config
+from app.db import engine as app_engine
+from app.db import init_db
+from app.db_migrations.migrate import upgrade_to_head
+from app.errors import AppError
+from app.logging_conf import configure_logging
+from app.middleware import add_csp_middleware
+from app.middleware_logging import LoggingMiddleware
+from app.routes import router
+
 _logger = logging.getLogger(__name__)
 
 # Create the h4ckath0n app (handles its own DB tables via lifespan)
@@ -45,7 +47,18 @@ def _is_in_memory_sqlite(url: str) -> bool:
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Combined lifespan: h4ckath0n tables + application tables."""
+    # Configure logging first, here at the application entry point, so every
+    # subsequent startup line — h4ckath0n's, the diagnostics banner, uvicorn's —
+    # shares one format and one set of sinks. This is the single application-side
+    # place logging is configured and it covers every launch path:
+    # `python -m app.serve` and a bare `uvicorn app.main:app` alike. It is not an
+    # import-time side effect, so merely importing this module (as tests do)
+    # never reconfigures global logging.
+    configure_logging()
     async with _h4ckath0n_lifespan(app):
+        from app.diagnostics import log_startup_report
+
+        log_startup_report("api")
         db_url = config.get_database_url()
         try:
             upgrade_to_head()
@@ -66,9 +79,16 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                     "create_all on a persistent database. "
                     "Run 'alembic upgrade head' manually or fix the migration."
                 ) from None
+        from app.services.spark_library import (
+            cancel_library_refresh,
+            schedule_sheets_startup_warmup,
+        )
+
+        await schedule_sheets_startup_warmup()
         try:
             yield
         finally:
+            await cancel_library_refresh()
             await app_engine.dispose()
 
 
@@ -76,6 +96,21 @@ _base_app.router.lifespan_context = _lifespan
 app = _base_app
 app.add_middleware(LoggingMiddleware)
 add_csp_middleware(app)
+
+
+@app.exception_handler(AppError)
+async def _app_error_handler(request: Request, exc: Exception) -> Response:
+    """Log faults that are ours, then hand rendering back to FastAPI.
+
+    Only the observation is added here — one line at the boundary instead of a
+    ``logger.exception`` remembered at each raise site.
+    """
+    assert isinstance(exc, AppError)
+    if not exc.fault.is_caller_visible:
+        _logger.error("Request failed (%s): %s", exc.fault.name, exc.detail)
+    return await http_exception_handler(request, exc)
+
+
 app.include_router(router)
 
 

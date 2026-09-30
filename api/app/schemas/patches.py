@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Evidence spans
@@ -58,7 +57,7 @@ class MemoryItemData(BaseModel):
     content: str = Field(..., description="Short factual statement")
     source_message_ids: list[int] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 # ---------------------------------------------------------------------------

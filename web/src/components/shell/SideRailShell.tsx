@@ -9,7 +9,7 @@ import { ChatListPane } from "../chats/ChatListPane";
  */
 export function SideRailShell() {
   const { pathname } = useLocation();
-  const isChatRoute = pathname.match(/^\/p\/[^/]+\/chat/);
+  const isChatRoute = /^\/p\/[^/]+\/chat/.exec(pathname);
   const isDashboard = pathname === "/dashboard";
 
   // Show chat list pane for chat routes and dashboard

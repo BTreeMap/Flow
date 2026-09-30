@@ -21,27 +21,27 @@ export function UpdatesPage() {
   return (
     <div className="flex flex-col h-full space-y-4">
       <div className="flex items-center gap-2">
-         <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10">
-            <ArrowLeft className="w-5 h-5" />
-         </button>
-         <h1 className="text-2xl font-bold">Updates</h1>
+        <button onClick={() => void navigate(-1)} className="p-2 rounded-full hover:bg-surface-2">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <h1 className="display-sm text-text">Updates</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {isLoading && <p className="text-center p-4">Loading...</p>}
         {!isLoading && notifications.length === 0 && (
-          <p className="text-gray-500 text-center mt-10">No updates yet.</p>
+          <p className="text-text-muted text-center mt-10">No updates yet.</p>
         )}
         {notifications.map((n) => (
           <Card
             key={n.id}
             className={`cursor-pointer hover:bg-surface-2 transition-colors ${!n.read_at ? "border-primary border-2" : ""}`}
             onClick={() => {
-                // If the notification has a payload with server_msg_id, we could link to it?
-                // For now, we just link to the chat thread as requested.
-                // Assuming "jumps to the chat to the exact message" implies going to chat.
-                // We don't have deep linking scroll yet, but this is the primary interaction.
-                navigate(`/p/${projectId}/chat`);
+              // If the notification has a payload with server_msg_id, we could link to it?
+              // For now, we just link to the chat thread as requested.
+              // Assuming "jumps to the chat to the exact message" implies going to chat.
+              // We don't have deep linking scroll yet, but this is the primary interaction.
+              void navigate(`/p/${projectId}/chat`);
             }}
           >
             <CardHeader className="pb-2">

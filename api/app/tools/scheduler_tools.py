@@ -4,10 +4,10 @@ import json
 import logging
 
 from langchain_core.tools import BaseTool, tool
+from sqlalchemy import select
 
 from app.db import async_session_factory
 from app.models import NotificationRule
-from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
