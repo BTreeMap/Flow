@@ -101,7 +101,7 @@ services:
       - flow-net
 
   postgres:
-    image: postgres:18.4
+    image: postgres:18.6
     hostname: postgres
     environment:
       POSTGRES_USER: flow
